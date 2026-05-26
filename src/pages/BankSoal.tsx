@@ -64,6 +64,9 @@ export default function BankSoal() {
   const [selectedFolderToRename, setSelectedFolderToRename] = useState<string | null>(null);
   const [renameFolderInput, setRenameFolderInput] = useState('');
   const [targetBatchMoveFolder, setTargetBatchMoveFolder] = useState('');
+  const [autoDetectCategory, setAutoDetectCategory] = useState(() => {
+    return localStorage.getItem('edu_auto_detect_category') !== 'false';
+  });
   const [newQuestion, setNewQuestion] = useState({
     text: '',
     type: 'Pilihan Ganda',
@@ -274,11 +277,20 @@ export default function BankSoal() {
             option_e = 'Pernyataan dan alasan keduanya salah';
           }
 
+          // Determine category based on autoDetectCategory
+          let finalCategory = '';
+          if (autoDetectCategory) {
+            finalCategory = row['Kategori'] || row['category'] || '';
+          } else {
+            // Import to active folder
+            finalCategory = (activeFolder === 'Umum' ? '' : activeFolder) || '';
+          }
+
           return {
             id: `${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 4)}`,
             text: row['Pertanyaan'] || row['text'] || '',
             type,
-            category: row['Kategori'] || row['category'] || 'Umum',
+            category: finalCategory,
             option_a,
             option_b,
             option_c,
@@ -456,11 +468,20 @@ export default function BankSoal() {
             option_e = 'Pernyataan dan alasan keduanya salah';
           }
 
+          // Determine category based on autoDetectCategory
+          let finalCategory = '';
+          if (autoDetectCategory) {
+            finalCategory = q.category || '';
+          } else {
+            // Import to active folder
+            finalCategory = (activeFolder === 'Umum' ? '' : activeFolder) || '';
+          }
+
           return {
             id: `${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 4)}`,
             text: q.text.trim(),
             type: normalizedType,
-            category: q.category || 'Umum',
+            category: finalCategory,
             option_a,
             option_b,
             option_c,
@@ -1214,6 +1235,33 @@ export default function BankSoal() {
               </button>
             </div>
             <p className="text-[11px] text-slate-400 font-medium">Pilih format dokumen file soal yang akan diunggah:</p>
+            
+            {/* Toggle Auto-Detect Category */}
+            <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100/80 flex items-center justify-between gap-4">
+              <div className="flex-1">
+                <p className="text-xs font-bold text-indigo-950">Deteksi Folder Otomatis</p>
+                <p className="text-[9px] text-slate-400 leading-normal mt-0.5">
+                  {autoDetectCategory 
+                    ? "Membaca kolom/baris Kategori dari berkas impor untuk membuat folder."
+                    : `Menyimpan semua soal impor ke folder aktif saat ini (${activeFolder || 'Umum'}).`
+                  }
+                </p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                <input 
+                  type="checkbox" 
+                  checked={autoDetectCategory}
+                  onChange={(e) => {
+                    const val = e.target.checked;
+                    setAutoDetectCategory(val);
+                    localStorage.setItem('edu_auto_detect_category', String(val));
+                  }}
+                  className="sr-only peer"
+                />
+                <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-4 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-950"></div>
+              </label>
+            </div>
+
             <div className="grid grid-cols-1 gap-2 pt-1">
               <button 
                 onClick={() => { excelInputRef.current?.click(); setShowImportModal(false); }}
