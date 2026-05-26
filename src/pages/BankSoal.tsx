@@ -10,7 +10,13 @@ import {
   Image as ImageIcon,
   Loader2,
   Upload,
-  Download
+  Download,
+  Folder,
+  FolderPlus,
+  ArrowLeft,
+  Edit3,
+  MoreVertical,
+  FolderOpen
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import React from 'react';
@@ -40,6 +46,24 @@ export default function BankSoal() {
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  // Folder & Selection States
+  const [activeFolder, setActiveFolder] = useState<string | null>(null);
+  const [customFolders, setCustomFolders] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('edu_custom_folders') || '[]');
+    } catch {
+      return [];
+    }
+  });
+  const [selectedQuestions, setSelectedQuestions] = useState<string[]>([]);
+  const [showCreateFolderModal, setShowCreateFolderModal] = useState(false);
+  const [showRenameFolderModal, setShowRenameFolderModal] = useState(false);
+  const [showBatchMoveModal, setShowBatchMoveModal] = useState(false);
+  const [newFolderNameInput, setNewFolderNameInput] = useState('');
+  const [selectedFolderToRename, setSelectedFolderToRename] = useState<string | null>(null);
+  const [renameFolderInput, setRenameFolderInput] = useState('');
+  const [targetBatchMoveFolder, setTargetBatchMoveFolder] = useState('');
   const [newQuestion, setNewQuestion] = useState({
     text: '',
     type: 'Pilihan Ganda',
@@ -534,9 +558,177 @@ export default function BankSoal() {
     setShowAddModal(true);
   };
 
-  const filteredQuestions = questions.filter(q => 
-    q.text?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const handleCreateFolder = (name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    if (foldersList.some(f => f.toLowerCase() === trimmed.toLowerCase())) {
+      showAlert({ title: 'Peringatan', message: 'Folder dengan nama ini sudah ada.', type: 'warning' });
+      return;
+    }
+    const updated = [...customFolders, trimmed];
+    setCustomFolders(updated);
+    localStorage.setItem('edu_custom_folders', JSON.stringify(updated));
+    setShowCreateFolderModal(false);
+    setNewFolderNameInput('');
+    showAlert({ title: 'Berhasil', message: `Folder "${trimmed}" berhasil dibuat.`, type: 'success' });
+  };
+
+  const handleRenameFolder = async (oldName: string, newName: string) => {
+    const trimmedNew = newName.trim();
+    if (!trimmedNew || oldName === trimmedNew) return;
+    
+    if (foldersList.some(f => f.toLowerCase() === trimmedNew.toLowerCase() && f !== oldName)) {
+      showAlert({ title: 'Peringatan', message: 'Folder dengan nama ini sudah ada.', type: 'warning' });
+      return;
+    }
+
+    const updatedQuestions = questions.map(q => {
+      const cat = (q.category || '').trim();
+      const isOld = oldName === 'Umum' ? (cat === '' || cat === 'Umum') : (cat === oldName);
+      if (isOld) {
+        return { ...q, category: trimmedNew };
+      }
+      return q;
+    });
+
+    let updatedCustom = customFolders.filter(f => f !== oldName);
+    if (trimmedNew !== 'Umum' && !updatedCustom.includes(trimmedNew)) {
+      updatedCustom.push(trimmedNew);
+    }
+    setCustomFolders(updatedCustom);
+    localStorage.setItem('edu_custom_folders', JSON.stringify(updatedCustom));
+
+    setQuestions(updatedQuestions);
+    await syncToDrive(updatedQuestions);
+
+    if (activeFolder === oldName) {
+      setActiveFolder(trimmedNew);
+    }
+    
+    setShowRenameFolderModal(false);
+    setSelectedFolderToRename(null);
+    setRenameFolderInput('');
+    showAlert({ title: 'Berhasil', message: 'Folder berhasil diubah namanya.', type: 'success' });
+  };
+
+  const handleDeleteFolder = (folderName: string) => {
+    if (folderName === 'Umum') {
+      showAlert({ title: 'Gagal', message: 'Folder default "Umum" tidak dapat dihapus.', type: 'error' });
+      return;
+    }
+    
+    const count = questions.filter(q => (q.category || '').trim() === folderName).length;
+    
+    showAlert({
+      title: 'Hapus Folder?',
+      message: count > 0 
+        ? `Apakah Anda yakin ingin menghapus folder "${folderName}" beserta seluruh ${count} soal di dalamnya?`
+        : `Apakah Anda yakin ingin menghapus folder kosong "${folderName}"?`,
+      type: 'confirm',
+      confirmText: 'Ya, Hapus Semua',
+      onConfirm: async () => {
+        const updatedQuestions = questions.filter(q => (q.category || '').trim() !== folderName);
+        
+        const updatedCustom = customFolders.filter(f => f !== folderName);
+        setCustomFolders(updatedCustom);
+        localStorage.setItem('edu_custom_folders', JSON.stringify(updatedCustom));
+
+        setQuestions(updatedQuestions);
+        await syncToDrive(updatedQuestions);
+        
+        if (activeFolder === folderName) {
+          setActiveFolder(null);
+        }
+        showAlert({ title: 'Terhapus', message: 'Folder berhasil dihapus.', type: 'success' });
+      }
+    });
+  };
+
+  const toggleSelectQuestion = (id: string) => {
+    if (selectedQuestions.includes(id)) {
+      setSelectedQuestions(selectedQuestions.filter(qid => qid !== id));
+    } else {
+      setSelectedQuestions([...selectedQuestions, id]);
+    }
+  };
+
+  const toggleSelectAll = () => {
+    const visibleIds = filteredQuestions.map(q => q.id);
+    const allSelected = visibleIds.every(id => selectedQuestions.includes(id));
+    if (allSelected) {
+      setSelectedQuestions(selectedQuestions.filter(id => !visibleIds.includes(id)));
+    } else {
+      setSelectedQuestions(Array.from(new Set([...selectedQuestions, ...visibleIds])));
+    }
+  };
+
+  const handleBatchDelete = () => {
+    if (selectedQuestions.length === 0) return;
+    
+    showAlert({
+      title: 'Hapus Soal Terpilih?',
+      message: `Apakah Anda yakin ingin menghapus ${selectedQuestions.length} soal terpilih dari Bank Soal?`,
+      type: 'confirm',
+      confirmText: 'Ya, Hapus Semua',
+      onConfirm: async () => {
+        const updatedQuestions = questions.filter(q => !selectedQuestions.includes(q.id));
+        setQuestions(updatedQuestions);
+        await syncToDrive(updatedQuestions);
+        setSelectedQuestions([]);
+        showAlert({ title: 'Terhapus', message: 'Soal terpilih berhasil dihapus.', type: 'success' });
+      }
+    });
+  };
+
+  const handleBatchMove = async (targetFolder: string) => {
+    if (selectedQuestions.length === 0 || !targetFolder) return;
+    
+    const folderName = targetFolder === 'Umum' ? '' : targetFolder;
+
+    const updatedQuestions = questions.map(q => {
+      if (selectedQuestions.includes(q.id)) {
+        return { ...q, category: folderName };
+      }
+      return q;
+    });
+
+    setQuestions(updatedQuestions);
+    await syncToDrive(updatedQuestions);
+    setSelectedQuestions([]);
+    setShowBatchMoveModal(false);
+    showAlert({ title: 'Berhasil', message: `Berhasil memindahkan ${selectedQuestions.length} soal ke folder "${targetFolder}".`, type: 'success' });
+  };
+
+  // Get all unique categories from questions (map empty/trimmed categories to 'Umum')
+  const uniqueCategories = Array.from(new Set(questions.map(q => {
+    const cat = (q.category || '').trim();
+    return cat === '' ? 'Umum' : cat;
+  })));
+  
+  // Combine custom folders and unique categories (excluding 'Umum' which is always present)
+  const combinedFoldersList = Array.from(new Set([
+    ...uniqueCategories,
+    ...customFolders
+  ])).filter(f => f !== 'Umum');
+
+  const foldersList = ['Umum', ...combinedFoldersList];
+
+  const isSearching = searchTerm.trim().length > 0;
+
+  const filteredQuestions = questions.filter(q => {
+    const matchesSearch = q.text?.toLowerCase().includes(searchTerm.toLowerCase());
+    if (!matchesSearch) return false;
+
+    if (activeFolder === null) {
+      // At root level, show questions only if globally searching
+      return isSearching;
+    }
+    
+    // Inside a folder: filter by activeFolder name
+    const cat = (q.category || '').trim();
+    const normalizedCat = cat === '' ? 'Umum' : cat;
+    return normalizedCat === activeFolder;
+  });
 
   if (loading) return (
     <div className="animate-pulse space-y-6">
@@ -548,11 +740,29 @@ export default function BankSoal() {
   );
 
   return (
-    <div className="space-y-6 pb-10">
+    <div className="space-y-6 pb-20">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="tracking-tight">Bank Soal</h2>
-          <p className="text-slate-500 text-sm font-medium">Koleksi pertanyaan ujian Anda yang tersimpan di Cloud.</p>
+          {activeFolder !== null ? (
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-500 mb-2">
+              <button 
+                onClick={() => { setActiveFolder(null); setSelectedQuestions([]); }} 
+                className="hover:text-indigo-950 transition-colors flex items-center gap-1 bg-transparent border-none p-0 cursor-pointer outline-none font-bold"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" /> Kembali
+              </button>
+              <ChevronRight className="w-3 h-3 text-slate-400" />
+              <span className="text-indigo-950 font-black flex items-center gap-1">
+                <FolderOpen className="w-3.5 h-3.5 text-blue-500 fill-blue-50" /> {activeFolder}
+              </span>
+            </div>
+          ) : null}
+          <h2 className="tracking-tight">{activeFolder !== null ? activeFolder : 'Bank Soal'}</h2>
+          <p className="text-slate-500 text-sm font-medium">
+            {activeFolder !== null 
+              ? `Koleksi soal di folder ${activeFolder}.` 
+              : 'Koleksi pertanyaan ujian Anda yang tersimpan di Cloud.'}
+          </p>
         </div>
         <div className="flex flex-wrap gap-2 w-full sm:w-auto">
           <input 
@@ -578,11 +788,14 @@ export default function BankSoal() {
             Impor Soal
           </button>
           <button 
-            onClick={() => setShowAddModal(true)}
+            onClick={() => {
+              setNewQuestion(prev => ({ ...prev, category: (activeFolder === 'Umum' ? '' : activeFolder) || '' }));
+              setShowAddModal(true);
+            }}
             className="bg-indigo-950 text-white px-5 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-lg hover:bg-indigo-900 transition-all active:scale-95"
           >
             <PlusCircle className="w-3.5 h-3.5" />
-            Tambah Manual
+            Tambah Soal
           </button>
         </div>
       </div>
@@ -590,50 +803,195 @@ export default function BankSoal() {
       <div className="bg-white p-3 sm:p-4 rounded-xl border border-slate-100 flex items-center gap-3 shadow-sm group focus-within:ring-4 focus-within:ring-indigo-950/5 transition-all">
         <Search className="text-slate-400 w-4 h-4 group-focus-within:text-blue-500 transition-colors" />
         <input 
-          type="text" placeholder="Cari soal berdasarkan teks..."
+          type="text" 
+          placeholder={activeFolder === null ? "Cari soal secara global di semua folder..." : `Cari soal di folder ${activeFolder}...`}
           className="flex-1 bg-transparent border-none outline-none font-bold text-indigo-950 text-sm placeholder:font-medium"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
       </div>
 
-      {filteredQuestions.length === 0 ? (
-        <div className="bg-white rounded-3xl p-10 sm:p-20 text-center border border-slate-100 border-dashed">
-          <div className="w-16 h-16 bg-slate-50 text-slate-300 rounded-2xl flex items-center justify-center mx-auto mb-6">
-            <BookOpen className="w-8 h-8" />
+      {activeFolder === null && !isSearching ? (
+        /* Folder Directory Grid View */
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+          {foldersList.map(folder => {
+            const count = questions.filter(q => {
+              const cat = (q.category || '').trim();
+              const norm = cat === '' ? 'Umum' : cat;
+              return norm === folder;
+            }).length;
+            
+            return (
+              <div 
+                key={folder} 
+                className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between hover:shadow-xl transition-all relative group cursor-pointer border-l-4 border-l-blue-500"
+                onClick={() => { setActiveFolder(folder); setSelectedQuestions([]); }}
+              >
+                {folder !== 'Umum' && (
+                  <div className="absolute top-4 right-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+                    <button 
+                      onClick={() => { setSelectedFolderToRename(folder); setRenameFolderInput(folder); setShowRenameFolderModal(true); }}
+                      className="p-1 text-slate-400 hover:text-blue-500 rounded-md hover:bg-slate-50 transition-colors"
+                      title="Ubah Nama Folder"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                    </button>
+                    <button 
+                      onClick={() => handleDeleteFolder(folder)}
+                      className="p-1 text-slate-400 hover:text-rose-500 rounded-md hover:bg-slate-50 transition-colors"
+                      title="Hapus Folder & Soal"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+                <div className="mb-4">
+                  <div className="bg-blue-50 text-blue-600 p-3 rounded-xl w-fit">
+                    <Folder className="w-6 h-6 fill-blue-100 text-blue-500" />
+                  </div>
+                </div>
+                <div>
+                  <h4 className="font-bold text-indigo-950 text-sm line-clamp-1">{folder}</h4>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase mt-1 tracking-wider">{count} Soal</p>
+                </div>
+              </div>
+            );
+          })}
+          
+          <div 
+            onClick={() => setShowCreateFolderModal(true)}
+            className="border-2 border-dashed border-slate-200 p-5 rounded-2xl flex flex-col items-center justify-center text-center cursor-pointer hover:border-indigo-950 transition-all group min-h-[140px]"
+          >
+            <div className="bg-slate-50 text-slate-400 p-3 rounded-xl group-hover:bg-indigo-950 group-hover:text-white transition-all mb-3">
+              <FolderPlus className="w-6 h-6" />
+            </div>
+            <span className="text-xs font-bold text-slate-500 group-hover:text-indigo-950 transition-colors">Buat Folder Baru</span>
           </div>
-          <h3 className="text-lg font-bold text-indigo-950">Tidak Ada Soal</h3>
-          <p className="text-slate-400 mt-2 max-w-sm mx-auto text-sm font-medium">Mulai buat ujian baru untuk mengisi koleksi soal Anda secara otomatis.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <AnimatePresence>
-            {filteredQuestions.map((q) => (
-              <motion.div 
-                layout initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-                key={q.id} className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col hover:shadow-xl transition-all"
-              >
-                <div className="flex justify-between items-start mb-3">
-                  <div className="bg-blue-50 text-blue-600 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest">
-                    {q.category || 'Umum'}
-                  </div>
-                  <button onClick={() => deleteQuestion(q.id)} className="p-1.5 text-slate-300 hover:text-rose-500 transition-colors">
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-                <p className="text-indigo-950 font-bold text-sm sm:text-base mb-4 line-clamp-2">{q.text}</p>
-                <div className="mt-auto flex items-center justify-between">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{q.type}</span>
-                  <button 
-                    onClick={() => openEditModal(q)}
-                    className="text-blue-600 font-bold text-[11px] flex items-center gap-1 hover:underline"
-                  >
-                    Edit Detail <ChevronRight className="w-3 h-3" />
-                  </button>
-                </div>
-              </motion.div>
-            ))}
-          </AnimatePresence>
+        /* Questions List View (Inside Folder or searching globally) */
+        <>
+          {filteredQuestions.length > 0 && (
+            <div className="flex items-center justify-between bg-white p-3 rounded-xl border border-slate-100 mb-4 shadow-sm">
+              <label className="flex items-center gap-2.5 text-xs font-bold text-indigo-950 cursor-pointer">
+                <input 
+                  type="checkbox"
+                  checked={filteredQuestions.length > 0 && filteredQuestions.every(q => selectedQuestions.includes(q.id))}
+                  onChange={toggleSelectAll}
+                  className="w-4 h-4 accent-indigo-950 rounded cursor-pointer shrink-0"
+                />
+                <span>Pilih Semua Soal ({filteredQuestions.length})</span>
+              </label>
+              {activeFolder !== null ? (
+                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Folder: {activeFolder}</span>
+              ) : (
+                <span className="text-[10px] text-blue-600 font-bold uppercase tracking-wider">Hasil Pencarian Global</span>
+              )}
+            </div>
+          )}
+
+          {filteredQuestions.length === 0 ? (
+            <div className="bg-white rounded-3xl p-10 sm:p-20 text-center border border-slate-100 border-dashed">
+              <div className="w-16 h-16 bg-slate-50 text-slate-300 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <BookOpen className="w-8 h-8" />
+              </div>
+              <h3 className="text-lg font-bold text-indigo-950">Tidak Ada Soal</h3>
+              <p className="text-slate-400 mt-2 max-w-sm mx-auto text-sm font-medium">
+                {isSearching 
+                  ? 'Tidak ada soal yang cocok dengan pencarian Anda.' 
+                  : 'Folder ini kosong. Tambahkan soal baru atau impor soal untuk mengisi folder ini.'}
+              </p>
+              {activeFolder !== null && !isSearching && (
+                <button 
+                  onClick={() => {
+                    setNewQuestion(prev => ({ ...prev, category: (activeFolder === 'Umum' ? '' : activeFolder) || '' }));
+                    setShowAddModal(true);
+                  }}
+                  className="mt-6 bg-indigo-950 text-white px-6 py-2.5 rounded-xl font-bold text-xs hover:bg-indigo-900 transition-all inline-flex items-center gap-2"
+                >
+                  <PlusCircle className="w-4 h-4" /> Tambah Soal Pertama
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <AnimatePresence>
+                {filteredQuestions.map((q) => {
+                  const isSelected = selectedQuestions.includes(q.id);
+                  return (
+                    <motion.div 
+                      layout initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+                      key={q.id} 
+                      className={cn(
+                        "bg-white p-4 sm:p-5 rounded-2xl border transition-all flex flex-col hover:shadow-xl relative",
+                        isSelected ? "border-indigo-500 bg-indigo-50/10" : "border-slate-100 shadow-sm"
+                      )}
+                    >
+                      <div className="flex justify-between items-start mb-3">
+                        <div className="flex items-center gap-3">
+                          <input 
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleSelectQuestion(q.id)}
+                            className="w-4 h-4 accent-indigo-950 cursor-pointer rounded border-slate-200"
+                          />
+                          <div className="bg-blue-50 text-blue-600 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest">
+                            {q.category || 'Umum'}
+                          </div>
+                        </div>
+                        <button onClick={() => deleteQuestion(q.id)} className="p-1.5 text-slate-300 hover:text-rose-500 transition-colors">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                      <p className="text-indigo-950 font-bold text-sm sm:text-base mb-4 line-clamp-2">{q.text}</p>
+                      {q.image_url && (
+                        <div className="mb-4 rounded-xl overflow-hidden max-h-32 border border-slate-100 bg-slate-50/50">
+                          <img src={q.image_url} alt="Attachment" className="w-full h-full object-contain" />
+                        </div>
+                      )}
+                      <div className="mt-auto flex items-center justify-between">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{q.type}</span>
+                        <button 
+                          onClick={() => openEditModal(q)}
+                          className="text-blue-600 font-bold text-[11px] flex items-center gap-1 hover:underline bg-transparent border-none cursor-pointer outline-none"
+                        >
+                          Edit Detail <ChevronRight className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
+            </div>
+          )}
+        </>
+      )}
+
+      {selectedQuestions.length > 0 && (
+        /* Floating selection action bar */
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-indigo-950/95 backdrop-blur text-white px-5 py-3.5 rounded-2xl flex items-center gap-5 shadow-2xl z-40 border border-white/10 shrink-0 max-w-[90vw] animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <span className="text-xs font-bold shrink-0">{selectedQuestions.length} soal terpilih</span>
+          <div className="w-px h-5 bg-white/20 shrink-0" />
+          <div className="flex gap-2 shrink-0">
+            <button 
+              onClick={() => { setTargetBatchMoveFolder(foldersList[0]); setShowBatchMoveModal(true); }}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all"
+            >
+              Pindahkan
+            </button>
+            <button 
+              onClick={handleBatchDelete}
+              className="bg-rose-500 hover:bg-rose-600 text-white px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all"
+            >
+              Hapus
+            </button>
+            <button 
+              onClick={() => setSelectedQuestions([])}
+              className="bg-white/15 hover:bg-white/25 text-white px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all"
+            >
+              Batal
+            </button>
+          </div>
         </div>
       )}
 
@@ -881,6 +1239,136 @@ export default function BankSoal() {
                   <p className="text-xs font-bold text-indigo-950">Impor dari Word</p>
                   <p className="text-[9px] text-slate-400">Unggah berkas dokumen teks .docx</p>
                 </div>
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+
+      {showCreateFolderModal && (
+        <motion.div 
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        >
+          <motion.div 
+            initial={{ scale: 0.95, y: 10 }} animate={{ scale: 1, y: 0 }}
+            className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl space-y-4 border border-slate-100"
+          >
+            <div className="flex justify-between items-center">
+              <h3 className="font-bold text-indigo-950 text-sm flex items-center gap-2">
+                <FolderPlus className="w-4 h-4 text-blue-500" /> Buat Folder Baru
+              </h3>
+              <button onClick={() => setShowCreateFolderModal(false)} className="p-1.5 hover:bg-slate-100 rounded-lg">
+                <X className="w-4 h-4 text-slate-400" />
+              </button>
+            </div>
+            <div className="space-y-2 text-left">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nama Folder (Mapel/Materi)</label>
+              <input 
+                type="text"
+                placeholder="Contoh: Fisika UTBK, Kimia XI, dll."
+                value={newFolderNameInput}
+                onChange={e => setNewFolderNameInput(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-indigo-950 text-xs font-bold text-indigo-950"
+              />
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button onClick={() => setShowCreateFolderModal(false)} className="flex-1 py-2.5 rounded-xl border border-slate-200 font-bold text-slate-500 text-xs bg-white">
+                Batal
+              </button>
+              <button 
+                onClick={() => handleCreateFolder(newFolderNameInput)}
+                disabled={!newFolderNameInput.trim()}
+                className="flex-1 py-2.5 rounded-xl bg-indigo-950 text-white font-bold text-xs disabled:opacity-50"
+              >
+                Buat Folder
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+
+      {showRenameFolderModal && (
+        <motion.div 
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        >
+          <motion.div 
+            initial={{ scale: 0.95, y: 10 }} animate={{ scale: 1, y: 0 }}
+            className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl space-y-4 border border-slate-100"
+          >
+            <div className="flex justify-between items-center">
+              <h3 className="font-bold text-indigo-950 text-sm flex items-center gap-2">
+                <Edit3 className="w-4 h-4 text-blue-500" /> Ubah Nama Folder
+              </h3>
+              <button onClick={() => { setShowRenameFolderModal(false); setSelectedFolderToRename(null); }} className="p-1.5 hover:bg-slate-100 rounded-lg">
+                <X className="w-4 h-4 text-slate-400" />
+              </button>
+            </div>
+            <div className="space-y-2 text-left">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nama Folder Baru</label>
+              <input 
+                type="text"
+                placeholder="Contoh: Matematika Peminatan"
+                value={renameFolderInput}
+                onChange={e => setRenameFolderInput(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-indigo-950 text-xs font-bold text-indigo-950"
+              />
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button onClick={() => { setShowRenameFolderModal(false); setSelectedFolderToRename(null); }} className="flex-1 py-2.5 rounded-xl border border-slate-200 font-bold text-slate-500 text-xs bg-white">
+                Batal
+              </button>
+              <button 
+                onClick={() => selectedFolderToRename && handleRenameFolder(selectedFolderToRename, renameFolderInput)}
+                disabled={!renameFolderInput.trim() || renameFolderInput.trim() === selectedFolderToRename}
+                className="flex-1 py-2.5 rounded-xl bg-indigo-950 text-white font-bold text-xs disabled:opacity-50"
+              >
+                Simpan
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+
+      {showBatchMoveModal && (
+        <motion.div 
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        >
+          <motion.div 
+            initial={{ scale: 0.95, y: 10 }} animate={{ scale: 1, y: 0 }}
+            className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl space-y-4 border border-slate-100"
+          >
+            <div className="flex justify-between items-center">
+              <h3 className="font-bold text-indigo-950 text-sm flex items-center gap-2">
+                <FolderOpen className="w-4 h-4 text-blue-500" /> Pindahkan {selectedQuestions.length} Soal
+              </h3>
+              <button onClick={() => setShowBatchMoveModal(false)} className="p-1.5 hover:bg-slate-100 rounded-lg">
+                <X className="w-4 h-4 text-slate-400" />
+              </button>
+            </div>
+            <div className="space-y-2 text-left">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Pilih Folder Tujuan</label>
+              <select
+                value={targetBatchMoveFolder}
+                onChange={e => setTargetBatchMoveFolder(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-indigo-950 text-xs font-bold text-indigo-950 bg-slate-50 cursor-pointer"
+              >
+                {foldersList.map(f => (
+                  <option key={f} value={f}>{f}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button onClick={() => setShowBatchMoveModal(false)} className="flex-1 py-2.5 rounded-xl border border-slate-200 font-bold text-slate-500 text-xs bg-white">
+                Batal
+              </button>
+              <button 
+                onClick={() => handleBatchMove(targetBatchMoveFolder)}
+                className="flex-1 py-2.5 rounded-xl bg-indigo-950 text-white font-bold text-xs"
+              >
+                Pindahkan Soal
               </button>
             </div>
           </motion.div>
