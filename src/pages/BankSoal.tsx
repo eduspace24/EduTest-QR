@@ -310,68 +310,100 @@ export default function BankSoal() {
         }
 
         const normalizedText = rawText.replace(/\r\n/g, '\n');
-        const blocks = normalizedText.split(/\n{2,}/);
+        const lines = normalizedText.split('\n').map(l => l.trim());
+        
         const dataQuestions: any[] = [];
+        let currentQuestion: any = null;
 
-        for (const block of blocks) {
-          const lines = block.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-          if (lines.length === 0) continue;
+        for (const line of lines) {
+          if (!line) continue;
 
-          let questionText = '';
-          let type = 'Pilihan Ganda';
-          let category = 'Umum';
-          let option_a = '';
-          let option_b = '';
-          let option_c = '';
-          let option_d = '';
-          let option_e = '';
-          let jawaban_benar = 'a';
-          let image_url = '';
-
-          let questionTextLines: string[] = [];
-          let readingQuestionText = true;
-
-          for (const line of lines) {
-            const isField = line.match(/^(tipe|kategori|jawaban|gambar|[a-e]\s*[:.])\s*/i);
-            if (isField) {
-              readingQuestionText = false;
-            }
-
-            if (readingQuestionText) {
-              questionTextLines.push(line);
-            } else {
-              if (line.match(/^tipe\s*:/i)) {
-                type = line.substring(line.indexOf(':') + 1).trim();
-              } else if (line.match(/^kategori\s*:/i)) {
-                category = line.substring(line.indexOf(':') + 1).trim();
-              } else if (line.match(/^gambar\s*:/i)) {
-                image_url = line.substring(line.indexOf(':') + 1).trim();
-              } else if (line.match(/^jawaban\s*:/i)) {
-                const ans = line.substring(line.indexOf(':') + 1).trim().toLowerCase();
-                if (ans.length > 0) {
-                  jawaban_benar = ans.substring(0, 1);
-                }
-              } else if (line.match(/^a\s*[:.]/i)) {
-                option_a = line.replace(/^a\s*[:.]/i, '').trim();
-              } else if (line.match(/^b\s*[:.]/i)) {
-                option_b = line.replace(/^b\s*[:.]/i, '').trim();
-              } else if (line.match(/^c\s*[:.]/i)) {
-                option_c = line.replace(/^c\s*[:.]/i, '').trim();
-              } else if (line.match(/^d\s*[:.]/i)) {
-                option_d = line.replace(/^d\s*[:.]/i, '').trim();
-              } else if (line.match(/^e\s*[:.]/i)) {
-                option_e = line.replace(/^e\s*[:.]/i, '').trim();
+          // Check if line starts a new question
+          const startMatch = line.match(/^(\d+)[\s.)-]+\s*(.*)/);
+          if (startMatch) {
+            // Save previous question if valid
+            if (currentQuestion) {
+              const hasType = !!currentQuestion.type;
+              const hasOptions = !!(currentQuestion.option_a || currentQuestion.option_b);
+              const hasJawaban = !!currentQuestion.jawaban_benar;
+              
+              if (hasType || hasOptions || hasJawaban) {
+                dataQuestions.push(currentQuestion);
               }
             }
+            
+            // Start new question
+            currentQuestion = {
+              text: startMatch[2].trim(),
+              type: '',
+              category: 'Umum',
+              option_a: '',
+              option_b: '',
+              option_c: '',
+              option_d: '',
+              option_e: '',
+              jawaban_benar: '',
+              image_url: ''
+            };
+            continue;
           }
 
-          questionText = questionTextLines.join(' ').trim();
-          questionText = questionText.replace(/^\d+[\s.)-]+\s*/, '');
+          if (!currentQuestion) continue;
 
-          if (!questionText) continue;
+          // Check field prefixes
+          const isField = line.match(/^(tipe|kategori|jawaban|gambar)\s*:/i) || line.match(/^[a-e]\s*[:.]/i);
+          if (isField) {
+            if (line.match(/^tipe\s*:/i)) {
+              currentQuestion.type = line.substring(line.indexOf(':') + 1).trim();
+            } else if (line.match(/^kategori\s*:/i)) {
+              currentQuestion.category = line.substring(line.indexOf(':') + 1).trim();
+            } else if (line.match(/^gambar\s*:/i)) {
+              currentQuestion.image_url = line.substring(line.indexOf(':') + 1).trim();
+            } else if (line.match(/^jawaban\s*:/i)) {
+              const ans = line.substring(line.indexOf(':') + 1).trim().toLowerCase();
+              if (ans.length > 0) {
+                currentQuestion.jawaban_benar = ans.substring(0, 1);
+              }
+            } else if (line.match(/^a\s*[:.]/i)) {
+              currentQuestion.option_a = line.replace(/^a\s*[:.]/i, '').trim();
+            } else if (line.match(/^b\s*[:.]/i)) {
+              currentQuestion.option_b = line.replace(/^b\s*[:.]/i, '').trim();
+            } else if (line.match(/^c\s*[:.]/i)) {
+              currentQuestion.option_c = line.replace(/^c\s*[:.]/i, '').trim();
+            } else if (line.match(/^d\s*[:.]/i)) {
+              currentQuestion.option_d = line.replace(/^d\s*[:.]/i, '').trim();
+            } else if (line.match(/^e\s*[:.]/i)) {
+              currentQuestion.option_e = line.replace(/^e\s*[:.]/i, '').trim();
+            }
+          } else {
+            // Append to question text if it's multi-line before options start
+            if (!currentQuestion.option_a && !currentQuestion.option_b && !currentQuestion.option_c) {
+              currentQuestion.text += '\n' + line;
+            }
+          }
+        }
 
+        // Push last question if valid
+        if (currentQuestion) {
+          const hasType = !!currentQuestion.type;
+          const hasOptions = !!(currentQuestion.option_a || currentQuestion.option_b);
+          const hasJawaban = !!currentQuestion.jawaban_benar;
+          
+          if (hasType || hasOptions || hasJawaban) {
+            dataQuestions.push(currentQuestion);
+          }
+        }
+
+        if (dataQuestions.length === 0) {
+          showAlert({ title: 'Gagal', message: 'Tidak ada data soal yang valid ditemukan di dalam dokumen Word.', type: 'error' });
+          return;
+        }
+
+        // Map and normalize fields
+        const finalizedQuestions = dataQuestions.map((q, idx) => {
           let normalizedType = 'Pilihan Ganda';
-          const typeLower = type.toLowerCase();
+          const typeLower = (q.type || '').toLowerCase();
+          
           if (typeLower.includes('asosiatif')) {
             normalizedType = 'Pilihan Ganda Asosiatif (TKA)';
           } else if (typeLower.includes('sebab') || typeLower.includes('akibat')) {
@@ -379,6 +411,12 @@ export default function BankSoal() {
           } else if (typeLower.includes('essay') || typeLower.includes('uraian')) {
             normalizedType = 'Essay';
           }
+
+          let option_a = q.option_a;
+          let option_b = q.option_b;
+          let option_c = q.option_c;
+          let option_d = q.option_d;
+          let option_e = q.option_e;
 
           if (normalizedType === 'Pilihan Ganda Asosiatif (TKA)' && (!option_a || option_a.trim() === '')) {
             option_a = '1, 2, dan 3 benar';
@@ -394,33 +432,28 @@ export default function BankSoal() {
             option_e = 'Pernyataan dan alasan keduanya salah';
           }
 
-          dataQuestions.push({
-            id: `${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
-            text: questionText,
+          return {
+            id: `${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 4)}`,
+            text: q.text.trim(),
             type: normalizedType,
-            category,
+            category: q.category || 'Umum',
             option_a,
             option_b,
             option_c,
             option_d,
             option_e,
-            jawaban_benar,
-            image_url
-          });
-        }
+            jawaban_benar: q.jawaban_benar || 'a',
+            image_url: q.image_url || ''
+          };
+        });
 
-        if (dataQuestions.length === 0) {
-          showAlert({ title: 'Gagal', message: 'Tidak ada data soal yang valid ditemukan di dalam dokumen Word.', type: 'error' });
-          return;
-        }
-
-        const updated = [...questions, ...dataQuestions];
+        const updated = [...questions, ...finalizedQuestions];
         setQuestions(updated);
         await syncToDrive(updated);
 
         showAlert({ 
           title: 'Berhasil', 
-          message: `${dataQuestions.length} soal berhasil diimpor dari Word.`, 
+          message: `${finalizedQuestions.length} soal berhasil diimpor dari Word.`, 
           type: 'success' 
         });
       } catch (err) {
