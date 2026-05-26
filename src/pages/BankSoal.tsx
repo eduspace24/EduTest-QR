@@ -9,10 +9,12 @@ import {
   Check,
   Image as ImageIcon,
   Loader2,
-  Upload
+  Upload,
+  Download
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import React from 'react';
+import * as XLSX from 'xlsx';
 import { cn } from '../lib/utils';
 import { useAlert } from '../context/AlertContext';
 import { 
@@ -42,6 +44,7 @@ export default function BankSoal() {
     option_b: '',
     option_c: '',
     option_d: '',
+    option_e: '',
     jawaban_benar: 'a',
     image_url: ''
   });
@@ -96,6 +99,190 @@ export default function BankSoal() {
     }
   };
 
+  const excelInputRef = useRef<HTMLInputElement>(null);
+
+  const handleTypeChange = (type: string) => {
+    let extra = {};
+    if (type === 'Pilihan Ganda Asosiatif (TKA)') {
+      extra = {
+        option_a: '1, 2, dan 3 benar',
+        option_b: '1 dan 3 benar',
+        option_c: '2 dan 4 benar',
+        option_d: 'Hanya 4 yang benar',
+        option_e: 'Semua pernyataan benar',
+        jawaban_benar: 'a'
+      };
+    } else if (type === 'Hubungan Sebab Akibat (TKA)') {
+      extra = {
+        option_a: 'Pernyataan benar, alasan benar, dan keduanya menunjukkan hubungan sebab akibat',
+        option_b: 'Pernyataan benar, alasan benar, tetapi keduanya tidak menunjukkan hubungan sebab akibat',
+        option_c: 'Pernyataan benar dan alasan salah',
+        option_d: 'Pernyataan salah dan alasan benar',
+        option_e: 'Pernyataan dan alasan keduanya salah',
+        jawaban_benar: 'a'
+      };
+    } else if (type === 'Pilihan Ganda') {
+      extra = {
+        option_a: newQuestion.option_a === '1, 2, dan 3 benar' || newQuestion.option_a.includes('Pernyataan benar') ? '' : newQuestion.option_a,
+        option_b: newQuestion.option_b === '1 dan 3 benar' || newQuestion.option_b.includes('Pernyataan benar') ? '' : newQuestion.option_b,
+        option_c: newQuestion.option_c === '2 dan 4 benar' || newQuestion.option_c.includes('Pernyataan benar') ? '' : newQuestion.option_c,
+        option_d: newQuestion.option_d === 'Hanya 4 yang benar' || newQuestion.option_d.includes('Pernyataan salah') ? '' : newQuestion.option_d,
+        option_e: newQuestion.option_e === 'Semua pernyataan benar' || newQuestion.option_e.includes('Pernyataan dan alasan') ? '' : newQuestion.option_e
+      };
+    } else if (type === 'Essay') {
+      extra = {
+        option_a: '',
+        option_b: '',
+        option_c: '',
+        option_d: '',
+        option_e: '',
+        jawaban_benar: ''
+      };
+    }
+    setNewQuestion({
+      ...newQuestion,
+      type,
+      ...extra
+    });
+  };
+
+  const downloadTemplate = () => {
+    const templateData = [
+      {
+        'Pertanyaan': 'Manakah dari bangun berikut yang memiliki 4 sisi sama panjang?',
+        'Tipe': 'Pilihan Ganda',
+        'Kategori': 'Matematika',
+        'Opsi A': 'Persegi',
+        'Opsi B': 'Persegi Panjang',
+        'Opsi C': 'Segitiga',
+        'Opsi D': 'Lingkaran',
+        'Opsi E': 'Trapesium',
+        'Jawaban Benar': 'a',
+        'Link Gambar': ''
+      },
+      {
+        'Pertanyaan': 'Jika (1) x > 0, (2) y > 0, (3) x+y > 0, (4) x*y < 0. Manakah pernyataan yang benar jika diketahui hasil penjumlahan bernilai positif dan perkalian negatif?',
+        'Tipe': 'Pilihan Ganda Asosiatif (TKA)',
+        'Kategori': 'Matematika TKA',
+        'Opsi A': '',
+        'Opsi B': '',
+        'Opsi C': '',
+        'Opsi D': '',
+        'Opsi E': '',
+        'Jawaban Benar': 'a',
+        'Link Gambar': ''
+      },
+      {
+        'Pertanyaan': 'Logam natrium sangat reaktif terhadap air. SEBAB Logam natrium memiliki energi ionisasi yang sangat kecil.',
+        'Tipe': 'Hubungan Sebab Akibat (TKA)',
+        'Kategori': 'Kimia TKA',
+        'Opsi A': '',
+        'Opsi B': '',
+        'Opsi C': '',
+        'Opsi D': '',
+        'Opsi E': '',
+        'Jawaban Benar': 'a',
+        'Link Gambar': ''
+      },
+      {
+        'Pertanyaan': 'Jelaskan perbedaan antara pembelahan mitosis dan meiosis!',
+        'Tipe': 'Essay',
+        'Kategori': 'Biologi',
+        'Opsi A': '',
+        'Opsi B': '',
+        'Opsi C': '',
+        'Opsi D': '',
+        'Opsi E': '',
+        'Jawaban Benar': '',
+        'Link Gambar': ''
+      }
+    ];
+    const ws = XLSX.utils.json_to_sheet(templateData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Template Soal');
+    XLSX.writeFile(wb, 'Template_Bank_Soal_EduTest.xlsx');
+  };
+
+  const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const data = XLSX.utils.sheet_to_json(ws);
+
+        if (data.length === 0) {
+          showAlert({ title: 'Gagal', message: 'File Excel kosong.', type: 'error' });
+          return;
+        }
+
+        const newQuestions = data.map((row: any, idx: number) => {
+          const type = row['Tipe'] || row['type'] || 'Pilihan Ganda';
+          let option_a = String(row['Opsi A'] || row['option_a'] || '');
+          let option_b = String(row['Opsi B'] || row['option_b'] || '');
+          let option_c = String(row['Opsi C'] || row['option_c'] || '');
+          let option_d = String(row['Opsi D'] || row['option_d'] || '');
+          let option_e = String(row['Opsi E'] || row['option_e'] || '');
+          let jawaban_benar = String(row['Jawaban Benar'] || row['jawaban_benar'] || 'a').toLowerCase().trim();
+
+          // Auto-fill TKA options if blank
+          if (type === 'Pilihan Ganda Asosiatif (TKA)' && (!option_a || option_a.trim() === '')) {
+            option_a = '1, 2, dan 3 benar';
+            option_b = '1 dan 3 benar';
+            option_c = '2 dan 4 benar';
+            option_d = 'Hanya 4 yang benar';
+            option_e = 'Semua pernyataan benar';
+          } else if (type === 'Hubungan Sebab Akibat (TKA)' && (!option_a || option_a.trim() === '')) {
+            option_a = 'Pernyataan benar, alasan benar, dan keduanya menunjukkan hubungan sebab akibat';
+            option_b = 'Pernyataan benar, alasan benar, tetapi keduanya tidak menunjukkan hubungan sebab akibat';
+            option_c = 'Pernyataan benar dan alasan salah';
+            option_d = 'Pernyataan salah dan alasan benar';
+            option_e = 'Pernyataan dan alasan keduanya salah';
+          }
+
+          return {
+            id: `${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 4)}`,
+            text: row['Pertanyaan'] || row['text'] || '',
+            type,
+            category: row['Kategori'] || row['category'] || 'Umum',
+            option_a,
+            option_b,
+            option_c,
+            option_d,
+            option_e,
+            jawaban_benar,
+            image_url: row['Link Gambar'] || row['image_url'] || ''
+          };
+        }).filter(q => q.text);
+
+        if (newQuestions.length === 0) {
+          showAlert({ title: 'Gagal', message: 'Tidak ada data soal yang valid ditemukan (Kolom "Pertanyaan" wajib ada).', type: 'error' });
+          return;
+        }
+
+        const updated = [...questions, ...newQuestions];
+        setQuestions(updated);
+        await syncToDrive(updated);
+
+        showAlert({ 
+          title: 'Berhasil', 
+          message: `${newQuestions.length} soal berhasil diimpor ke Bank Soal.`, 
+          type: 'success' 
+        });
+      } catch (err) {
+        console.error('Excel import error:', err);
+        showAlert({ title: 'Error', message: 'Gagal memproses file Excel.', type: 'error' });
+      }
+      if (excelInputRef.current) excelInputRef.current.value = '';
+    };
+    reader.readAsBinaryString(file);
+  };
+
   const deleteQuestion = (id: string) => {
     showAlert({
       title: 'Hapus Soal?',
@@ -141,6 +328,7 @@ export default function BankSoal() {
       option_b: '',
       option_c: '',
       option_d: '',
+      option_e: '',
       jawaban_benar: 'a',
       image_url: ''
     });
@@ -157,6 +345,7 @@ export default function BankSoal() {
       option_b: q.option_b,
       option_c: q.option_c,
       option_d: q.option_d,
+      option_e: q.option_e || '',
       jawaban_benar: q.jawaban_benar,
       image_url: q.image_url || ''
     });
@@ -183,13 +372,33 @@ export default function BankSoal() {
           <h2 className="tracking-tight">Bank Soal</h2>
           <p className="text-slate-500 text-sm font-medium">Koleksi pertanyaan ujian Anda yang tersimpan di Cloud.</p>
         </div>
-        <button 
-          onClick={() => setShowAddModal(true)}
-          className="bg-indigo-950 text-white px-5 py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 shadow-lg hover:bg-indigo-900 transition-all active:scale-95"
-        >
-          <PlusCircle className="w-4 h-4" />
-          Tambah Soal Manual
-        </button>
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+          <input 
+            type="file" ref={excelInputRef} className="hidden" 
+            accept=".xlsx,.xls" onChange={handleImportExcel} 
+          />
+          <button 
+            onClick={downloadTemplate}
+            className="bg-white border border-slate-200 text-indigo-950 px-4 py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-slate-50 transition-all active:scale-95 shadow-sm"
+          >
+            <Download className="w-3.5 h-3.5" />
+            Template
+          </button>
+          <button 
+            onClick={() => excelInputRef.current?.click()}
+            className="bg-white border border-slate-200 text-emerald-600 px-4 py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-emerald-50 transition-all active:scale-95 shadow-sm"
+          >
+            <Upload className="w-3.5 h-3.5" />
+            Impor Excel
+          </button>
+          <button 
+            onClick={() => setShowAddModal(true)}
+            className="bg-indigo-950 text-white px-5 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-lg hover:bg-indigo-900 transition-all active:scale-95"
+          >
+            <PlusCircle className="w-3.5 h-3.5" />
+            Tambah Manual
+          </button>
+        </div>
       </div>
 
       <div className="bg-white p-3 sm:p-4 rounded-xl border border-slate-100 flex items-center gap-3 shadow-sm group focus-within:ring-4 focus-within:ring-indigo-950/5 transition-all">
@@ -328,11 +537,13 @@ export default function BankSoal() {
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-slate-700">Tipe</label>
                   <select
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 outline-none"
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 outline-none font-bold text-xs text-indigo-950 cursor-pointer"
                     value={newQuestion.type}
-                    onChange={(e) => setNewQuestion({ ...newQuestion, type: e.target.value })}
+                    onChange={(e) => handleTypeChange(e.target.value)}
                   >
-                    <option value="Pilihan Ganda">Pilihan Ganda</option>
+                    <option value="Pilihan Ganda">Pilihan Ganda (5 Opsi)</option>
+                    <option value="Pilihan Ganda Asosiatif (TKA)">Pilihan Ganda Asosiatif (TKA)</option>
+                    <option value="Hubungan Sebab Akibat (TKA)">Hubungan Sebab Akibat (TKA)</option>
                     <option value="Essay">Essay</option>
                   </select>
                 </div>
@@ -348,14 +559,15 @@ export default function BankSoal() {
                 </div>
               </div>
 
-              {newQuestion.type === 'Pilihan Ganda' && (
+              {newQuestion.type !== 'Essay' && (
                 <div className="space-y-3 pt-2">
                   <label className="text-sm font-bold text-slate-700">Opsi Jawaban</label>
                   {[
                     { key: 'option_a', label: 'A' },
                     { key: 'option_b', label: 'B' },
                     { key: 'option_c', label: 'C' },
-                    { key: 'option_d', label: 'D' }
+                    { key: 'option_d', label: 'D' },
+                    { key: 'option_e', label: 'E' }
                   ].map((opt) => (
                     <div key={opt.key} className="flex items-center gap-3">
                       <button

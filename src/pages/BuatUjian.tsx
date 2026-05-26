@@ -98,18 +98,26 @@ export default function BuatUjian() {
     const selected = bankSoal.filter(q => selectedBankSoal.includes(q.id));
     if (selected.length === 0) return;
     
-    const newQuestions = selected.map((q, idx) => ({
-      id: `bank_${Date.now()}_${idx}`,
-      question_text: q.text || '',
-      question_type: q.type === 'Pilihan Ganda' ? 'pilihan_ganda' : 'essay',
-      options: [
-        { id: 'a', text: q.option_a || '', label: 'A' },
-        { id: 'b', text: q.option_b || '', label: 'B' },
-        { id: 'c', text: q.option_c || '', label: 'C' },
-        { id: 'd', text: q.option_d || '', label: 'D' }
-      ],
-      correct_answer: q.jawaban_benar || 'a'
-    }));
+    const newQuestions = selected.map((q, idx) => {
+      const type = q.type || 'Pilihan Ganda';
+      let options: any[] = [];
+      if (type !== 'Essay') {
+        options = [
+          { id: 'a', text: q.option_a || '', label: 'A' },
+          { id: 'b', text: q.option_b || '', label: 'B' },
+          { id: 'c', text: q.option_c || '', label: 'C' },
+          { id: 'd', text: q.option_d || '', label: 'D' },
+          { id: 'e', text: q.option_e || '', label: 'E' }
+        ];
+      }
+      return {
+        id: `bank_${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 4)}`,
+        question_text: q.text || '',
+        question_type: type,
+        options,
+        correct_answer: q.jawaban_benar || 'a'
+      };
+    });
     
     setQuestions([...questions, ...newQuestions]);
     setShowBankModal(false);
@@ -128,15 +136,68 @@ export default function BuatUjian() {
     setQuestions([...questions, {
       id: Date.now().toString(),
       question_text: '',
-      question_type: 'pilihan_ganda',
+      question_type: 'Pilihan Ganda',
       options: [
         { id: 'a', text: '', label: 'A' },
         { id: 'b', text: '', label: 'B' },
         { id: 'c', text: '', label: 'C' },
-        { id: 'd', text: '', label: 'D' }
+        { id: 'd', text: '', label: 'D' },
+        { id: 'e', text: '', label: 'E' }
       ],
       correct_answer: 'a'
     }]);
+  };
+
+  const handleQuestionTypeChange = (id: string, type: string) => {
+    setQuestions(questions.map(q => {
+      if (q.id !== id) return q;
+      
+      let newOptions = [...(q.options || [])];
+      let correct_answer = q.correct_answer;
+      
+      if (type === 'Pilihan Ganda Asosiatif (TKA)') {
+        newOptions = [
+          { id: 'a', text: '1, 2, dan 3 benar', label: 'A' },
+          { id: 'b', text: '1 dan 3 benar', label: 'B' },
+          { id: 'c', text: '2 dan 4 benar', label: 'C' },
+          { id: 'd', text: 'Hanya 4 yang benar', label: 'D' },
+          { id: 'e', text: 'Semua pernyataan benar', label: 'E' }
+        ];
+        correct_answer = 'a';
+      } else if (type === 'Hubungan Sebab Akibat (TKA)') {
+        newOptions = [
+          { id: 'a', text: 'Pernyataan benar, alasan benar, dan keduanya menunjukkan hubungan sebab akibat', label: 'A' },
+          { id: 'b', text: 'Pernyataan benar, alasan benar, tetapi keduanya tidak menunjukkan hubungan sebab akibat', label: 'B' },
+          { id: 'c', text: 'Pernyataan benar dan alasan salah', label: 'C' },
+          { id: 'd', text: 'Pernyataan salah dan alasan benar', label: 'D' },
+          { id: 'e', text: 'Pernyataan dan alasan keduanya salah', label: 'E' }
+        ];
+        correct_answer = 'a';
+      } else if (type === 'Pilihan Ganda') {
+        const isTkaAsosiatif = (q.options || []).some((o: any) => o.text === '1, 2, dan 3 benar');
+        const isTkaSebabAkibat = (q.options || []).some((o: any) => o.text && o.text.includes('Pernyataan benar, alasan benar'));
+        
+        if (isTkaAsosiatif || isTkaSebabAkibat || q.question_type === 'Essay') {
+          newOptions = [
+            { id: 'a', text: '', label: 'A' },
+            { id: 'b', text: '', label: 'B' },
+            { id: 'c', text: '', label: 'C' },
+            { id: 'd', text: '', label: 'D' },
+            { id: 'e', text: '', label: 'E' }
+          ];
+        }
+      } else if (type === 'Essay') {
+        newOptions = [];
+        correct_answer = '';
+      }
+
+      return {
+        ...q,
+        question_type: type,
+        options: newOptions,
+        correct_answer
+      };
+    }));
   };
 
   const removeQuestion = (id: string) => {
@@ -468,8 +529,21 @@ export default function BuatUjian() {
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
-                  <div className="flex items-center gap-3 mb-1">
-                    <span className="bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest">SOAL #{idx + 1}</span>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-1">
+                    <span className="bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest w-fit">SOAL #{idx + 1}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Tipe Soal:</span>
+                      <select
+                        className="px-2 py-1 rounded-lg border border-slate-200 bg-slate-50 outline-none font-bold text-[10px] text-indigo-950 cursor-pointer"
+                        value={q.question_type || 'Pilihan Ganda'}
+                        onChange={(e) => handleQuestionTypeChange(q.id, e.target.value)}
+                      >
+                        <option value="Pilihan Ganda">Pilihan Ganda (5 Opsi)</option>
+                        <option value="Pilihan Ganda Asosiatif (TKA)">Pilihan Ganda Asosiatif (TKA)</option>
+                        <option value="Hubungan Sebab Akibat (TKA)">Hubungan Sebab Akibat (TKA)</option>
+                        <option value="Essay">Essay</option>
+                      </select>
+                    </div>
                   </div>
                   <textarea 
                     placeholder="Masukkan pertanyaan di sini..."
@@ -520,30 +594,42 @@ export default function BuatUjian() {
                         </button>
                       </div>
                     )}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {q.options.map((opt: any) => (
-                      <div key={opt.id} className="flex items-center gap-2">
-                        <button 
-                          onClick={() => updateQuestion(q.id, 'correct_answer', opt.id)}
-                          className={cn(
-                            "w-8 h-8 rounded-lg font-bold flex items-center justify-center border-2 transition-all text-xs shrink-0",
-                            q.correct_answer === opt.id ? "bg-emerald-500 border-emerald-500 text-white" : "border-slate-100 text-slate-300"
-                          )}
-                        >
-                          {opt.label}
-                        </button>
-                        <input 
-                          type="text" placeholder={`Pilihan ${opt.label}`}
-                          className="flex-1 px-3 py-2 rounded-lg border border-slate-100 outline-none focus:border-blue-300 text-xs font-medium"
-                          value={opt.text}
-                          onChange={(e) => {
-                            const newOptions = q.options.map((o: any) => o.id === opt.id ? { ...o, text: e.target.value } : o);
-                            updateQuestion(q.id, 'options', newOptions);
-                          }}
-                        />
+                  
+                  {q.question_type !== 'Essay' && q.options && q.options.length > 0 && (
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Opsi Jawaban & Kunci</label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {q.options.map((opt: any) => (
+                          <div key={opt.id} className="flex items-center gap-2">
+                            <button 
+                              onClick={() => updateQuestion(q.id, 'correct_answer', opt.id)}
+                              className={cn(
+                                "w-8 h-8 rounded-lg font-bold flex items-center justify-center border-2 transition-all text-xs shrink-0",
+                                q.correct_answer === opt.id ? "bg-emerald-500 border-emerald-500 text-white" : "border-slate-100 text-slate-300"
+                              )}
+                            >
+                              {opt.label}
+                            </button>
+                            <input 
+                              type="text" placeholder={`Pilihan ${opt.label}`}
+                              className="flex-1 px-3 py-2 rounded-lg border border-slate-100 outline-none focus:border-blue-300 text-xs font-medium"
+                              value={opt.text}
+                              onChange={(e) => {
+                                const newOptions = q.options.map((o: any) => o.id === opt.id ? { ...o, text: e.target.value } : o);
+                                updateQuestion(q.id, 'options', newOptions);
+                              }}
+                            />
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  )}
+
+                  {q.question_type === 'Essay' && (
+                    <p className="text-[11px] text-slate-400 font-bold bg-slate-50 px-3 py-2 rounded-xl border border-slate-100 italic">
+                      Tipe Essay tidak memerlukan opsi jawaban maupun kunci jawaban pilihan ganda.
+                    </p>
+                  )}
                 </div>
               ))}
             </div>

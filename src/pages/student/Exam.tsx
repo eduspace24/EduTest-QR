@@ -460,7 +460,7 @@ export default function StudentExam() {
           </div>
 
           <div className="space-y-4">
-            {exam?.questions[currentQuestionIndex].options.map((opt: any) => (
+            {(exam?.questions[currentQuestionIndex].options || []).map((opt: any) => (
               <label 
                 key={opt.id}
                 className={cn(
