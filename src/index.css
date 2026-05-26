@@ -1,0 +1,110 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Outfit", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+  
+  --color-primary: #1e1b4b;
+  --color-accent: #3B82F6;
+  --color-background: #F8FAFC;
+  --color-surface: #FFFFFF;
+  --color-border: #E2E8F0;
+  --color-text-main: #1e1b4b;
+  --color-text-muted: #64748B;
+  
+  --radius-xl: 0.5rem;
+  --radius-2xl: 0.75rem;
+  --radius-3xl: 1rem;
+  --radius-4xl: 1.5rem;
+}
+
+@layer base {
+  body {
+    @apply bg-background text-text-main font-sans antialiased selection:bg-accent/20 selection:text-indigo-950;
+  }
+  
+  h1, h2, h3, h4 {
+    @apply font-display tracking-tight text-indigo-950;
+  }
+
+  h1 { @apply text-3xl font-black; }
+  h2 { @apply text-xl sm:text-2xl font-black; }
+  h3 { @apply text-lg font-bold; }
+  h4 { @apply text-sm font-bold; }
+
+  button, a, [role="button"] {
+    @apply cursor-pointer transition-all duration-300;
+  }
+
+  button:hover, a:hover, [role="button"]:hover {
+    @apply scale-[1.02] active:scale-[0.98];
+  }
+}
+
+/* Glassmorphism Classes */
+.glass {
+  @apply bg-white/70 backdrop-blur-xl border border-white/40 shadow-[0_8px_30px_rgb(0,0,0,0.04)];
+}
+
+.glass-dark {
+  @apply bg-indigo-950/80 backdrop-blur-xl border border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.12)];
+}
+
+/* Advanced Hover Effects */
+.card-hover {
+  @apply transition-all duration-500 hover:shadow-2xl hover:shadow-slate-200/50 hover:-translate-y-1.5 hover:border-slate-300;
+}
+
+.button-hover {
+  @apply transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 active:scale-95;
+}
+
+/* Dynamic Gradients */
+.neo-blur {
+  background: radial-gradient(circle at top left, rgba(59, 130, 246, 0.08), transparent 40%),
+              radial-gradient(circle at bottom right, rgba(124, 58, 237, 0.08), transparent 40%);
+}
+
+.gradient-text {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600;
+}
+
+.hover-red:hover {
+  background-color: #fff1f2 !important; /* rose-50 */
+  border-color: #ffe4e6 !important; /* rose-100 */
+  color: #e11d48 !important; /* rose-600 */
+}
+
+.hover-red:hover svg, .hover-red:hover span, .hover-red:hover p {
+  color: #e11d48 !important;
+  transform: scale(1.05) !important;
+}
+
+.hover-red-text:hover {
+  color: #e11d48 !important;
+}
+
+.hover-red-text:hover svg {
+  color: #e11d48 !important;
+  transform: scale(1.1) !important;
+}
+
+.smooth-scroll {
+  scroll-behavior: smooth;
+}
+
+/* Custom Scrollbar for better UX */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-slate-50 rounded-full;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-300 rounded-full hover:bg-slate-400 transition-colors;
+}

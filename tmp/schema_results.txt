@@ -1,0 +1,7 @@
+--- DATABASE SCHEMA CHECK ---
+[PRESENT] Table "questions" exists.
+          Columns: id, teacher_id, question_text, question_type, correct_answer, created_at
+[ABSENT] Table "categories" error: Could not find the table 'public.categories' in the schema cache
+[PRESENT] Table "question_options" exists.
+          Columns: id, question_id, option_label, option_text
+--- END OF CHECK ---

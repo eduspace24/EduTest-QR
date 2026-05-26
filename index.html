@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="id" translate="no">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="google" content="notranslate" />
+    <script>
+      (function() {
+        const suppress = (msg) => {
+          const keys = ['translate-page', 'Cannot find menu item', 'gapi.loaded_0', 'save-page', 'menu item'];
+          return keys.some(k => String(msg).toLowerCase().includes(k.toLowerCase()));
+        };
+        const oe = console.error;
+        const ow = console.warn;
+        console.error = (...a) => { if (!suppress(a.join(' '))) oe(...a); };
+        console.warn = (...a) => { if (!suppress(a.join(' '))) ow(...a); };
+        window.addEventListener('unhandledrejection', (e) => {
+          const reason = e.reason?.message || e.reason || '';
+          if (suppress(reason)) { e.preventDefault(); e.stopImmediatePropagation(); }
+        }, true);
+        window.onerror = (msg, url, line, col, err) => {
+          if (suppress(msg)) return true;
+        };
+      })();
+    </script>
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="manifest" href="/manifest.json" />
+    <title>EduTest Lite - Platform Ujian Masa Depan</title>
+  </head>
+  <body translate="no">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch(() => {});
+        });
+      }
+    </script>
+  </body>
+</html>
