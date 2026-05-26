@@ -26,6 +26,8 @@ import {
 import { useGoogleDrive } from '../context/GoogleDriveContext';
 import { getCollectionData, saveCollection } from '../lib/db';
 import { useRef } from 'react';
+// @ts-ignore
+import mammoth from 'mammoth';
 
 export default function BankSoal() {
   const [questions, setQuestions] = useState<any[]>([]);
@@ -100,6 +102,7 @@ export default function BankSoal() {
   };
 
   const excelInputRef = useRef<HTMLInputElement>(null);
+  const wordInputRef = useRef<HTMLInputElement>(null);
 
   const handleTypeChange = (type: string) => {
     let extra = {};
@@ -283,6 +286,117 @@ export default function BankSoal() {
     reader.readAsBinaryString(file);
   };
 
+  const handleImportWord = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const arrayBuffer = evt.target?.result as ArrayBuffer;
+        if (!arrayBuffer) {
+          showAlert({ title: 'Gagal', message: 'Gagal membaca file.', type: 'error' });
+          return;
+        }
+
+        const result = await mammoth.convertToHtml({ arrayBuffer });
+        const html = result.value;
+
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const table = doc.querySelector('table');
+        if (!table) {
+          showAlert({ title: 'Gagal', message: 'Tabel soal tidak ditemukan di dalam dokumen Word.', type: 'error' });
+          return;
+        }
+
+        const trs = Array.from(table.querySelectorAll('tr'));
+        if (trs.length < 2) {
+          showAlert({ title: 'Gagal', message: 'Tabel soal harus memiliki baris header dan minimal satu baris data.', type: 'error' });
+          return;
+        }
+
+        const headers = Array.from(trs[0].querySelectorAll('td, th')).map(td => (td.textContent || '').trim());
+        const dataRows: any[] = [];
+
+        for (let i = 1; i < trs.length; i++) {
+          const cells = Array.from(trs[i].querySelectorAll('td'));
+          const rowObj: Record<string, string> = {};
+          headers.forEach((header, cellIdx) => {
+            if (header) {
+              rowObj[header] = (cells[cellIdx]?.textContent || '').trim();
+            }
+          });
+          dataRows.push(rowObj);
+        }
+
+        if (dataRows.length === 0) {
+          showAlert({ title: 'Gagal', message: 'Dokumen Word kosong.', type: 'error' });
+          return;
+        }
+
+        const newQuestions = dataRows.map((row: any, idx: number) => {
+          const type = row['Tipe'] || row['type'] || 'Pilihan Ganda';
+          let option_a = String(row['Opsi A'] || row['option_a'] || '');
+          let option_b = String(row['Opsi B'] || row['option_b'] || '');
+          let option_c = String(row['Opsi C'] || row['option_c'] || '');
+          let option_d = String(row['Opsi D'] || row['option_d'] || '');
+          let option_e = String(row['Opsi E'] || row['option_e'] || '');
+          let jawaban_benar = String(row['Jawaban Benar'] || row['jawaban_benar'] || 'a').toLowerCase().trim();
+
+          // Auto-fill TKA options if blank
+          if (type === 'Pilihan Ganda Asosiatif (TKA)' && (!option_a || option_a.trim() === '')) {
+            option_a = '1, 2, dan 3 benar';
+            option_b = '1 dan 3 benar';
+            option_c = '2 dan 4 benar';
+            option_d = 'Hanya 4 yang benar';
+            option_e = 'Semua pernyataan benar';
+          } else if (type === 'Hubungan Sebab Akibat (TKA)' && (!option_a || option_a.trim() === '')) {
+            option_a = 'Pernyataan benar, alasan benar, dan keduanya menunjukkan hubungan sebab akibat';
+            option_b = 'Pernyataan benar, alasan benar, tetapi keduanya tidak menunjukkan hubungan sebab akibat';
+            option_c = 'Pernyataan benar dan alasan salah';
+            option_d = 'Pernyataan salah dan alasan benar';
+            option_e = 'Pernyataan dan alasan keduanya salah';
+          }
+
+          return {
+            id: `${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 4)}`,
+            text: row['Pertanyaan'] || row['text'] || '',
+            type,
+            category: row['Kategori'] || row['category'] || 'Umum',
+            option_a,
+            option_b,
+            option_c,
+            option_d,
+            option_e,
+            jawaban_benar,
+            image_url: row['Link Gambar'] || row['image_url'] || ''
+          };
+        }).filter(q => q.text);
+
+        if (newQuestions.length === 0) {
+          showAlert({ title: 'Gagal', message: 'Tidak ada data soal yang valid ditemukan (Kolom "Pertanyaan" wajib ada).', type: 'error' });
+          return;
+        }
+
+        const updated = [...questions, ...newQuestions];
+        setQuestions(updated);
+        await syncToDrive(updated);
+
+        showAlert({ 
+          title: 'Berhasil', 
+          message: `${newQuestions.length} soal berhasil diimpor dari Word.`, 
+          type: 'success' 
+        });
+      } catch (err) {
+        console.error('Word import error:', err);
+        showAlert({ title: 'Error', message: 'Gagal memproses file Word. Pastikan format tabel di dalam berkas docx sudah benar.', type: 'error' });
+      }
+      if (wordInputRef.current) wordInputRef.current.value = '';
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
   const deleteQuestion = (id: string) => {
     showAlert({
       title: 'Hapus Soal?',
@@ -377,19 +491,37 @@ export default function BankSoal() {
             type="file" ref={excelInputRef} className="hidden" 
             accept=".xlsx,.xls" onChange={handleImportExcel} 
           />
+          <input 
+            type="file" ref={wordInputRef} className="hidden" 
+            accept=".docx" onChange={handleImportWord} 
+          />
           <button 
             onClick={downloadTemplate}
             className="bg-white border border-slate-200 text-indigo-950 px-4 py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-slate-50 transition-all active:scale-95 shadow-sm"
           >
             <Download className="w-3.5 h-3.5" />
-            Template
+            Template Excel
           </button>
+          <a 
+            href="/Template_Bank_Soal_EduTest.docx" download
+            className="bg-white border border-slate-200 text-blue-600 px-4 py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-blue-50 transition-all active:scale-95 shadow-sm"
+          >
+            <Download className="w-3.5 h-3.5" />
+            Template Word
+          </a>
           <button 
             onClick={() => excelInputRef.current?.click()}
             className="bg-white border border-slate-200 text-emerald-600 px-4 py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-emerald-50 transition-all active:scale-95 shadow-sm"
           >
             <Upload className="w-3.5 h-3.5" />
             Impor Excel
+          </button>
+          <button 
+            onClick={() => wordInputRef.current?.click()}
+            className="bg-white border border-slate-200 text-sky-600 px-4 py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-sky-50 transition-all active:scale-95 shadow-sm"
+          >
+            <Upload className="w-3.5 h-3.5" />
+            Impor Word
           </button>
           <button 
             onClick={() => setShowAddModal(true)}
