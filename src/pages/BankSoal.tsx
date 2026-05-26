@@ -37,6 +37,8 @@ export default function BankSoal() {
   const { showAlert } = useAlert();
 
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [newQuestion, setNewQuestion] = useState({
     text: '',
@@ -299,59 +301,92 @@ export default function BankSoal() {
           return;
         }
 
-        const result = await mammoth.convertToHtml({ arrayBuffer });
-        const html = result.value;
+        const result = await mammoth.extractRawText({ arrayBuffer });
+        const rawText = result.value;
 
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, 'text/html');
-        const table = doc.querySelector('table');
-        if (!table) {
-          showAlert({ title: 'Gagal', message: 'Tabel soal tidak ditemukan di dalam dokumen Word.', type: 'error' });
-          return;
-        }
-
-        const trs = Array.from(table.querySelectorAll('tr'));
-        if (trs.length < 2) {
-          showAlert({ title: 'Gagal', message: 'Tabel soal harus memiliki baris header dan minimal satu baris data.', type: 'error' });
-          return;
-        }
-
-        const headers = Array.from(trs[0].querySelectorAll('td, th')).map(td => (td.textContent || '').trim());
-        const dataRows: any[] = [];
-
-        for (let i = 1; i < trs.length; i++) {
-          const cells = Array.from(trs[i].querySelectorAll('td'));
-          const rowObj: Record<string, string> = {};
-          headers.forEach((header, cellIdx) => {
-            if (header) {
-              rowObj[header] = (cells[cellIdx]?.textContent || '').trim();
-            }
-          });
-          dataRows.push(rowObj);
-        }
-
-        if (dataRows.length === 0) {
+        if (!rawText || !rawText.trim()) {
           showAlert({ title: 'Gagal', message: 'Dokumen Word kosong.', type: 'error' });
           return;
         }
 
-        const newQuestions = dataRows.map((row: any, idx: number) => {
-          const type = row['Tipe'] || row['type'] || 'Pilihan Ganda';
-          let option_a = String(row['Opsi A'] || row['option_a'] || '');
-          let option_b = String(row['Opsi B'] || row['option_b'] || '');
-          let option_c = String(row['Opsi C'] || row['option_c'] || '');
-          let option_d = String(row['Opsi D'] || row['option_d'] || '');
-          let option_e = String(row['Opsi E'] || row['option_e'] || '');
-          let jawaban_benar = String(row['Jawaban Benar'] || row['jawaban_benar'] || 'a').toLowerCase().trim();
+        const normalizedText = rawText.replace(/\r\n/g, '\n');
+        const blocks = normalizedText.split(/\n{2,}/);
+        const dataQuestions: any[] = [];
 
-          // Auto-fill TKA options if blank
-          if (type === 'Pilihan Ganda Asosiatif (TKA)' && (!option_a || option_a.trim() === '')) {
+        for (const block of blocks) {
+          const lines = block.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+          if (lines.length === 0) continue;
+
+          let questionText = '';
+          let type = 'Pilihan Ganda';
+          let category = 'Umum';
+          let option_a = '';
+          let option_b = '';
+          let option_c = '';
+          let option_d = '';
+          let option_e = '';
+          let jawaban_benar = 'a';
+          let image_url = '';
+
+          let questionTextLines: string[] = [];
+          let readingQuestionText = true;
+
+          for (const line of lines) {
+            const isField = line.match(/^(tipe|kategori|jawaban|gambar|[a-e]\s*[:.])\s*/i);
+            if (isField) {
+              readingQuestionText = false;
+            }
+
+            if (readingQuestionText) {
+              questionTextLines.push(line);
+            } else {
+              if (line.match(/^tipe\s*:/i)) {
+                type = line.substring(line.indexOf(':') + 1).trim();
+              } else if (line.match(/^kategori\s*:/i)) {
+                category = line.substring(line.indexOf(':') + 1).trim();
+              } else if (line.match(/^gambar\s*:/i)) {
+                image_url = line.substring(line.indexOf(':') + 1).trim();
+              } else if (line.match(/^jawaban\s*:/i)) {
+                const ans = line.substring(line.indexOf(':') + 1).trim().toLowerCase();
+                if (ans.length > 0) {
+                  jawaban_benar = ans.substring(0, 1);
+                }
+              } else if (line.match(/^a\s*[:.]/i)) {
+                option_a = line.replace(/^a\s*[:.]/i, '').trim();
+              } else if (line.match(/^b\s*[:.]/i)) {
+                option_b = line.replace(/^b\s*[:.]/i, '').trim();
+              } else if (line.match(/^c\s*[:.]/i)) {
+                option_c = line.replace(/^c\s*[:.]/i, '').trim();
+              } else if (line.match(/^d\s*[:.]/i)) {
+                option_d = line.replace(/^d\s*[:.]/i, '').trim();
+              } else if (line.match(/^e\s*[:.]/i)) {
+                option_e = line.replace(/^e\s*[:.]/i, '').trim();
+              }
+            }
+          }
+
+          questionText = questionTextLines.join(' ').trim();
+          questionText = questionText.replace(/^\d+[\s.)-]+\s*/, '');
+
+          if (!questionText) continue;
+
+          let normalizedType = 'Pilihan Ganda';
+          const typeLower = type.toLowerCase();
+          if (typeLower.includes('asosiatif')) {
+            normalizedType = 'Pilihan Ganda Asosiatif (TKA)';
+          } else if (typeLower.includes('sebab') || typeLower.includes('akibat')) {
+            normalizedType = 'Hubungan Sebab Akibat (TKA)';
+          } else if (typeLower.includes('essay') || typeLower.includes('uraian')) {
+            normalizedType = 'Essay';
+          }
+
+          if (normalizedType === 'Pilihan Ganda Asosiatif (TKA)' && (!option_a || option_a.trim() === '')) {
             option_a = '1, 2, dan 3 benar';
             option_b = '1 dan 3 benar';
             option_c = '2 dan 4 benar';
             option_d = 'Hanya 4 yang benar';
             option_e = 'Semua pernyataan benar';
-          } else if (type === 'Hubungan Sebab Akibat (TKA)' && (!option_a || option_a.trim() === '')) {
+          } else if (normalizedType === 'Hubungan Sebab Akibat (TKA)' && (!option_a || option_a.trim() === '')) {
             option_a = 'Pernyataan benar, alasan benar, dan keduanya menunjukkan hubungan sebab akibat';
             option_b = 'Pernyataan benar, alasan benar, tetapi keduanya tidak menunjukkan hubungan sebab akibat';
             option_c = 'Pernyataan benar dan alasan salah';
@@ -359,38 +394,38 @@ export default function BankSoal() {
             option_e = 'Pernyataan dan alasan keduanya salah';
           }
 
-          return {
-            id: `${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 4)}`,
-            text: row['Pertanyaan'] || row['text'] || '',
-            type,
-            category: row['Kategori'] || row['category'] || 'Umum',
+          dataQuestions.push({
+            id: `${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+            text: questionText,
+            type: normalizedType,
+            category,
             option_a,
             option_b,
             option_c,
             option_d,
             option_e,
             jawaban_benar,
-            image_url: row['Link Gambar'] || row['image_url'] || ''
-          };
-        }).filter(q => q.text);
+            image_url
+          });
+        }
 
-        if (newQuestions.length === 0) {
-          showAlert({ title: 'Gagal', message: 'Tidak ada data soal yang valid ditemukan (Kolom "Pertanyaan" wajib ada).', type: 'error' });
+        if (dataQuestions.length === 0) {
+          showAlert({ title: 'Gagal', message: 'Tidak ada data soal yang valid ditemukan di dalam dokumen Word.', type: 'error' });
           return;
         }
 
-        const updated = [...questions, ...newQuestions];
+        const updated = [...questions, ...dataQuestions];
         setQuestions(updated);
         await syncToDrive(updated);
 
         showAlert({ 
           title: 'Berhasil', 
-          message: `${newQuestions.length} soal berhasil diimpor dari Word.`, 
+          message: `${dataQuestions.length} soal berhasil diimpor dari Word.`, 
           type: 'success' 
         });
       } catch (err) {
         console.error('Word import error:', err);
-        showAlert({ title: 'Error', message: 'Gagal memproses file Word. Pastikan format tabel di dalam berkas docx sudah benar.', type: 'error' });
+        showAlert({ title: 'Error', message: 'Gagal memproses file Word. Pastikan format penulisan soal sudah benar.', type: 'error' });
       }
       if (wordInputRef.current) wordInputRef.current.value = '';
     };
@@ -496,32 +531,18 @@ export default function BankSoal() {
             accept=".docx" onChange={handleImportWord} 
           />
           <button 
-            onClick={downloadTemplate}
+            onClick={() => setShowTemplateModal(true)}
             className="bg-white border border-slate-200 text-indigo-950 px-4 py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-slate-50 transition-all active:scale-95 shadow-sm"
           >
             <Download className="w-3.5 h-3.5" />
-            Template Excel
+            Template
           </button>
-          <a 
-            href="/Template_Bank_Soal_EduTest.docx" download
-            className="bg-white border border-slate-200 text-blue-600 px-4 py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-blue-50 transition-all active:scale-95 shadow-sm"
-          >
-            <Download className="w-3.5 h-3.5" />
-            Template Word
-          </a>
           <button 
-            onClick={() => excelInputRef.current?.click()}
+            onClick={() => setShowImportModal(true)}
             className="bg-white border border-slate-200 text-emerald-600 px-4 py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-emerald-50 transition-all active:scale-95 shadow-sm"
           >
             <Upload className="w-3.5 h-3.5" />
-            Impor Excel
-          </button>
-          <button 
-            onClick={() => wordInputRef.current?.click()}
-            className="bg-white border border-slate-200 text-sky-600 px-4 py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-sky-50 transition-all active:scale-95 shadow-sm"
-          >
-            <Upload className="w-3.5 h-3.5" />
-            Impor Word
+            Impor Soal
           </button>
           <button 
             onClick={() => setShowAddModal(true)}
@@ -732,6 +753,101 @@ export default function BankSoal() {
               </button>
               <button onClick={saveQuestion} className="flex-1 py-3 rounded-xl bg-indigo-950 text-white font-bold flex items-center justify-center gap-2">
                 <Check className="w-4 h-4" /> Simpan
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+
+      {showTemplateModal && (
+        <motion.div 
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        >
+          <motion.div 
+            initial={{ scale: 0.95, y: 10 }} animate={{ scale: 1, y: 0 }}
+            className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl space-y-4 border border-slate-100"
+          >
+            <div className="flex justify-between items-center">
+              <h3 className="font-bold text-indigo-950 text-sm">Unduh Template Soal</h3>
+              <button onClick={() => setShowTemplateModal(false)} className="p-2 hover:bg-slate-100 rounded-xl transition-all">
+                <X className="w-4 h-4 text-slate-400" />
+              </button>
+            </div>
+            <p className="text-[11px] text-slate-400 font-medium">Pilih format dokumen template yang ingin diunduh:</p>
+            <div className="grid grid-cols-1 gap-2 pt-1">
+              <button 
+                onClick={() => { downloadTemplate(); setShowTemplateModal(false); }}
+                className="w-full flex items-center gap-3 p-3 rounded-2xl border-2 border-slate-100 hover:border-emerald-500 hover:bg-emerald-50/30 transition-all text-left group"
+              >
+                <div className="bg-emerald-100 text-emerald-600 p-2.5 rounded-xl group-hover:bg-emerald-500 group-hover:text-white transition-all">
+                  <Download className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-indigo-950">Template Excel</p>
+                  <p className="text-[9px] text-slate-400">Format file spreadsheet .xlsx</p>
+                </div>
+              </button>
+              
+              <a 
+                href="/Template_Bank_Soal_EduTest.docx" download
+                onClick={() => setShowTemplateModal(false)}
+                className="w-full flex items-center gap-3 p-3 rounded-2xl border-2 border-slate-100 hover:border-blue-500 hover:bg-blue-50/30 transition-all text-left group no-underline"
+              >
+                <div className="bg-blue-100 text-blue-600 p-2.5 rounded-xl group-hover:bg-blue-500 group-hover:text-white transition-all">
+                  <Download className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-indigo-950">Template Word</p>
+                  <p className="text-[9px] text-slate-400">Format file dokumen teks .docx</p>
+                </div>
+              </a>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+
+      {showImportModal && (
+        <motion.div 
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        >
+          <motion.div 
+            initial={{ scale: 0.95, y: 10 }} animate={{ scale: 1, y: 0 }}
+            className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl space-y-4 border border-slate-100"
+          >
+            <div className="flex justify-between items-center">
+              <h3 className="font-bold text-indigo-950 text-sm">Impor Soal Baru</h3>
+              <button onClick={() => setShowImportModal(false)} className="p-2 hover:bg-slate-100 rounded-xl transition-all">
+                <X className="w-4 h-4 text-slate-400" />
+              </button>
+            </div>
+            <p className="text-[11px] text-slate-400 font-medium">Pilih format dokumen file soal yang akan diunggah:</p>
+            <div className="grid grid-cols-1 gap-2 pt-1">
+              <button 
+                onClick={() => { excelInputRef.current?.click(); setShowImportModal(false); }}
+                className="w-full flex items-center gap-3 p-3 rounded-2xl border-2 border-slate-100 hover:border-emerald-500 hover:bg-emerald-50/30 transition-all text-left group"
+              >
+                <div className="bg-emerald-100 text-emerald-600 p-2.5 rounded-xl group-hover:bg-emerald-500 group-hover:text-white transition-all">
+                  <Upload className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-indigo-950">Impor dari Excel</p>
+                  <p className="text-[9px] text-slate-400">Unggah berkas spreadsheet .xlsx/.xls</p>
+                </div>
+              </button>
+              
+              <button 
+                onClick={() => { wordInputRef.current?.click(); setShowImportModal(false); }}
+                className="w-full flex items-center gap-3 p-3 rounded-2xl border-2 border-slate-100 hover:border-blue-500 hover:bg-blue-50/30 transition-all text-left group"
+              >
+                <div className="bg-blue-100 text-blue-600 p-2.5 rounded-xl group-hover:bg-blue-500 group-hover:text-white transition-all">
+                  <Upload className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-indigo-950">Impor dari Word</p>
+                  <p className="text-[9px] text-slate-400">Unggah berkas dokumen teks .docx</p>
+                </div>
               </button>
             </div>
           </motion.div>

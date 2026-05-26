@@ -7,90 +7,91 @@ const doc = new docx.Document({
             properties: {},
             children: [
                 new docx.Paragraph({
-                    text: "Template Bank Soal EduTest",
+                    text: "TEMPLATE SOAL EDUTEST (WORD)",
                     heading: docx.HeadingLevel.HEADING_1,
                 }),
+                new docx.Paragraph({ text: "" }),
                 new docx.Paragraph({
-                    text: "Petunjuk: Isi tabel di bawah ini untuk mengimpor soal ke Bank Soal EduTest.",
+                    children: [
+                        new docx.TextRun({
+                            text: "Petunjuk Pengisian Soal:",
+                            bold: true,
+                        })
+                    ]
                 }),
                 new docx.Paragraph({
-                    text: "Untuk tipe soal TKA, Anda dapat mengosongkan kolom Opsi A sampai Opsi E agar diisi otomatis oleh sistem sesuai standar UTBK.",
+                    text: "1. Pisahkan setiap soal dengan 1 baris kosong.",
                 }),
-                new docx.Paragraph({ text: "" }), // spacing
-                new docx.Table({
-                    rows: [
-                        new docx.TableRow({
-                            children: [
-                                new docx.TableCell({ children: [new docx.Paragraph("Pertanyaan")] }),
-                                new docx.TableCell({ children: [new docx.Paragraph("Tipe")] }),
-                                new docx.TableCell({ children: [new docx.Paragraph("Kategori")] }),
-                                new docx.TableCell({ children: [new docx.Paragraph("Opsi A")] }),
-                                new docx.TableCell({ children: [new docx.Paragraph("Opsi B")] }),
-                                new docx.TableCell({ children: [new docx.Paragraph("Opsi C")] }),
-                                new docx.TableCell({ children: [new docx.Paragraph("Opsi D")] }),
-                                new docx.TableCell({ children: [new docx.Paragraph("Opsi E")] }),
-                                new docx.TableCell({ children: [new docx.Paragraph("Jawaban Benar")] }),
-                                new docx.TableCell({ children: [new docx.Paragraph("Link Gambar")] }),
-                            ],
-                        }),
-                        new docx.TableRow({
-                            children: [
-                                new docx.TableCell({ children: [new docx.Paragraph("Manakah dari bangun berikut yang memiliki 4 sisi sama panjang?")] }),
-                                new docx.TableCell({ children: [new docx.Paragraph("Pilihan Ganda")] }),
-                                new docx.TableCell({ children: [new docx.Paragraph("Matematika")] }),
-                                new docx.TableCell({ children: [new docx.Paragraph("Persegi")] }),
-                                new docx.TableCell({ children: [new docx.Paragraph("Persegi Panjang")] }),
-                                new docx.TableCell({ children: [new docx.Paragraph("Segitiga")] }),
-                                new docx.TableCell({ children: [new docx.Paragraph("Lingkaran")] }),
-                                new docx.TableCell({ children: [new docx.Paragraph("Trapesium")] }),
-                                new docx.TableCell({ children: [new docx.Paragraph("a")] }),
-                                new docx.TableCell({ children: [new docx.Paragraph("")] }),
-                            ],
-                        }),
-                        new docx.TableRow({
-                            children: [
-                                new docx.TableCell({ children: [new docx.Paragraph("Jika (1) x > 0, (2) y > 0, (3) x+y > 0, (4) x*y < 0. Manakah pernyataan yang benar jika diketahui hasil penjumlahan bernilai positif dan perkalian negatif?")] }),
-                                new docx.TableCell({ children: [new docx.Paragraph("Pilihan Ganda Asosiatif (TKA)")] }),
-                                new docx.TableCell({ children: [new docx.Paragraph("Matematika TKA")] }),
-                                new docx.TableCell({ children: [new docx.Paragraph("")] }),
-                                new docx.TableCell({ children: [new docx.Paragraph("")] }),
-                                new docx.TableCell({ children: [new docx.Paragraph("")] }),
-                                new docx.TableCell({ children: [new docx.Paragraph("")] }),
-                                new docx.TableCell({ children: [new docx.Paragraph("")] }),
-                                new docx.TableCell({ children: [new docx.Paragraph("a")] }),
-                                new docx.TableCell({ children: [new docx.Paragraph("")] }),
-                            ],
-                        }),
-                        new docx.TableRow({
-                            children: [
-                                new docx.TableCell({ children: [new docx.Paragraph("Logam natrium sangat reaktif terhadap air. SEBAB Logam natrium memiliki energi ionisasi yang sangat kecil.")] }),
-                                new docx.TableCell({ children: [new docx.Paragraph("Hubungan Sebab Akibat (TKA)")] }),
-                                new docx.TableCell({ children: [new docx.Paragraph("Kimia TKA")] }),
-                                new docx.TableCell({ children: [new docx.Paragraph("")] }),
-                                new docx.TableCell({ children: [new docx.Paragraph("")] }),
-                                new docx.TableCell({ children: [new docx.Paragraph("")] }),
-                                new docx.TableCell({ children: [new docx.Paragraph("")] }),
-                                new docx.TableCell({ children: [new docx.Paragraph("")] }),
-                                new docx.TableCell({ children: [new docx.Paragraph("a")] }),
-                                new docx.TableCell({ children: [new docx.Paragraph("")] }),
-                            ],
-                        }),
-                        new docx.TableRow({
-                            children: [
-                                new docx.TableCell({ children: [new docx.Paragraph("Jelaskan perbedaan antara pembelahan mitosis dan meiosis!")] }),
-                                new docx.TableCell({ children: [new docx.Paragraph("Essay")] }),
-                                new docx.TableCell({ children: [new docx.Paragraph("Biologi")] }),
-                                new docx.TableCell({ children: [new docx.Paragraph("")] }),
-                                new docx.TableCell({ children: [new docx.Paragraph("")] }),
-                                new docx.TableCell({ children: [new docx.Paragraph("")] }),
-                                new docx.TableCell({ children: [new docx.Paragraph("")] }),
-                                new docx.TableCell({ children: [new docx.Paragraph("")] }),
-                                new docx.TableCell({ children: [new docx.Paragraph("")] }),
-                                new docx.TableCell({ children: [new docx.Paragraph("")] }),
-                            ],
-                        }),
-                    ],
+                new docx.Paragraph({
+                    text: "2. Tulis pertanyaan diawali dengan nomor (misalnya: 1. Pertanyaan... atau 1) Pertanyaan...).",
                 }),
+                new docx.Paragraph({
+                    text: "3. Tulis field Tipe, Kategori, dan Jawaban menggunakan pemisah titik dua ':'.",
+                }),
+                new docx.Paragraph({
+                    text: "4. Pilihan jawaban ditulis menggunakan huruf A s.d E diawali titik '.' atau titik dua ':' (Contoh A: Pilihan A).",
+                }),
+                new docx.Paragraph({
+                    text: "5. Khusus untuk tipe soal TKA (Pilihan Ganda Asosiatif / Hubungan Sebab Akibat), Anda tidak perlu menuliskan pilihan Opsi A sampai Opsi E karena akan otomatis diisi oleh sistem sesuai format baku SBMPTN/UTBK.",
+                }),
+                new docx.Paragraph({ text: "" }),
+
+                new docx.Paragraph({
+                    children: [
+                        new docx.TextRun({
+                            text: "CONTOH FORMAT SOAL DI BAWAH INI:",
+                            bold: true,
+                        })
+                    ]
+                }),
+                new docx.Paragraph({ text: "" }),
+
+                // Soal 1
+                new docx.Paragraph({
+                    children: [
+                        new docx.TextRun({ text: "1. Manakah dari bangun berikut yang memiliki 4 sisi sama panjang?", bold: true })
+                    ]
+                }),
+                new docx.Paragraph({ text: "Tipe: Pilihan Ganda" }),
+                new docx.Paragraph({ text: "Kategori: Matematika" }),
+                new docx.Paragraph({ text: "A: Persegi" }),
+                new docx.Paragraph({ text: "B: Persegi Panjang" }),
+                new docx.Paragraph({ text: "C: Segitiga" }),
+                new docx.Paragraph({ text: "D: Lingkaran" }),
+                new docx.Paragraph({ text: "E: Trapesium" }),
+                new docx.Paragraph({ text: "Jawaban: A" }),
+                new docx.Paragraph({ text: "" }),
+
+                // Soal 2
+                new docx.Paragraph({
+                    children: [
+                        new docx.TextRun({ text: "2. Jika (1) x > 0, (2) y > 0, (3) x+y > 0, (4) x*y < 0. Manakah pernyataan yang benar jika diketahui hasil penjumlahan bernilai positif dan perkalian negatif?", bold: true })
+                    ]
+                }),
+                new docx.Paragraph({ text: "Tipe: Pilihan Ganda Asosiatif (TKA)" }),
+                new docx.Paragraph({ text: "Kategori: Matematika TKA" }),
+                new docx.Paragraph({ text: "Jawaban: A" }),
+                new docx.Paragraph({ text: "" }),
+
+                // Soal 3
+                new docx.Paragraph({
+                    children: [
+                        new docx.TextRun({ text: "3. Logam natrium sangat reaktif terhadap air. SEBAB Logam natrium memiliki energi ionisasi yang sangat kecil.", bold: true })
+                    ]
+                }),
+                new docx.Paragraph({ text: "Tipe: Hubungan Sebab Akibat (TKA)" }),
+                new docx.Paragraph({ text: "Kategori: Kimia TKA" }),
+                new docx.Paragraph({ text: "Jawaban: A" }),
+                new docx.Paragraph({ text: "" }),
+
+                // Soal 4
+                new docx.Paragraph({
+                    children: [
+                        new docx.TextRun({ text: "4. Jelaskan perbedaan antara pembelahan mitosis dan meiosis!", bold: true })
+                    ]
+                }),
+                new docx.Paragraph({ text: "Tipe: Essay" }),
+                new docx.Paragraph({ text: "Kategori: Biologi" }),
             ],
         },
     ],
