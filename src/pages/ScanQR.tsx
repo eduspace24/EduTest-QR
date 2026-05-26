@@ -273,16 +273,18 @@ export default function ScanQR() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column: Camera Scanner */}
         <div className="lg:col-span-2 space-y-4">
-          <div className="bg-indigo-950 p-6 rounded-[2.5rem] shadow-xl shadow-indigo-950/15 border border-indigo-900 overflow-hidden relative min-h-[350px] flex flex-col items-center justify-center">
+          <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-100 shadow-sm overflow-hidden relative min-h-[350px] flex flex-col items-center justify-center">
             
             {/* Camera viewport frame */}
-            <div className="w-full max-w-md aspect-square bg-black/60 rounded-3xl overflow-hidden relative border-4 border-white/10 flex items-center justify-center">
-              <div id={scannerId} className="w-full h-full object-cover"></div>
+            <div className="w-full max-w-sm aspect-square bg-slate-950 rounded-3xl overflow-hidden relative border border-slate-200/50 shadow-inner flex items-center justify-center">
+              <div id={scannerId} className="w-full h-full object-cover [&_video]:object-cover [&_video]:w-full [&_video]:h-full [&_video]:rounded-3xl"></div>
               
               {!isScanning && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-white/50 gap-3 bg-indigo-950/80 backdrop-blur-sm">
-                  <Camera className="w-12 h-12 stroke-[1.5]" />
-                  <p className="text-xs font-bold uppercase tracking-wider">Kamera Nonaktif</p>
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400 gap-3 bg-slate-950/95 backdrop-blur-sm">
+                  <div className="bg-slate-900 p-4 rounded-full border border-slate-800 text-slate-300 shadow-lg">
+                    <Camera className="w-8 h-8 stroke-[1.5]" />
+                  </div>
+                  <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Kamera Nonaktif</p>
                 </div>
               )}
 
@@ -293,8 +295,8 @@ export default function ScanQR() {
               )}
             </div>
 
-            {/* Camera Select dropdown */}
-            <div className="w-full max-w-md mt-6 flex flex-col sm:flex-row gap-3">
+            {/* Camera Select dropdown & controls */}
+            <div className="w-full max-w-sm mt-6 flex flex-col sm:flex-row gap-3">
               {cameras.length > 0 ? (
                 <select
                   value={selectedCameraId}
@@ -302,24 +304,24 @@ export default function ScanQR() {
                     setSelectedCameraId(e.target.value);
                     if (isScanning) startScanner(e.target.value);
                   }}
-                  className="flex-1 bg-white/10 text-white font-bold border border-white/20 px-4 py-3 rounded-2xl outline-none text-xs"
+                  className="flex-1 bg-slate-50 text-indigo-950 font-bold border border-slate-200 px-4 py-3 rounded-2xl outline-none text-xs focus:ring-2 focus:ring-indigo-950/10 cursor-pointer transition-all"
                 >
                   {cameras.map(cam => (
                     <option key={cam.id} value={cam.id} className="text-indigo-950">{cam.label || `Kamera ${cam.id.substring(0, 5)}`}</option>
                   ))}
                 </select>
               ) : (
-                <div className="flex-1 text-center text-white/40 text-xs py-3 border border-dashed border-white/10 rounded-2xl">
+                <div className="flex-1 text-center text-slate-400 text-xs py-3 border border-dashed border-slate-200 rounded-2xl bg-slate-50 font-bold">
                   Mencari kamera aktif...
                 </div>
               )}
 
               <button
                 onClick={() => isScanning ? stopScanner() : startScanner()}
-                className={`px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${
+                className={`px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 shadow-md ${
                   isScanning 
-                    ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/20' 
-                    : 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
+                    ? 'bg-rose-600 text-white hover:bg-rose-700 shadow-rose-600/10' 
+                    : 'bg-indigo-950 text-white hover:bg-indigo-900 shadow-indigo-950/10'
                 }`}
               >
                 {isScanning ? (
@@ -328,7 +330,7 @@ export default function ScanQR() {
                   </>
                 ) : (
                   <>
-                    <Play className="w-4 h-4" /> Start Kamera
+                    <Play className="w-4 h-4 fill-white" /> Start Kamera
                   </>
                 )}
               </button>
@@ -382,14 +384,14 @@ export default function ScanQR() {
 
           {/* Scanned data card preview */}
           {scannedData && (
-            <div className="bg-white border-2 border-emerald-500 rounded-[2rem] p-6 shadow-lg shadow-emerald-500/5 space-y-4 animate-scale-up">
+            <div className="bg-white border border-emerald-100 rounded-3xl p-6 shadow-sm shadow-emerald-500/5 space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
               <div className="flex items-center gap-3">
-                <div className="bg-emerald-50 text-emerald-600 p-2 rounded-xl">
+                <div className="bg-emerald-50 text-emerald-600 p-2.5 rounded-xl">
                   <Check className="w-5 h-5" />
                 </div>
                 <div>
                   <h4 className="text-sm font-bold text-indigo-950">Siswa Terdeteksi</h4>
-                  <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">Terekam di Database</p>
+                  <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">Berhasil Disimpan</p>
                 </div>
               </div>
               
