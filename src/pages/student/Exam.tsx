@@ -207,7 +207,9 @@ export default function StudentExam() {
         startTime: auditLog[0]?.time || '-',
         endTime: new Date().toLocaleTimeString(),
         tabSwitches,
-        answersString
+        answersString,
+        serverUrl: exam?.serverUrl || undefined,
+        examTitle: exam?.title || undefined
       });
 
       // Simpan backup lokal & data QR

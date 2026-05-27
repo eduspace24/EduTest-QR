@@ -26,6 +26,8 @@ export function packResult(fields: {
   endTime: string;
   tabSwitches: number;
   answersString: string;
+  serverUrl?: string;
+  examTitle?: string;
 }): string {
   const dataParts = [
     fields.nama.replace(/\|/g, ''),
@@ -36,7 +38,9 @@ export function packResult(fields: {
     fields.startTime.replace(/\|/g, ''),
     fields.endTime.replace(/\|/g, ''),
     fields.tabSwitches.toString(),
-    fields.answersString.replace(/\|/g, '')
+    fields.answersString.replace(/\|/g, ''),
+    (fields.serverUrl || '').replace(/\|/g, ''),
+    (fields.examTitle || '').replace(/\|/g, '')
   ];
   
   const dataString = dataParts.join('|');
@@ -58,6 +62,8 @@ export function unpackResult(packed: string): {
   endTime: string;
   tabSwitches: number;
   answersString: string;
+  serverUrl?: string;
+  examTitle?: string;
 } | null {
   const parts = packed.split('|');
   if (parts.length < 10) return null;
@@ -81,6 +87,8 @@ export function unpackResult(packed: string): {
     startTime: dataParts[5],
     endTime: dataParts[6],
     tabSwitches: parseInt(dataParts[7]) || 0,
-    answersString: dataParts[8]
+    answersString: dataParts[8],
+    serverUrl: dataParts[9] || undefined,
+    examTitle: dataParts[10] || undefined
   };
 }

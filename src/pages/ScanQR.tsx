@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { unpackResult } from '../lib/hash';
-import { getCollectionData, saveCollection, getCollection } from '../lib/db';
+import { getCollectionData, saveCollection, getCollection, addToPendingSubmissions } from '../lib/db';
 import { useGoogleDrive } from '../context/GoogleDriveContext';
 import { useAlert } from '../context/AlertContext';
 import { readJsonFromDrive, saveJsonToDrive, getOrCreateRootFolder, fetchExamFromUrl } from '../lib/googleDrive';
@@ -208,7 +208,7 @@ export default function ScanQR() {
           role: 'siswa'
         },
         examId: parsed.driveFileId,
-        examTitle: examConfig?.title || 'Ujian (Scan QR)',
+        examTitle: parsed.examTitle || examConfig?.title || 'Ujian (Scan QR)',
         examFileId: parsed.driveFileId,
         score: parsed.score,
         answers,
@@ -224,7 +224,29 @@ export default function ScanQR() {
       const updatedResults = [...currentResults, newResult];
       await saveCollection('results', updatedResults);
 
-      // 4. Sync ke Google Drive (jika online dan login)
+      // 4. Kirim langsung ke Apps Script jika serverUrl tersedia
+      const serverUrl = parsed.serverUrl || examConfig?.serverUrl;
+      let sentToGas = false;
+      if (serverUrl) {
+        try {
+          await fetch(serverUrl, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify(newResult)
+          });
+          sentToGas = true;
+          console.log("Scan result sent successfully to Apps Script");
+        } catch (postErr) {
+          console.warn("Gagal mengirim langsung ke Apps Script, menyimpan ke antrean offline:", postErr);
+          await addToPendingSubmissions({
+            ...newResult,
+            serverUrl
+          });
+        }
+      }
+
+      // 5. Sync ke Google Drive (jika online dan login)
       try {
         const token = localStorage.getItem('edu_token');
         if (!token) throw new Error("No token, not logged in");
@@ -240,14 +262,22 @@ export default function ScanQR() {
         console.warn("Gagal sinkronisasi Drive:", driveErr);
         
         const isLoggedIn = !!localStorage.getItem('edu_session');
-        const alertMsg = isLoggedIn
-          ? `Nilai siswa ${parsed.nama} (${parsed.score}) berhasil disimpan secara offline di perangkat Anda. Data akan disinkronkan otomatis begitu online.`
-          : `Nilai siswa ${parsed.nama} (${parsed.score}) disimpan secara lokal di browser ini. Silakan LOGIN di perangkat ini agar data dapat terkirim ke akun Google Drive utama Anda.`;
+        let alertMsg = '';
+        
+        if (isLoggedIn) {
+          alertMsg = `Nilai siswa ${parsed.nama} (${parsed.score}) berhasil disimpan secara offline di perangkat Anda. Data akan disinkronkan otomatis begitu online.`;
+        } else {
+          if (sentToGas) {
+            alertMsg = `Nilai siswa ${parsed.nama} (${parsed.score}) berhasil dikirim ke Server Apps Script Guru. Anda bisa langsung melakukan 'Tarik Data' di akun utama Anda.`;
+          } else {
+            alertMsg = `Nilai siswa ${parsed.nama} (${parsed.score}) disimpan secara lokal di browser ini. Data akan dikirim otomatis ke Server Apps Script Guru begitu perangkat terhubung ke internet.`;
+          }
+        }
 
         showAlert({
-          title: isLoggedIn ? 'Tersimpan di Lokal' : 'Tersimpan (Belum Login)',
+          title: isLoggedIn ? 'Tersimpan di Lokal' : (sentToGas ? 'Pengiriman Sukses' : 'Tersimpan Offline'),
           message: alertMsg,
-          type: isLoggedIn ? 'success' : 'warning'
+          type: isLoggedIn ? 'success' : (sentToGas ? 'success' : 'warning')
         });
       }
     } catch (err: any) {
