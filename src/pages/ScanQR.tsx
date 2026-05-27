@@ -256,165 +256,167 @@ export default function ScanQR() {
   const isLoggedIn = !!localStorage.getItem('edu_session');
 
   return (
-    <div className="space-y-6 pb-12">
-      <div className="flex items-center gap-4">
-        <button 
-          onClick={() => { stopScanner(); navigate(isLoggedIn ? '/hasil-ujian' : '/login'); }} 
-          className="p-2.5 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors shadow-sm"
-        >
-          <ArrowLeft className="w-5 h-5 text-indigo-950" />
-        </button>
-        <div>
-          <h2 className="tracking-tight mb-0.5">Pindai QR Hasil Ujian</h2>
-          <p className="text-slate-500 text-sm font-medium">Arahkan kamera perangkat Anda ke layar HP siswa yang menampilkan QR Code.</p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column: Camera Scanner */}
-        <div className="lg:col-span-2 space-y-4">
-          <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-100 shadow-sm overflow-hidden relative min-h-[350px] flex flex-col items-center justify-center">
-            
-            {/* Camera viewport frame */}
-            <div className="w-full max-w-sm aspect-square bg-slate-950 rounded-3xl overflow-hidden relative border border-slate-200/50 shadow-inner flex items-center justify-center">
-              <div id={scannerId} className="w-full h-full object-cover [&_video]:object-cover [&_video]:w-full [&_video]:h-full [&_video]:rounded-3xl"></div>
-              
-              {!isScanning && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400 gap-3 bg-slate-950/95 backdrop-blur-sm">
-                  <div className="bg-slate-900 p-4 rounded-full border border-slate-800 text-slate-300 shadow-lg">
-                    <Camera className="w-8 h-8 stroke-[1.5]" />
-                  </div>
-                  <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Kamera Nonaktif</p>
-                </div>
-              )}
-
-              {isScanning && (
-                <div className="absolute inset-0 border-[3px] border-emerald-500 rounded-3xl pointer-events-none animate-pulse">
-                  <div className="absolute top-1/2 left-4 right-4 h-0.5 bg-emerald-500/80 shadow-md shadow-emerald-500/50 animate-[bounce_3s_infinite]" />
-                </div>
-              )}
-            </div>
-
-            {/* Camera Select dropdown & controls */}
-            <div className="w-full max-w-sm mt-6 flex flex-col sm:flex-row gap-3">
-              {cameras.length > 0 ? (
-                <select
-                  value={selectedCameraId}
-                  onChange={(e) => {
-                    setSelectedCameraId(e.target.value);
-                    if (isScanning) startScanner(e.target.value);
-                  }}
-                  className="flex-1 bg-slate-50 text-indigo-950 font-bold border border-slate-200 px-4 py-3 rounded-2xl outline-none text-xs focus:ring-2 focus:ring-indigo-950/10 cursor-pointer transition-all"
-                >
-                  {cameras.map(cam => (
-                    <option key={cam.id} value={cam.id} className="text-indigo-950">{cam.label || `Kamera ${cam.id.substring(0, 5)}`}</option>
-                  ))}
-                </select>
-              ) : (
-                <div className="flex-1 text-center text-slate-400 text-xs py-3 border border-dashed border-slate-200 rounded-2xl bg-slate-50 font-bold">
-                  Mencari kamera aktif...
-                </div>
-              )}
-
-              <button
-                onClick={() => isScanning ? stopScanner() : startScanner()}
-                className={`px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 shadow-md ${
-                  isScanning 
-                    ? 'bg-rose-600 text-white hover:bg-rose-700 shadow-rose-600/10' 
-                    : 'bg-indigo-950 text-white hover:bg-indigo-900 shadow-indigo-950/10'
-                }`}
-              >
-                {isScanning ? (
-                  <>
-                    <Square className="w-4 h-4" /> Stop Kamera
-                  </>
-                ) : (
-                  <>
-                    <Play className="w-4 h-4 fill-white" /> Start Kamera
-                  </>
-                )}
-              </button>
-            </div>
+    <div className="min-h-screen bg-slate-50 text-slate-800 w-full">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 pb-20">
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={() => { stopScanner(); navigate(isLoggedIn ? '/hasil-ujian' : '/login'); }} 
+            className="p-2.5 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors shadow-sm"
+          >
+            <ArrowLeft className="w-5 h-5 text-indigo-950" />
+          </button>
+          <div>
+            <h2 className="tracking-tight mb-0.5 font-black text-indigo-950 text-lg sm:text-xl md:text-2xl">Pindai QR Hasil Ujian</h2>
+            <p className="text-slate-500 text-xs sm:text-sm font-medium">Arahkan kamera perangkat Anda ke layar HP siswa yang menampilkan QR Code.</p>
           </div>
         </div>
 
-        {/* Right Column: Instructions and Scanned Preview */}
-        <div className="space-y-6">
-          {/* Quick Stats/Connection Card */}
-          <div className="bg-white rounded-3xl border border-slate-100 p-6 shadow-sm flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="bg-indigo-50 p-2.5 rounded-xl text-indigo-950">
-                <QrCode className="w-5 h-5" />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left Column: Camera Scanner */}
+          <div className="lg:col-span-2 space-y-4">
+            <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-100 shadow-sm overflow-hidden relative min-h-[350px] flex flex-col items-center justify-center">
+              
+              {/* Camera viewport frame */}
+              <div className="w-full max-w-sm aspect-square bg-slate-950 rounded-3xl overflow-hidden relative border border-slate-200/50 shadow-inner flex items-center justify-center">
+                <div id={scannerId} className="w-full h-full object-cover [&_video]:object-cover [&_video]:w-full [&_video]:h-full [&_video]:rounded-3xl"></div>
+                
+                {!isScanning && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400 gap-3 bg-slate-950/95 backdrop-blur-sm">
+                    <div className="bg-slate-900 p-4 rounded-full border border-slate-800 text-slate-300 shadow-lg">
+                      <Camera className="w-8 h-8 stroke-[1.5]" />
+                    </div>
+                    <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Kamera Nonaktif</p>
+                  </div>
+                )}
+
+                {isScanning && (
+                  <div className="absolute inset-0 border-[3px] border-emerald-500 rounded-3xl pointer-events-none animate-pulse">
+                    <div className="absolute top-1/2 left-4 right-4 h-0.5 bg-emerald-500/80 shadow-md shadow-emerald-500/50 animate-[bounce_3s_infinite]" />
+                  </div>
+                )}
               </div>
-              <div className="text-left">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Status Koneksi</p>
-                <h4 className="text-sm font-bold text-indigo-950 flex items-center gap-1.5 leading-none">
-                  {navigator.onLine ? (
+
+              {/* Camera Select dropdown & controls */}
+              <div className="w-full max-w-sm mt-6 flex flex-col sm:flex-row gap-3">
+                {cameras.length > 0 ? (
+                  <select
+                    value={selectedCameraId}
+                    onChange={(e) => {
+                      setSelectedCameraId(e.target.value);
+                      if (isScanning) startScanner(e.target.value);
+                    }}
+                    className="flex-1 bg-slate-50 text-indigo-950 font-bold border border-slate-200 px-4 py-3 rounded-2xl outline-none text-xs focus:ring-2 focus:ring-indigo-950/10 cursor-pointer transition-all"
+                  >
+                    {cameras.map(cam => (
+                      <option key={cam.id} value={cam.id} className="text-indigo-950">{cam.label || `Kamera ${cam.id.substring(0, 5)}`}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="flex-1 text-center text-slate-400 text-xs py-3 border border-dashed border-slate-200 rounded-2xl bg-slate-50 font-bold">
+                    Mencari kamera aktif...
+                  </div>
+                )}
+
+                <button
+                  onClick={() => isScanning ? stopScanner() : startScanner()}
+                  className={`px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 shadow-md ${
+                    isScanning 
+                      ? 'bg-rose-600 text-white hover:bg-rose-700 shadow-rose-600/10' 
+                      : 'bg-indigo-950 text-white hover:bg-indigo-900 shadow-indigo-950/10'
+                  }`}
+                >
+                  {isScanning ? (
                     <>
-                      <Wifi className="w-4 h-4 text-emerald-500" /> Online Mode
+                      <Square className="w-4 h-4" /> Stop Kamera
                     </>
                   ) : (
                     <>
-                      <WifiOff className="w-4 h-4 text-amber-500" /> Offline Mode (Lokal)
+                      <Play className="w-4 h-4 fill-white" /> Start Kamera
                     </>
                   )}
-                </h4>
+                </button>
               </div>
             </div>
           </div>
 
-          {/* Instructions */}
-          <div className="bg-white rounded-3xl border border-slate-100 p-6 shadow-sm space-y-4">
-            <h3 className="text-base font-black text-indigo-950">Petunjuk Pemindaian</h3>
-            <ul className="space-y-3 text-xs text-slate-500 font-medium">
-              <li className="flex items-start gap-2.5">
-                <div className="w-5 h-5 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">1</div>
-                <p>Klik tombol <strong>"Start Kamera"</strong> untuk mengaktifkan pemindai.</p>
-              </li>
-              <li className="flex items-start gap-2.5">
-                <div className="w-5 h-5 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">2</div>
-                <p>Posisikan QR Code di HP siswa berada di dalam kotak pemindai.</p>
-              </li>
-              <li className="flex items-start gap-2.5">
-                <div className="w-5 h-5 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">3</div>
-                <p>Sistem akan memvalidasi data secara otomatis. Lampu indikator hijau akan menyala setelah sukses disimpan.</p>
-              </li>
-            </ul>
-          </div>
-
-          {/* Scanned data card preview */}
-          {scannedData && (
-            <div className="bg-white border border-emerald-100 rounded-3xl p-6 shadow-sm shadow-emerald-500/5 space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
+          {/* Right Column: Instructions and Scanned Preview */}
+          <div className="space-y-6">
+            {/* Quick Stats/Connection Card */}
+            <div className="bg-white rounded-3xl border border-slate-100 p-6 shadow-sm flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="bg-emerald-50 text-emerald-600 p-2.5 rounded-xl">
-                  <Check className="w-5 h-5" />
+                <div className="bg-indigo-50 p-2.5 rounded-xl text-indigo-950">
+                  <QrCode className="w-5 h-5" />
                 </div>
-                <div>
-                  <h4 className="text-sm font-bold text-indigo-950">Siswa Terdeteksi</h4>
-                  <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">Berhasil Disimpan</p>
-                </div>
-              </div>
-              
-              <div className="border-t border-slate-100 pt-4 space-y-2.5 text-xs text-slate-600">
-                <div className="flex justify-between">
-                  <span className="text-slate-400 font-medium">Nama:</span>
-                  <span className="font-bold text-indigo-950">{scannedData.nama}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400 font-medium">Kelas:</span>
-                  <span className="font-bold text-indigo-950">{scannedData.kelas}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400 font-medium">Kode:</span>
-                  <span className="font-bold font-mono text-indigo-950">{scannedData.code}</span>
-                </div>
-                <div className="flex justify-between border-t border-slate-100 pt-3.5 items-center">
-                  <span className="text-slate-400 font-medium">Skor Ujian:</span>
-                  <span className="text-xl font-black text-emerald-600">{scannedData.score}</span>
+                <div className="text-left">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Status Koneksi</p>
+                  <h4 className="text-sm font-bold text-indigo-950 flex items-center gap-1.5 leading-none">
+                    {navigator.onLine ? (
+                      <>
+                        <Wifi className="w-4 h-4 text-emerald-500" /> Online Mode
+                      </>
+                    ) : (
+                      <>
+                        <WifiOff className="w-4 h-4 text-amber-500" /> Offline Mode (Lokal)
+                      </>
+                    )}
+                  </h4>
                 </div>
               </div>
             </div>
-          )}
+
+            {/* Instructions */}
+            <div className="bg-white rounded-3xl border border-slate-100 p-6 shadow-sm space-y-4">
+              <h3 className="text-base font-black text-indigo-950">Petunjuk Pemindaian</h3>
+              <ul className="space-y-3 text-xs text-slate-500 font-medium">
+                <li className="flex items-start gap-2.5">
+                  <div className="w-5 h-5 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">1</div>
+                  <p>Klik tombol <strong>"Start Kamera"</strong> untuk mengaktifkan pemindai.</p>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <div className="w-5 h-5 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">2</div>
+                  <p>Posisikan QR Code di HP siswa berada di dalam kotak pemindai.</p>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <div className="w-5 h-5 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">3</div>
+                  <p>Sistem akan memvalidasi data secara otomatis. Lampu indikator hijau akan menyala setelah sukses disimpan.</p>
+                </li>
+              </ul>
+            </div>
+
+            {/* Scanned data card preview */}
+            {scannedData && (
+              <div className="bg-white border border-emerald-100 rounded-3xl p-6 shadow-sm shadow-emerald-500/5 space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                <div className="flex items-center gap-3">
+                  <div className="bg-emerald-50 text-emerald-600 p-2.5 rounded-xl">
+                    <Check className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-indigo-950">Siswa Terdeteksi</h4>
+                    <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">Berhasil Disimpan</p>
+                  </div>
+                </div>
+                
+                <div className="border-t border-slate-100 pt-4 space-y-2.5 text-xs text-slate-600">
+                  <div className="flex justify-between">
+                    <span className="text-slate-400 font-medium">Nama:</span>
+                    <span className="font-bold text-indigo-950">{scannedData.nama}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400 font-medium">Kelas:</span>
+                    <span className="font-bold text-indigo-950">{scannedData.kelas}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400 font-medium">Kode:</span>
+                    <span className="font-bold font-mono text-indigo-950">{scannedData.code}</span>
+                  </div>
+                  <div className="flex justify-between border-t border-slate-100 pt-3.5 items-center">
+                    <span className="text-slate-400 font-medium">Skor Ujian:</span>
+                    <span className="text-xl font-black text-emerald-600">{scannedData.score}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
