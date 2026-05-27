@@ -14,7 +14,8 @@ import {
   Eye,
   AlertCircle,
   Link as LinkIcon,
-  Copy
+  Copy,
+  KeyRound
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
@@ -162,8 +163,20 @@ export default function DaftarUjian() {
                       <Shield className="w-3.5 h-3.5" /> {exam.strict_mode ? 'Mode Ketat' : 'Reguler'}
                     </div>
                     <div className="flex items-center gap-1.5">
-                      <Shuffle className="w-3.5 h-3.5" /> {exam.randomized ? 'Acak' : 'Urut'}
+                      <Shuffle className="w-3.5 h-3.5 text-indigo-950/40" /> {exam.randomized ? 'Acak' : 'Urut'}
                     </div>
+                    <div className="flex items-center gap-1.5 text-indigo-950/40">
+                      <Shuffle className="w-3.5 h-3.5" /> {exam.randomize_options ? 'Opsi Acak' : 'Opsi Urut'}
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Shield className="w-3.5 h-3.5" /> {exam.anti_cheat ? 'Anti Curang' : 'Reguler'}
+                    </div>
+                    {exam.anti_cheat && exam.unlock_code && (
+                      <div className="flex items-center gap-1.5 text-emerald-600">
+                        <KeyRound className="w-3.5 h-3.5" />
+                        <span className="font-mono tracking-widest text-[10px]">{exam.unlock_code}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 

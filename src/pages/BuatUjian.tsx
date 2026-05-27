@@ -16,7 +16,10 @@ import {
   X,
   Loader2,
   Image as ImageIcon,
-  Upload
+  Upload,
+  Shuffle,
+  ShieldAlert,
+  KeyRound
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import React, { useRef } from 'react';
@@ -46,6 +49,10 @@ export default function BuatUjian() {
     title: '',
     duration: 60,
     randomized: true,
+    randomize_options: false,
+    anti_cheat: false,
+    cheat_tolerance: 3,
+    unlock_code: '',
     strict_mode: true,
     show_score: true,
     targetClasses: [] as string[]
@@ -488,6 +495,81 @@ export default function BuatUjian() {
                   className="w-4 h-4 accent-indigo-950"
                 />
               </div>
+              <div className="flex items-center gap-4 p-3 rounded-xl border border-slate-100 bg-slate-50/50">
+                <Shuffle className="text-indigo-950 w-4 h-4" />
+                <div className="flex-1">
+                  <p className="text-[11px] font-bold text-indigo-950">Acak Opsi Jawaban</p>
+                  <p className="text-[9px] text-slate-500">Urutan pilihan A/B/C/D diacak.</p>
+                </div>
+                <input 
+                  type="checkbox" checked={formData.randomize_options}
+                  onChange={(e) => setFormData({...formData, randomize_options: e.target.checked})}
+                  className="w-4 h-4 accent-indigo-950"
+                />
+              </div>
+              <div className="flex items-center gap-4 p-3 rounded-xl border border-slate-100 bg-slate-50/50">
+                <ShieldAlert className="text-indigo-950 w-4 h-4" />
+                <div className="flex-1">
+                  <p className="text-[11px] font-bold text-indigo-950">Anti Curang</p>
+                  <p className="text-[9px] text-slate-500">Deteksi & blokir jika keluar tab.</p>
+                </div>
+                <input 
+                  type="checkbox" checked={formData.anti_cheat}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setFormData({
+                      ...formData,
+                      anti_cheat: checked,
+                      unlock_code: checked && !formData.unlock_code
+                        ? Math.random().toString(36).substr(2, 6).toUpperCase()
+                        : formData.unlock_code
+                    });
+                  }}
+                  className="w-4 h-4 accent-indigo-950"
+                />
+              </div>
+              {formData.anti_cheat && (
+                <div className="space-y-3 pl-2">
+                  <div className="flex items-center gap-4 p-3 rounded-xl border border-slate-100 bg-slate-50/50">
+                    <div className="flex-1">
+                      <p className="text-[11px] font-bold text-indigo-950">Batas Toleransi</p>
+                      <p className="text-[9px] text-slate-500">Maksimal keluar tab sebelum diblokir.</p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {[
+                        { label: '1x', value: 1 },
+                        { label: '2x', value: 2 },
+                        { label: '3x', value: 3 },
+                        { label: 'Tak Terbatas', value: 0 }
+                      ].map(opt => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => setFormData({...formData, cheat_tolerance: opt.value})}
+                          className={cn(
+                            "px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all",
+                            formData.cheat_tolerance === opt.value
+                              ? "bg-indigo-950 text-white shadow"
+                              : "bg-white text-slate-400 border border-slate-200 hover:border-slate-300"
+                          )}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 bg-emerald-50/50">
+                    <KeyRound className="text-emerald-600 w-4 h-4 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] font-bold text-emerald-700">Kode Unlock</p>
+                      <p className="text-[8px] text-emerald-500 leading-tight">Berikan kode ini ke siswa yang terblokir agar bisa melanjutkan.</p>
+                    </div>
+                    <span className="px-3 py-1.5 bg-white rounded-lg border border-emerald-200 text-xs font-black text-emerald-700 font-mono tracking-widest select-all">
+                      {formData.unlock_code || '-'}
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
             <button 
               onClick={() => setStep(2)}

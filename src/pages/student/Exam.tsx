@@ -13,7 +13,9 @@ import {
   WifiOff,
   ArrowRight,
   Check,
-  CloudDownload
+  CloudDownload,
+  AlertTriangle,
+  KeyRound
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../lib/utils';
@@ -30,8 +32,14 @@ export default function StudentExam() {
   const [error, setError] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [displayQuestions, setDisplayQuestions] = useState<any[]>([]);
   const [timeLeft, setTimeLeft] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  const [cheatViolations, setCheatViolations] = useState(0);
+  const [isLocked, setIsLocked] = useState(false);
+  const [unlockInput, setUnlockInput] = useState('');
+  const [unlockError, setUnlockError] = useState('');
+  const [triggerCheatSubmit, setTriggerCheatSubmit] = useState(false);
   const [auditLog, setAuditLog] = useState<{time: string, action: string}[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const progressRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -104,6 +112,37 @@ export default function StudentExam() {
         }, 100);
 
         setExam(data);
+        
+        const processQuestions = (questions: any[]) =>
+          questions.map((q: any) => {
+            if (data.randomize_options && q.options && q.options.length > 0) {
+              const opts = [...q.options];
+              for (let i = opts.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [opts[i], opts[j]] = [opts[j], opts[i]];
+              }
+              const labels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+              return {
+                ...q,
+                options: opts.map((opt: any, idx: number) => ({
+                  ...opt,
+                  label: labels[idx] || opt.label
+                }))
+              };
+            }
+            return q;
+          });
+
+        if (data.randomized) {
+          const shuffled = processQuestions([...data.questions]);
+          for (let i = shuffled.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+          }
+          setDisplayQuestions(shuffled);
+        } else {
+          setDisplayQuestions(processQuestions(data.questions));
+        }
         
         // Restore progress
         const savedAnswers = localStorage.getItem(`answers_${examId}`);
@@ -183,11 +222,31 @@ export default function StudentExam() {
     const handleVisibility = () => {
       if (document.visibilityState === 'hidden') {
         addAudit('Pindah Tab / Keluar Aplikasi');
+        if (exam?.anti_cheat) {
+          setCheatViolations(prev => {
+            const next = prev + 1;
+            if (exam.cheat_tolerance !== 0 && next >= exam.cheat_tolerance) {
+              setTriggerCheatSubmit(true);
+            } else {
+              setIsLocked(true);
+            }
+            return next;
+          });
+        }
       }
     };
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, []);
+  }, [exam?.anti_cheat, exam?.cheat_tolerance]);
+
+  // Auto-submit when cheat tolerance exceeded (mode 1x/2x/3x)
+  useEffect(() => {
+    if (triggerCheatSubmit) {
+      localStorage.setItem('edu_cheat_flagged', 'true');
+      submitExam(true, false);
+      setTriggerCheatSubmit(false);
+    }
+  }, [triggerCheatSubmit]);
 
   const handleAnswer = (questionId: string, value: string) => {
     setAnswers(prev => {
@@ -197,7 +256,7 @@ export default function StudentExam() {
     });
   };
 
-  const submitExam = async (autoSubmit = false) => {
+  const submitExam = async (autoSubmit = false, skipNavigate = false) => {
     try {
       if (submitting) return;
       
@@ -205,7 +264,7 @@ export default function StudentExam() {
       if (!autoSubmit && !window.confirm('Yakin ingin mengumpulkan jawaban?')) return;
 
       setSubmitting(true);
-      addAudit(autoSubmit ? 'Auto-Submit (Waktu Habis)' : 'Submit Manual');
+      addAudit(autoSubmit ? 'Auto-Submit (Waktu Habis)' : (skipNavigate ? 'Blokir Curang' : 'Submit Manual'));
       
       const session = JSON.parse(localStorage.getItem('edu_session') || '{}');
       
@@ -259,20 +318,38 @@ export default function StudentExam() {
         totalQuestions: exam.questions.length,
         examLink: `/test/${teacherId}/${examId}`
       }));
+      
+      if (timerRef.current) clearInterval(timerRef.current);
 
       // Cleanup & Selesai
-      localStorage.removeItem(`answers_${examId}`);
-      localStorage.removeItem(`audit_${examId}`);
-      localStorage.removeItem(`timer_end_${examId}`);
-      localStorage.removeItem('edu_session');
-      if (timerRef.current) clearInterval(timerRef.current);
-      
-      navigate(`/exam/result/finish`);
+      if (!skipNavigate) {
+        localStorage.removeItem(`answers_${examId}`);
+        localStorage.removeItem(`audit_${examId}`);
+        localStorage.removeItem(`timer_end_${examId}`);
+        localStorage.removeItem('edu_session');
+        navigate(`/exam/result/finish`);
+      }
     } catch (err: any) {
       alert('Gagal menyelesaikan ujian: ' + err.message);
       console.error(err);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleUnlock = () => {
+    const code = unlockInput.trim().toUpperCase();
+    if (code === (exam?.unlock_code || '').toUpperCase()) {
+      const wasAutoSubmitted = exam?.cheat_tolerance !== 0 && cheatViolations >= exam.cheat_tolerance;
+      setIsLocked(false);
+      setCheatViolations(0);
+      setUnlockInput('');
+      setUnlockError('');
+      if (wasAutoSubmitted) {
+        navigate(`/exam/result/finish`);
+      }
+    } else {
+      setUnlockError('Kode unlock salah. Coba lagi atau hubungi pengawas.');
     }
   };
 
@@ -361,6 +438,56 @@ export default function StudentExam() {
         <h2 className="text-2xl font-bold text-indigo-950">{error}</h2>
         <button onClick={() => window.location.reload()} className="mt-6 bg-indigo-950 text-white px-8 py-3 rounded-xl font-bold">Coba Lagi</button>
       </div>
+    </div>
+  );
+
+  if (isLocked) return (
+    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl border border-red-100 overflow-hidden"
+      >
+        <div className="h-3 bg-gradient-to-r from-red-500 to-rose-600" />
+        <div className="p-8 text-center">
+          <div className="w-16 h-16 bg-red-50 text-red-500 rounded-[1.5rem] mx-auto mb-4 flex items-center justify-center">
+            <AlertTriangle className="w-8 h-8" />
+          </div>
+          <h1 className="text-2xl font-black text-indigo-950 mb-2">Kamu Terblokir</h1>
+          <p className="text-slate-500 text-sm font-bold mb-6">
+            {exam?.cheat_tolerance === 0
+              ? 'Kamu terdeteksi keluar tab. Hubungi pengawas untuk mendapatkan kode unlock agar bisa melanjutkan ujian.'
+              : 'Kamu terdeteksi mencurang dengan keluar tab melebihi batas toleransi. Hubungi pengawas untuk mendapatkan kode unlock.'}
+          </p>
+
+          <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 space-y-4">
+            <div className="text-left">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Kode Unlock</label>
+              <div className="flex items-center gap-2 mt-1.5">
+                <KeyRound className="w-4 h-4 text-slate-400 shrink-0" />
+                <input
+                  type="text"
+                  value={unlockInput}
+                  onChange={(e) => { setUnlockInput(e.target.value); setUnlockError(''); }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleUnlock(); }}
+                  placeholder="Masukkan kode..."
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-indigo-950 outline-none focus:ring-2 focus:ring-blue-500/10 uppercase tracking-widest"
+                  maxLength={6}
+                />
+              </div>
+              {unlockError && (
+                <p className="text-[10px] font-bold text-red-500 mt-1.5 ml-1">{unlockError}</p>
+              )}
+            </div>
+            <button
+              onClick={handleUnlock}
+              className="w-full bg-indigo-950 text-white py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-indigo-900 transition-all active:scale-95"
+            >
+              Buka Blokir
+            </button>
+          </div>
+        </div>
+      </motion.div>
     </div>
   );
 
@@ -475,7 +602,7 @@ export default function StudentExam() {
             </div>
           </div>
           <div className="flex items-center gap-6">
-            <div className="hidden md:flex items-center gap-2 bg-rose-50 text-rose-600 px-4 py-2 rounded-xl font-bold text-sm">
+            <div className="flex items-center gap-2 bg-rose-50 text-rose-600 px-3 md:px-4 py-2 rounded-xl font-bold text-xs md:text-sm">
               <Clock className="w-4 h-4" />
               <span>{Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}</span>
             </div>
@@ -494,7 +621,7 @@ export default function StudentExam() {
       <main className="max-w-4xl mx-auto px-6 py-12">
         <div className="mb-10 flex items-center justify-between">
           <div className="flex gap-2">
-            {exam?.questions.map((_: any, idx: number) => (
+            {displayQuestions.map((_: any, idx: number) => (
               <button
                 key={idx}
                 onClick={() => setCurrentQuestionIndex(idx)}
@@ -502,7 +629,7 @@ export default function StudentExam() {
                   "w-10 h-10 rounded-xl font-black text-sm transition-all",
                   currentQuestionIndex === idx 
                     ? "bg-indigo-950 text-white shadow-lg" 
-                    : answers[exam.questions[idx].id] 
+                    : answers[displayQuestions[idx].id] 
                       ? "bg-emerald-50 text-emerald-600 border-2 border-emerald-100" 
                       : "bg-white text-slate-400 border-2 border-slate-100"
                 )}
@@ -521,15 +648,15 @@ export default function StudentExam() {
         >
           <div className="mb-8">
             <span className="bg-indigo-50 text-indigo-600 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest">
-              Pertanyaan {currentQuestionIndex + 1} Dari {exam?.questions.length}
+              Pertanyaan {currentQuestionIndex + 1} Dari {displayQuestions.length}
             </span>
             <h2 className="text-2xl font-bold text-indigo-950 mt-6 leading-relaxed">
-              {exam?.questions[currentQuestionIndex].question_text}
+              {displayQuestions[currentQuestionIndex].question_text}
             </h2>
-            {exam?.questions[currentQuestionIndex].image_url && (
+            {displayQuestions[currentQuestionIndex].image_url && (
               <div className="mt-6 rounded-3xl overflow-hidden border border-slate-100 bg-slate-50/50">
                 <img 
-                  src={exam.questions[currentQuestionIndex].image_url} 
+                  src={displayQuestions[currentQuestionIndex].image_url} 
                   alt="Question Attachment" 
                   className="w-full max-h-[500px] object-contain mx-auto"
                 />
@@ -538,12 +665,12 @@ export default function StudentExam() {
           </div>
 
           <div className="space-y-4">
-            {(exam?.questions[currentQuestionIndex].options || []).map((opt: any) => (
+            {(displayQuestions[currentQuestionIndex].options || []).map((opt: any) => (
               <label 
                 key={opt.id}
                 className={cn(
                   "flex items-center gap-4 p-6 rounded-3xl border-2 cursor-pointer transition-all active:scale-[0.98]",
-                  answers[exam.questions[currentQuestionIndex].id] === opt.id
+                  answers[displayQuestions[currentQuestionIndex].id] === opt.id
                     ? "border-indigo-950 bg-indigo-50/50"
                     : "border-slate-100 bg-white hover:border-slate-200"
                 )}
@@ -552,12 +679,12 @@ export default function StudentExam() {
                   type="radio" 
                   className="hidden" 
                   name={`q-${currentQuestionIndex}`}
-                  checked={answers[exam.questions[currentQuestionIndex].id] === opt.id}
-                  onChange={() => handleAnswer(exam.questions[currentQuestionIndex].id, opt.id)}
+                  checked={answers[displayQuestions[currentQuestionIndex].id] === opt.id}
+                  onChange={() => handleAnswer(displayQuestions[currentQuestionIndex].id, opt.id)}
                 />
                 <div className={cn(
                   "w-8 h-8 rounded-xl flex items-center justify-center font-black",
-                  answers[exam.questions[currentQuestionIndex].id] === opt.id
+                  answers[displayQuestions[currentQuestionIndex].id] === opt.id
                     ? "bg-indigo-950 text-white"
                     : "bg-slate-100 text-slate-500"
                 )}>{opt.label}</div>
@@ -577,7 +704,7 @@ export default function StudentExam() {
           </button>
           
           <button 
-            disabled={currentQuestionIndex === exam?.questions.length - 1}
+            disabled={currentQuestionIndex === displayQuestions.length - 1}
             onClick={() => setCurrentQuestionIndex(prev => prev + 1)}
             className="flex items-center gap-2 font-black text-indigo-950 disabled:opacity-30"
           >

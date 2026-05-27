@@ -7,7 +7,8 @@ import {
   ShieldCheck,
   ChevronRight,
   QrCode,
-  AlertCircle
+  AlertCircle,
+  AlertTriangle
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import React, { useState, useEffect } from 'react';
@@ -17,13 +18,19 @@ export default function StudentResult() {
   const { participantId } = useParams();
   const [qrString, setQrString] = useState<string | null>(null);
   const [meta, setMeta] = useState<any>(null);
+  const [cheatFlagged, setCheatFlagged] = useState(false);
 
   useEffect(() => {
     const savedQr = localStorage.getItem('edu_last_submission_qr');
     const savedMeta = localStorage.getItem('edu_last_submission_meta');
+    const flagged = localStorage.getItem('edu_cheat_flagged');
     
     if (savedQr) setQrString(savedQr);
     if (savedMeta) setMeta(JSON.parse(savedMeta));
+    if (flagged) {
+      setCheatFlagged(true);
+      localStorage.removeItem('edu_cheat_flagged');
+    }
   }, []);
 
   return (
@@ -44,7 +51,14 @@ export default function StudentResult() {
             <PartyPopper className="w-10 h-10" />
           </motion.div>
 
-          <h1 className="text-3xl font-black text-indigo-950 tracking-tight mb-2">Ujian Selesai!</h1>
+          <h1 className="text-3xl font-black text-indigo-950 tracking-tight mb-2">{cheatFlagged ? 'Ujian Diakhiri' : 'Ujian Selesai!'}</h1>
+          
+          {cheatFlagged && (
+            <div className="flex items-start gap-3 px-4 py-3 mb-6 bg-red-50 text-red-700 rounded-2xl border border-red-100 text-xs font-bold max-w-md mx-auto text-left">
+              <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5 text-red-500" />
+              <p className="leading-relaxed">Anda terdeteksi melakukan kecurangan (keluar tab). Ujian otomatis diakhiri dan jawaban Anda tetap tersimpan.</p>
+            </div>
+          )}
           
           {qrString ? (
             <>
