@@ -18,7 +18,10 @@ import {
   Activity,
   Check,
   Play,
-  Square
+  Square,
+  Trash2,
+  Send,
+  Clock
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -33,8 +36,24 @@ export default function ScanQR() {
   const [scanStatus, setScanStatus] = useState<'idle' | 'scanning' | 'success' | 'error'>('idle');
   const [scannedData, setScannedData] = useState<any>(null);
   
+  // New local accumulation states
+  const [localResults, setLocalResults] = useState<any[]>([]);
+  const [isSendingBulk, setIsSendingBulk] = useState(false);
+  
   const qrScannerRef = useRef<Html5Qrcode | null>(null);
   const scannerId = "qr-reader-element";
+
+  const loadLocalResults = async () => {
+    const data = await getCollectionData('results');
+    const scanned = (data || [])
+      .filter((r: any) => r.qr_scanned === true)
+      .sort((a: any, b: any) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime());
+    setLocalResults(scanned);
+  };
+
+  useEffect(() => {
+    loadLocalResults();
+  }, []);
 
   useEffect(() => {
     // 1. Fetch available cameras on mount
@@ -66,6 +85,104 @@ export default function ScanQR() {
       stopScanner();
     };
   }, []);
+
+  const handleSendToAppsScript = async () => {
+    const pendingResults = localResults.filter(r => r.sent_to_server !== true);
+    if (pendingResults.length === 0) {
+      showAlert({
+        title: 'Tidak Ada Data',
+        message: 'Semua hasil scan lokal sudah terkirim ke Apps Script.',
+        type: 'info'
+      });
+      return;
+    }
+
+    setIsSendingBulk(true);
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const result of pendingResults) {
+      const serverUrl = result.serverUrl;
+      if (!serverUrl) {
+        console.warn("Skipping Apps Script send: serverUrl not configured for result", result);
+        failCount++;
+        continue;
+      }
+
+      try {
+        const payload = {
+          student: result.student,
+          examId: result.examId,
+          examTitle: result.examTitle,
+          examFileId: result.examFileId,
+          score: result.score,
+          answers: result.answers,
+          answersString: result.answersString,
+          startTime: result.startTime,
+          endTime: result.endTime,
+          timestamp: result.timestamp,
+          server_received_at: new Date().toISOString(),
+          tabSwitches: result.tabSwitches,
+          qr_scanned: result.qr_scanned
+        };
+
+        await fetch(serverUrl, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify(payload)
+        });
+        
+        successCount++;
+        
+        const currentData = await getCollectionData('results');
+        const idx = currentData.findIndex((r: any) => 
+          r.student?.code === result.student?.code && r.examFileId === result.examFileId
+        );
+        if (idx !== -1) {
+          currentData[idx].sent_to_server = true;
+          currentData[idx].server_received_at = new Date().toISOString();
+          await saveCollection('results', currentData);
+        }
+      } catch (err) {
+        console.error("Gagal mengirim ke Apps Script:", err);
+        failCount++;
+      }
+    }
+
+    setIsSendingBulk(false);
+    await loadLocalResults();
+
+    if (failCount > 0) {
+      showAlert({
+        title: 'Pengiriman Sebagian Sukses',
+        message: `Berhasil mengirim ${successCount} data. ${failCount} data gagal terkirim karena kendala jaringan.`,
+        type: 'warning'
+      });
+    } else {
+      showAlert({
+        title: 'Pengiriman Sukses',
+        message: `Berhasil mengirim ${successCount} data hasil ujian ke Apps Script Guru!`,
+        type: 'success'
+      });
+    }
+  };
+
+  const handleDeleteLocalResult = async (studentCode: string, examFileId: string) => {
+    if (!window.confirm('Yakin ingin menghapus hasil scan ini dari lokal?')) return;
+
+    const currentData = await getCollectionData('results');
+    const filtered = currentData.filter((r: any) => 
+      !(r.student?.code === studentCode && r.examFileId === examFileId)
+    );
+    await saveCollection('results', filtered);
+    await loadLocalResults();
+    showAlert({
+      title: 'Berhasil Dihapus',
+      message: 'Hasil scan lokal berhasil dihapus.',
+      type: 'success'
+    });
+  };
 
   const startScanner = async (cameraId = selectedCameraId) => {
     if (!cameraId) return;
@@ -218,68 +335,38 @@ export default function ScanQR() {
         timestamp: new Date().toISOString(),
         server_received_at: new Date().toISOString(),
         tabSwitches: parsed.tabSwitches,
-        qr_scanned: true
+        qr_scanned: true,
+        sent_to_server: false,
+        serverUrl: parsed.serverUrl || examConfig?.serverUrl
       };
 
       const updatedResults = [...currentResults, newResult];
       await saveCollection('results', updatedResults);
 
-      // 4. Kirim langsung ke Apps Script jika serverUrl tersedia
-      const serverUrl = parsed.serverUrl || examConfig?.serverUrl;
-      let sentToGas = false;
-      if (serverUrl) {
-        try {
-          await fetch(serverUrl, {
-            method: 'POST',
-            mode: 'no-cors',
-            headers: { 'Content-Type': 'text/plain' },
-            body: JSON.stringify(newResult)
-          });
-          sentToGas = true;
-          console.log("Scan result sent successfully to Apps Script");
-        } catch (postErr) {
-          console.warn("Gagal mengirim langsung ke Apps Script, menyimpan ke antrean offline:", postErr);
-          await addToPendingSubmissions({
-            ...newResult,
-            serverUrl
-          });
-        }
-      }
+      const isLoggedIn = !!localStorage.getItem('edu_session');
+      let alertMsg = `Nilai siswa ${parsed.nama} (${parsed.score}) berhasil disimpan secara lokal. Klik tombol kirim di bawah setelah semua siswa selesai discan.`;
 
       // 5. Sync ke Google Drive (jika online dan login)
-      try {
-        const token = localStorage.getItem('edu_token');
-        if (!token) throw new Error("No token, not logged in");
-
-        const folderId = await getOrCreateRootFolder();
-        await saveJsonToDrive(folderId, 'results.json', updatedResults);
-        showAlert({
-          title: 'Pemindaian Sukses!',
-          message: `Nilai siswa ${parsed.nama} (${parsed.score}) telah terekam dan sukses disinkronkan ke Google Drive.`,
-          type: 'success'
-        });
-      } catch (driveErr) {
-        console.warn("Gagal sinkronisasi Drive:", driveErr);
-        
-        const isLoggedIn = !!localStorage.getItem('edu_session');
-        let alertMsg = '';
-        
-        if (isLoggedIn) {
-          alertMsg = `Nilai siswa ${parsed.nama} (${parsed.score}) berhasil disimpan secara offline di perangkat Anda. Data akan disinkronkan otomatis begitu online.`;
-        } else {
-          if (sentToGas) {
-            alertMsg = `Nilai siswa ${parsed.nama} (${parsed.score}) berhasil dikirim ke Server Apps Script Guru. Anda bisa langsung melakukan 'Tarik Data' di akun utama Anda.`;
-          } else {
-            alertMsg = `Nilai siswa ${parsed.nama} (${parsed.score}) disimpan secara lokal di browser ini. Data akan dikirim otomatis ke Server Apps Script Guru begitu perangkat terhubung ke internet.`;
+      if (isLoggedIn) {
+        try {
+          const token = localStorage.getItem('edu_token');
+          if (token) {
+            const folderId = await getOrCreateRootFolder();
+            await saveJsonToDrive(folderId, 'results.json', updatedResults);
+            alertMsg = `Nilai siswa ${parsed.nama} (${parsed.score}) berhasil disimpan secara lokal dan disinkronkan ke Google Drive Anda.`;
           }
+        } catch (driveErr) {
+          console.warn("Gagal sinkronisasi Drive:", driveErr);
         }
-
-        showAlert({
-          title: isLoggedIn ? 'Tersimpan di Lokal' : (sentToGas ? 'Pengiriman Sukses' : 'Tersimpan Offline'),
-          message: alertMsg,
-          type: isLoggedIn ? 'success' : (sentToGas ? 'success' : 'warning')
-        });
       }
+
+      showAlert({
+        title: 'Berhasil Disimpan',
+        message: alertMsg,
+        type: 'success'
+      });
+
+      await loadLocalResults();
     } catch (err: any) {
       console.error(err);
       showAlert({
@@ -470,6 +557,108 @@ export default function ScanQR() {
               </div>
             )}
           </div>
+        </div>
+
+        {/* Scanned List Section */}
+        <div className="bg-white rounded-[2.5rem] border border-slate-100 p-6 sm:p-10 shadow-sm space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-6">
+            <div>
+              <h3 className="text-xl font-black text-indigo-950">Daftar Hasil Scan Lokal</h3>
+              <p className="text-slate-500 text-xs sm:text-sm font-medium mt-1">Daftar hasil scan siswa yang tersimpan di perangkat ini.</p>
+            </div>
+            <div className="flex items-center gap-3">
+              {localResults.filter(r => r.sent_to_server !== true).length > 0 && (
+                <button
+                  onClick={handleSendToAppsScript}
+                  disabled={isSendingBulk}
+                  className="bg-emerald-600 text-white px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 shadow-md shadow-emerald-600/10 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSendingBulk ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" /> Mengirim...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4" /> Kirim {localResults.filter(r => r.sent_to_server !== true).length} Data ke Apps Script
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {localResults.length > 0 ? (
+            <div className="overflow-x-auto text-left">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                    <th className="py-4 px-4 text-left">Nama Siswa</th>
+                    <th className="py-4 px-4 text-left">Kelas / Kode</th>
+                    <th className="py-4 px-4 text-left">Ujian</th>
+                    <th className="py-4 px-4 text-center">Skor</th>
+                    <th className="py-4 px-4 text-center">Status Apps Script</th>
+                    <th className="py-4 px-4 text-right">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50 text-xs font-bold text-slate-600">
+                  {localResults.map((res: any, idx: number) => {
+                    const isSent = res.sent_to_server === true;
+                    return (
+                      <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="py-4 px-4 text-left">
+                          <span className="font-extrabold text-indigo-950">{res.student?.nama || res.student?.name}</span>
+                        </td>
+                        <td className="py-4 px-4 text-left">
+                          <div className="space-y-0.5">
+                            <p className="text-slate-400 uppercase">{res.student?.kelas || '-'}</p>
+                            <p className="font-mono text-[10px] text-slate-300 uppercase">{res.student?.code || '-'}</p>
+                          </div>
+                        </td>
+                        <td className="py-4 px-4 text-left truncate max-w-[200px]">
+                          <span className="text-indigo-950">{res.examTitle || 'Ujian (Scan QR)'}</span>
+                        </td>
+                        <td className="py-4 px-4 text-center">
+                          <span className="text-sm font-black text-indigo-950">{res.score}</span>
+                        </td>
+                        <td className="py-4 px-4">
+                          <div className="flex items-center justify-center">
+                            {isSent ? (
+                              <span className="bg-emerald-50 text-emerald-600 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 border border-emerald-100">
+                                <CheckCircle className="w-3.5 h-3.5" /> Terkirim
+                              </span>
+                            ) : (
+                              <span className="bg-amber-50 text-amber-700 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 border border-amber-100">
+                                <Clock className="w-3.5 h-3.5" /> Belum Dikirim
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-4 px-4 text-right">
+                          <button
+                            onClick={() => handleDeleteLocalResult(res.student?.code, res.examFileId)}
+                            className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
+                            title="Hapus dari lokal"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="py-16 text-center text-slate-400 space-y-3">
+              <div className="bg-slate-50 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto border border-dashed border-slate-200">
+                <QrCode className="w-6 h-6 text-slate-300" />
+              </div>
+              <div className="space-y-1">
+                <p className="font-bold text-slate-600">Belum Ada Hasil Scan</p>
+                <p className="text-xs text-slate-400 font-medium max-w-xs mx-auto">Gunakan kamera di atas untuk memindai QR hasil ujian dari HP siswa.</p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
