@@ -224,8 +224,11 @@ export default function ScanQR() {
       const updatedResults = [...currentResults, newResult];
       await saveCollection('results', updatedResults);
 
-      // 4. Sync ke Google Drive (jika online)
+      // 4. Sync ke Google Drive (jika online dan login)
       try {
+        const token = localStorage.getItem('edu_token');
+        if (!token) throw new Error("No token, not logged in");
+
         const folderId = await getOrCreateRootFolder();
         await saveJsonToDrive(folderId, 'results.json', updatedResults);
         showAlert({
@@ -234,11 +237,17 @@ export default function ScanQR() {
           type: 'success'
         });
       } catch (driveErr) {
-        console.warn("Gagal sinkronisasi Drive (perangkat Guru sedang offline):", driveErr);
+        console.warn("Gagal sinkronisasi Drive:", driveErr);
+        
+        const isLoggedIn = !!localStorage.getItem('edu_session');
+        const alertMsg = isLoggedIn
+          ? `Nilai siswa ${parsed.nama} (${parsed.score}) berhasil disimpan secara offline di perangkat Anda. Data akan disinkronkan otomatis begitu online.`
+          : `Nilai siswa ${parsed.nama} (${parsed.score}) disimpan secara lokal di browser ini. Silakan LOGIN di perangkat ini agar data dapat terkirim ke akun Google Drive utama Anda.`;
+
         showAlert({
-          title: 'Tersimpan di Lokal',
-          message: `Nilai siswa ${parsed.nama} (${parsed.score}) berhasil disimpan secara offline di perangkat Anda. Data akan disinkronkan otomatis setelah online.`,
-          type: 'success'
+          title: isLoggedIn ? 'Tersimpan di Lokal' : 'Tersimpan (Belum Login)',
+          message: alertMsg,
+          type: isLoggedIn ? 'success' : 'warning'
         });
       }
     } catch (err: any) {
@@ -363,6 +372,20 @@ export default function ScanQR() {
                 </div>
               </div>
             </div>
+
+            {/* Guest mode warning box */}
+            {!isLoggedIn && (
+              <div className="bg-amber-50/50 border border-amber-200/60 rounded-3xl p-5 space-y-2 text-xs text-amber-800 animate-in fade-in slide-in-from-right-4 duration-300">
+                <div className="flex items-center gap-2 text-amber-600 font-bold">
+                  <AlertTriangle className="w-4 h-4" />
+                  <span>Mode Pengawas (Belum Login)</span>
+                </div>
+                <p className="leading-relaxed">
+                  Hasil scan saat ini disimpan secara lokal di browser HP/perangkat ini.
+                  Silakan <button onClick={() => { stopScanner(); navigate('/login'); }} className="underline font-bold text-amber-900 bg-transparent border-none cursor-pointer p-0 outline-none">Login</button> di perangkat ini agar data otomatis tersinkronisasi ke Google Drive akun Guru Anda.
+                </p>
+              </div>
+            )}
 
             {/* Instructions */}
             <div className="bg-white rounded-3xl border border-slate-100 p-6 shadow-sm space-y-4">

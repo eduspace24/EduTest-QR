@@ -29,7 +29,53 @@ export const GoogleDriveProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const syncCollection = async (folderId: string, fileName: string, collectionName: string, forceFromDrive = false) => {
     try {
       const driveData = await readJsonFromDrive(folderId, fileName);
-      if (!driveData) return null;
+      
+      // Special handling for results: Merge local and Drive records to prevent overwrites
+      if (collectionName === 'results') {
+        const localResults = await getCollectionData('results') || [];
+        const driveResults = driveData?.data || [];
+        
+        // Two-way merge
+        const mergedResults = [...driveResults];
+        let hasNewLocal = false;
+        
+        localResults.forEach((localRes: any) => {
+          const isAlreadyInDrive = driveResults.some((driveRes: any) => 
+            driveRes.student?.code === localRes.student?.code && 
+            driveRes.examFileId === localRes.examFileId
+          );
+          if (!isAlreadyInDrive) {
+            mergedResults.push(localRes);
+            hasNewLocal = true;
+          }
+        });
+
+        // Save merged results locally
+        const modifiedTime = driveData?.modifiedTime || new Date().toISOString();
+        await saveCollection('results', mergedResults, modifiedTime);
+        
+        // Upload merged results back to Google Drive if there are new local records
+        if (hasNewLocal || !driveData) {
+          console.log('Uploading merged results to Google Drive...');
+          await saveJsonToDrive(folderId, 'results.json', mergedResults);
+        }
+        
+        return mergedResults;
+      }
+
+      if (!driveData) {
+        // If file doesn't exist on Drive, upload local data if we have it
+        const localData = await getCollectionData(collectionName);
+        if (localData && (Array.isArray(localData) ? localData.length > 0 : Object.keys(localData).length > 0)) {
+          console.log(`File ${fileName} missing on Drive, uploading local data...`);
+          try {
+            await saveJsonToDrive(folderId, fileName, localData);
+          } catch (e) {
+            console.warn(`Failed to upload local ${collectionName} for missing file:`, e);
+          }
+        }
+        return localData;
+      }
 
       const { data, modifiedTime } = driveData;
       
@@ -44,9 +90,15 @@ export const GoogleDriveProvider: React.FC<{ children: React.ReactNode }> = ({ c
         
         return data;
       } else {
-        console.log(`Using local ${collectionName} (local is newer)`);
+        console.log(`Using local ${collectionName} (local is newer), uploading to Drive...`);
         const localData = await getCollectionData(collectionName);
         
+        try {
+          await saveJsonToDrive(folderId, fileName, localData);
+        } catch (uploadErr) {
+          console.warn(`Failed to upload newer local ${collectionName} to Drive:`, uploadErr);
+        }
+
         if (collectionName === 'profile' && localData) {
           localStorage.setItem('edu_profile', JSON.stringify(localData));
         }
