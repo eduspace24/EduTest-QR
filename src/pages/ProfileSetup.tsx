@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import React from 'react';
 import { cn } from '../lib/utils';
 import { getOrCreateRootFolder, saveJsonToDrive } from '../lib/googleDrive';
+import { saveCollection } from '../lib/db';
 
 const PRESET_SUBJECTS = [
   'Matematika', 'Bahasa Indonesia', 'Bahasa Inggris', 'IPA', 'IPS', 'Fisika', 'Kimia', 'Biologi', 'Ekonomi', 'Sejarah', 'Geografi', 'Sosiologi', 'Agama Islam', 'Agama Kristen', 'Agama Katolik', 'PJOK', 'Seni Budaya', 'TIK'
@@ -74,6 +75,13 @@ export default function ProfileSetup() {
       localStorage.setItem('edu_session', JSON.stringify({ ...session, user: updatedUser }));
       localStorage.setItem('edu_profile', JSON.stringify(updatedUser));
       
+      // Sync to IndexedDB (so sync can track it)
+      try {
+        await saveCollection('profile', updatedUser);
+      } catch (e) {
+        console.error('Failed to save profile to IndexedDB:', e);
+      }
+
       // Sync to Google Drive
       try {
         const folderId = await getOrCreateRootFolder();

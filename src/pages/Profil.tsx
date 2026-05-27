@@ -27,6 +27,7 @@ import { cn } from '../lib/utils';
 import { useSchool } from '../context/SchoolContext';
 import { useAlert } from '../context/AlertContext';
 import { getOrCreateRootFolder, saveJsonToDrive } from '../lib/googleDrive';
+import { saveCollection } from '../lib/db';
 
 export default function Profil() {
   const navigate = useNavigate();
@@ -83,6 +84,13 @@ export default function Profil() {
       localStorage.setItem('edu_session', JSON.stringify(updatedSession));
       localStorage.setItem('edu_profile', JSON.stringify(updatedSession.user));
       
+      // Sync to IndexedDB
+      try {
+        await saveCollection('profile', updatedSession.user);
+      } catch (e) {
+        console.error('Failed to save profile to IndexedDB:', e);
+      }
+
       // Sync to Google Drive
       try {
         const folderId = await getOrCreateRootFolder();

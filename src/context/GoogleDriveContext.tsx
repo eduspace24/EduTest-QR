@@ -64,10 +64,22 @@ export const GoogleDriveProvider: React.FC<{ children: React.ReactNode }> = ({ c
       }
 
       if (!driveData) {
-        const localData = await getCollectionData(collectionName);
+        let localData = await getCollectionData(collectionName);
+
+        // Fallback to localStorage for profile (ProfileSetup saves there but not IndexedDB)
+        if (!localData && collectionName === 'profile') {
+          const localProfile = localStorage.getItem('edu_profile');
+          if (localProfile) {
+            try {
+              localData = JSON.parse(localProfile);
+            } catch { /* ignore parse error */ }
+          }
+        }
+
         if (localData && (Array.isArray(localData) ? localData.length > 0 : Object.keys(localData).length > 0)) {
           try {
             await saveJsonToDrive(folderId, fileName, localData);
+            await saveCollection(collectionName, localData, new Date().toISOString());
           } catch (e) {
             console.warn(`Failed to upload local ${collectionName} for missing file:`, e);
           }
