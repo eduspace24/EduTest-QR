@@ -19,7 +19,11 @@ const SYNC_INTERVAL = 5 * 60 * 1000;
 const COLLECTIONS = ['classes', 'students', 'bank_soal', 'exams_list', 'results', 'profile'];
 
 export const GoogleDriveProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [isInitialized, setIsInitialized] = useState(true);
+  const [isInitialized, setIsInitialized] = useState(() => {
+    const session = localStorage.getItem('edu_session');
+    const profile = localStorage.getItem('edu_profile');
+    return !(session && !profile);
+  });
   const [isSyncing, setIsSyncing] = useState(false);
   const [rootFolderId, setRootFolderId] = useState<string | null>(localStorage.getItem('edu_root_folder_id'));
   const [error, setError] = useState<string | null>(null);
@@ -164,6 +168,7 @@ export const GoogleDriveProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const sessionStr = localStorage.getItem('edu_session');
       if (!sessionStr) {
         initialSyncDone.current = true;
+        setIsInitialized(true);
         return;
       }
 
@@ -173,6 +178,7 @@ export const GoogleDriveProvider: React.FC<{ children: React.ReactNode }> = ({ c
         const validToken = await ensureValidToken();
         if (!validToken) {
           initialSyncDone.current = true;
+          setIsInitialized(true);
           return;
         }
         
@@ -199,6 +205,7 @@ export const GoogleDriveProvider: React.FC<{ children: React.ReactNode }> = ({ c
       }
       
       initialSyncDone.current = true;
+      setIsInitialized(true);
     };
 
     if (!initialSyncDone.current) {
