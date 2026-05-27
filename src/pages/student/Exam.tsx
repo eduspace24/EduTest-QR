@@ -222,7 +222,7 @@ export default function StudentExam() {
     const handleVisibility = () => {
       if (document.visibilityState === 'hidden') {
         addAudit('Pindah Tab / Keluar Aplikasi');
-        if (exam?.anti_cheat) {
+        if (isJoined && exam?.anti_cheat) {
           setCheatViolations(prev => {
             const next = prev + 1;
             if (exam.cheat_tolerance !== 0 && next >= exam.cheat_tolerance) {
@@ -237,7 +237,7 @@ export default function StudentExam() {
     };
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, [exam?.anti_cheat, exam?.cheat_tolerance]);
+  }, [isJoined, exam?.anti_cheat, exam?.cheat_tolerance]);
 
   // Auto-submit when cheat tolerance exceeded (mode 1x/2x/3x)
   useEffect(() => {
