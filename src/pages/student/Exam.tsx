@@ -12,7 +12,8 @@ import {
   CheckCircle2,
   WifiOff,
   ArrowRight,
-  Check
+  Check,
+  CloudDownload
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../lib/utils';
@@ -33,6 +34,10 @@ export default function StudentExam() {
   const [submitting, setSubmitting] = useState(false);
   const [auditLog, setAuditLog] = useState<{time: string, action: string}[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const progressRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const [downloadProgress, setDownloadProgress] = useState(0);
+  const [downloadStage, setDownloadStage] = useState('Menghubungkan ke server...');
 
   const [isJoined, setIsJoined] = useState(false);
   const [studentCode, setStudentCode] = useState('');
@@ -73,7 +78,31 @@ export default function StudentExam() {
     const loadExam = async () => {
       try {
         setLoading(true);
+        setDownloadProgress(0);
+        setDownloadStage('Menghubungkan ke server...');
+
+        // Simulate progress while fetch is running
+        progressRef.current = setInterval(() => {
+          setDownloadProgress(prev => {
+            if (prev < 25) return prev + 2;
+            return prev;
+          });
+        }, 300);
+
+        setDownloadStage('Mengunduh soal ujian...');
         const data = await fetchExamFromUrl(examId!);
+
+        // Advance progress after data received
+        if (progressRef.current) clearInterval(progressRef.current);
+        setDownloadProgress(65);
+        setDownloadStage('Memproses lembar ujian...');
+        progressRef.current = setInterval(() => {
+          setDownloadProgress(prev => {
+            if (prev < 90) return prev + 3;
+            return prev;
+          });
+        }, 100);
+
         setExam(data);
         
         // Restore progress
@@ -93,10 +122,16 @@ export default function StudentExam() {
         }
 
         addAudit('Ujian Dimulai');
+
+        // Complete progress immediately
+        if (progressRef.current) clearInterval(progressRef.current);
+        setDownloadStage('Lembar ujian siap!');
+        setDownloadProgress(100);
       } catch (err) {
+        if (progressRef.current) clearInterval(progressRef.current);
         setError('Gagal memuat ujian. Pastikan link benar dan file dapat diakses.');
       } finally {
-        setLoading(false);
+        setTimeout(() => setLoading(false), 400);
       }
     };
 
@@ -104,6 +139,7 @@ export default function StudentExam() {
     
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
+      if (progressRef.current) clearInterval(progressRef.current);
     };
   }, [examId]);
 
@@ -298,10 +334,22 @@ export default function StudentExam() {
   };
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50">
-      <div className="text-center">
-        <Loader2 className="w-12 h-12 text-indigo-950 animate-spin mx-auto mb-4" />
-        <p className="font-bold text-indigo-950">Menyiapkan Lembar Ujian...</p>
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6">
+      <div className="w-full max-w-md text-center">
+        <div className="bg-indigo-950 text-white p-4 rounded-2xl w-fit mx-auto mb-6 shadow-lg">
+          <CloudDownload className="w-8 h-8" />
+        </div>
+        <h2 className="text-xl font-black text-indigo-950 mb-2">Menyiapkan Lembar Ujian</h2>
+        <p className="text-sm font-bold text-slate-400 mb-8">{downloadStage}</p>
+        <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+          <motion.div 
+            className="h-full bg-indigo-950 rounded-full"
+            initial={{ width: '0%' }}
+            animate={{ width: `${downloadProgress}%` }}
+            transition={{ duration: 0.4, ease: 'easeOut' }}
+          />
+        </div>
+        <p className="text-xs font-bold text-slate-400 mt-3">{downloadProgress}%</p>
       </div>
     </div>
   );
