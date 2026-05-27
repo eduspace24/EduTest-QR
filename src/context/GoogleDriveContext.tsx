@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { getOrCreateRootFolder, readJsonFromDrive, setAccessToken, saveJsonToDrive } from '../lib/googleDrive';
-import { saveCollection, isLocalNewer, getCollection, getCollectionData } from '../lib/db';
+import { saveCollection, isLocalNewer, getCollectionData } from '../lib/db';
+import { ensureValidToken } from '../lib/tokenManager';
 
 interface GoogleDriveContextType {
   isInitialized: boolean;
@@ -8,7 +9,7 @@ interface GoogleDriveContextType {
   rootFolderId: string | null;
   error: string | null;
   lastSyncTime: string | null;
-  syncNow: () => Promise<void>;
+  syncNow: (showIndicator?: boolean, targetCollection?: string) => Promise<void>;
 }
 
 const GoogleDriveContext = createContext<GoogleDriveContextType | undefined>(undefined);
@@ -18,24 +19,22 @@ const SYNC_INTERVAL = 5 * 60 * 1000;
 const COLLECTIONS = ['classes', 'students', 'bank_soal', 'exams_list', 'results', 'profile'];
 
 export const GoogleDriveProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [isInitialized, setIsInitialized] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [rootFolderId, setRootFolderId] = useState<string | null>(null);
+  const [rootFolderId, setRootFolderId] = useState<string | null>(localStorage.getItem('edu_root_folder_id'));
   const [error, setError] = useState<string | null>(null);
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(localStorage.getItem('edu_last_sync'));
   const syncTimerRef = useRef<number | null>(null);
   const initialSyncDone = useRef(false);
 
-  const syncCollection = async (folderId: string, fileName: string, collectionName: string, forceFromDrive = false) => {
+  const syncSingleCollection = async (folderId: string, fileName: string, collectionName: string, forceFromDrive = false) => {
     try {
       const driveData = await readJsonFromDrive(folderId, fileName);
       
-      // Special handling for results: Merge local and Drive records to prevent overwrites
       if (collectionName === 'results') {
         const localResults = await getCollectionData('results') || [];
         const driveResults = driveData?.data || [];
         
-        // Two-way merge
         const mergedResults = [...driveResults];
         let hasNewLocal = false;
         
@@ -50,13 +49,10 @@ export const GoogleDriveProvider: React.FC<{ children: React.ReactNode }> = ({ c
           }
         });
 
-        // Save merged results locally
         const modifiedTime = driveData?.modifiedTime || new Date().toISOString();
         await saveCollection('results', mergedResults, modifiedTime);
         
-        // Upload merged results back to Google Drive if there are new local records
         if (hasNewLocal || !driveData) {
-          console.log('Uploading merged results to Google Drive...');
           await saveJsonToDrive(folderId, 'results.json', mergedResults);
         }
         
@@ -64,10 +60,8 @@ export const GoogleDriveProvider: React.FC<{ children: React.ReactNode }> = ({ c
       }
 
       if (!driveData) {
-        // If file doesn't exist on Drive, upload local data if we have it
         const localData = await getCollectionData(collectionName);
         if (localData && (Array.isArray(localData) ? localData.length > 0 : Object.keys(localData).length > 0)) {
-          console.log(`File ${fileName} missing on Drive, uploading local data...`);
           try {
             await saveJsonToDrive(folderId, fileName, localData);
           } catch (e) {
@@ -81,16 +75,13 @@ export const GoogleDriveProvider: React.FC<{ children: React.ReactNode }> = ({ c
       
       if (forceFromDrive || !isLocalNewer(collectionName, modifiedTime)) {
         await saveCollection(collectionName, data, modifiedTime);
-        console.log(`Synced ${collectionName} from Drive (newer)`);
         
-        // Special handling for profile to ensure session is updated
         if (collectionName === 'profile') {
           localStorage.setItem('edu_profile', JSON.stringify(data));
         }
         
         return data;
       } else {
-        console.log(`Using local ${collectionName} (local is newer), uploading to Drive...`);
         const localData = await getCollectionData(collectionName);
         
         try {
@@ -112,38 +103,45 @@ export const GoogleDriveProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   };
 
+  const ensureResultsFile = async (folderId: string) => {
+    const resultsFile = await readJsonFromDrive(folderId, 'results.json');
+    if (!resultsFile) {
+      await saveJsonToDrive(folderId, 'results.json', []);
+    }
+  };
+
   const syncNow = async (showIndicator = false, targetCollection?: string) => {
     const sessionStr = localStorage.getItem('edu_session');
-    const eduToken = localStorage.getItem('edu_token');
     if (!sessionStr) return;
 
     const session = JSON.parse(sessionStr);
-    const token = eduToken || session.user?.token;
-    if (session.user?.role !== 'guru' || !token) return;
+    if (session.user?.role !== 'guru') return;
+
+    const validToken = await ensureValidToken();
+    if (!validToken) return;
 
     if (showIndicator) setIsSyncing(true);
     try {
-      setAccessToken(token);
+      setAccessToken(validToken);
       const folderId = rootFolderId || await getOrCreateRootFolder();
       if (!rootFolderId) setRootFolderId(folderId);
 
-      // Jika targetCollection ditentukan, hanya sinkronkan itu. Jika tidak, sinkronkan semuanya.
       const collectionsToSync = targetCollection ? [targetCollection] : COLLECTIONS;
 
-      for (const coll of collectionsToSync) {
-        const fileName = `${coll}.json`;
-        // Force dari drive untuk results agar tidak terlewat data siswa baru
-        const force = coll === 'results';
-        await syncCollection(folderId, fileName, coll, force);
+      if (targetCollection) {
+        const fileName = `${targetCollection}.json`;
+        const force = targetCollection === 'results';
+        await syncSingleCollection(folderId, fileName, targetCollection, force);
+      } else {
+        await Promise.all(collectionsToSync.map(coll => {
+          const fileName = `${coll}.json`;
+          const force = coll === 'results';
+          return syncSingleCollection(folderId, fileName, coll, force);
+        }));
       }
 
-      // Pastikan results.json ada di Drive
       if (!targetCollection || targetCollection === 'results') {
-        const resultsFile = await readJsonFromDrive(folderId, 'results.json');
-        if (!resultsFile) {
-          console.log('Results file missing on Drive, creating empty results.json');
-          await saveJsonToDrive(folderId, 'results.json', []);
-        }
+        await ensureResultsFile(folderId);
       }
 
       const now = new Date().toISOString();
@@ -165,47 +163,47 @@ export const GoogleDriveProvider: React.FC<{ children: React.ReactNode }> = ({ c
     const initSync = async () => {
       const sessionStr = localStorage.getItem('edu_session');
       if (!sessionStr) {
-        setIsInitialized(true);
+        initialSyncDone.current = true;
         return;
       }
 
       const session = JSON.parse(sessionStr);
-      const token = localStorage.getItem('edu_token') || session.user?.token;
       
-      if (session.user?.role === 'guru' && token) {
-        setAccessToken(token);
+      if (session.user?.role === 'guru') {
+        const validToken = await ensureValidToken();
+        if (!validToken) {
+          initialSyncDone.current = true;
+          return;
+        }
+        
+        setAccessToken(validToken);
         
         try {
-          const folderId = await getOrCreateRootFolder();
-          setRootFolderId(folderId);
+          const folderId = rootFolderId || await getOrCreateRootFolder();
+          if (!rootFolderId) setRootFolderId(folderId);
 
-          for (const coll of COLLECTIONS) {
+          await Promise.all(COLLECTIONS.map(coll => {
             const fileName = `${coll}.json`;
-            // Force from drive for results to ensure we don't skip student submissions
             const force = coll === 'results';
-            await syncCollection(folderId, fileName, coll, force);
-          }
+            return syncSingleCollection(folderId, fileName, coll, force);
+          }));
 
           const now = new Date().toISOString();
           setLastSyncTime(now);
           localStorage.setItem('edu_last_sync', now);
 
-          // Force create results.json if it's missing to ensure GAS has a target
-          const resultsFile = await readJsonFromDrive(folderId, 'results.json');
-          if (!resultsFile) {
-            console.log('Results file missing on Drive, creating empty results.json');
-            await saveJsonToDrive(folderId, 'results.json', []);
-          }
+          await ensureResultsFile(folderId);
         } catch (err) {
           console.warn('Initial sync failed, using local data:', err);
         }
       }
       
-      setIsInitialized(true);
       initialSyncDone.current = true;
     };
 
-    initSync();
+    if (!initialSyncDone.current) {
+      initSync();
+    }
   }, []);
 
   useEffect(() => {

@@ -7,6 +7,20 @@
 export const DRIVE_API_BASE = 'https://www.googleapis.com/drive/v3';
 export const DRIVE_UPLOAD_BASE = 'https://www.googleapis.com/upload/drive/v3';
 
+async function getValidTokenOrThrow(): Promise<string> {
+  const { ensureValidToken, forceLogout } = await import('./tokenManager');
+  const token = await ensureValidToken();
+  if (token) return token;
+  
+  const sessionStr = localStorage.getItem('edu_session');
+  const session = sessionStr ? JSON.parse(sessionStr) : null;
+  const fallbackToken = session?.user?.token || localStorage.getItem('edu_token');
+  if (fallbackToken) return fallbackToken;
+  
+  forceLogout('Sesi Anda telah berakhir. Silakan login ulang.');
+  throw { status: 401, message: 'No access token' };
+}
+
 function getTokenFromSession(): string {
   const tokenFromStorage = localStorage.getItem('edu_token');
   if (tokenFromStorage) return tokenFromStorage;
@@ -17,7 +31,7 @@ function getTokenFromSession(): string {
   return session?.user?.token || '';
 }
 
-async function fetchApi(endpoint: string, options: RequestInit = {}) {
+async function fetchApi(endpoint: string, options: RequestInit = {}, retried = false) {
   const token = getTokenFromSession();
   
   if (!token) {
@@ -36,10 +50,21 @@ async function fetchApi(endpoint: string, options: RequestInit = {}) {
     });
     
     if (!response.ok) {
-      if (response.status === 401) {
-        localStorage.removeItem('edu_session');
-        localStorage.removeItem('edu_token');
-        window.location.href = '/login?error=expired';
+      if (response.status === 401 && !retried) {
+        const { ensureValidToken, forceLogout } = await import('./tokenManager');
+        const newToken = await ensureValidToken();
+        if (newToken) {
+          return fetchApi(endpoint, {
+            ...options,
+            headers: {
+              'Authorization': `Bearer ${newToken}`,
+              'Content-Type': 'application/json',
+              ...options.headers,
+            },
+          }, true);
+        }
+        forceLogout('Sesi Anda telah berakhir. Silakan login ulang.');
+        throw { status: 401, message: 'Session expired' };
       }
       
       const errorBody = await response.text();
@@ -118,7 +143,7 @@ export async function getOrCreateRootFolder() {
  * Generic function to save/update JSON data in Drive
  */
 export async function saveJsonToDrive(folderId: string, fileName: string, data: any) {
-  const token = getTokenFromSession();
+  const token = await getValidTokenOrThrow().catch(() => getTokenFromSession());
   if (!token) throw new Error('No access token');
   
   try {
@@ -134,15 +159,24 @@ export async function saveJsonToDrive(folderId: string, fileName: string, data: 
     const fileContent = JSON.stringify(data, null, 2);
     const contentType = 'application/json';
 
-    if (fileId) {
+    const doPatch = async (t: string) => {
       const response = await fetch(`${DRIVE_UPLOAD_BASE}/files/${fileId}?uploadType=media`, {
         method: 'PATCH',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${t}`,
           'Content-Type': contentType,
         },
         body: fileContent,
       });
+      return response;
+    };
+
+    if (fileId) {
+      let response = await doPatch(token);
+      if (response.status === 401) {
+        const newToken = await getValidTokenOrThrow().catch(() => null);
+        if (newToken) response = await doPatch(newToken);
+      }
       if (!response.ok) throw await response.json();
       return { id: fileId, status: 'updated' };
     } else {
@@ -165,14 +199,23 @@ export async function saveJsonToDrive(folderId: string, fileName: string, data: 
         fileContent +
         close_delim;
 
-      const response = await fetch(`${DRIVE_UPLOAD_BASE}/files?uploadType=multipart`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'multipart/related; boundary="' + boundary + '"',
-        },
-        body: multipartRequestBody,
-      });
+      const doPost = async (t: string) => {
+        const response = await fetch(`${DRIVE_UPLOAD_BASE}/files?uploadType=multipart`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${t}`,
+            'Content-Type': 'multipart/related; boundary="' + boundary + '"',
+          },
+          body: multipartRequestBody,
+        });
+        return response;
+      };
+
+      let response = await doPost(token);
+      if (response.status === 401) {
+        const newToken = await getValidTokenOrThrow().catch(() => null);
+        if (newToken) response = await doPost(newToken);
+      }
       
       if (!response.ok) {
         const errBody = await response.text();
@@ -197,7 +240,7 @@ export async function saveJsonToDrive(folderId: string, fileName: string, data: 
  * Read JSON data from a file in Drive
  */
 export async function readJsonFromDrive(folderId: string, fileName: string) {
-  const token = getTokenFromSession();
+  const token = await getValidTokenOrThrow().catch(() => getTokenFromSession());
   if (!token) return null;
   
   try {
@@ -213,15 +256,23 @@ export async function readJsonFromDrive(folderId: string, fileName: string) {
     }
 
     if (fileId) {
-      // Add timestamp to prevent browser cache
       const meta = await fetchApi(`/files/${fileId}?fields=modifiedTime&t=${Date.now()}`);
-      const fileData = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&t=${Date.now()}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
-        },
-      });
+      
+      const downloadFile = async (t: string) => {
+        return fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&t=${Date.now()}`, {
+          headers: {
+            'Authorization': `Bearer ${t}`,
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          },
+        });
+      };
+      
+      let fileData = await downloadFile(token);
+      if (fileData.status === 401) {
+        const newToken = await getValidTokenOrThrow().catch(() => null);
+        if (newToken) fileData = await downloadFile(newToken);
+      }
       if (!fileData.ok) return null;
       const content = await fileData.json();
       return { data: content, modifiedTime: meta.modifiedTime };

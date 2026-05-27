@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { 
   Search, 
   Download, 
@@ -28,15 +28,16 @@ export default function HasilUjian({ isEmbedded = false }: { isEmbedded?: boolea
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     const data = await getCollectionData('results');
     setResults(data);
     setLoading(false);
-  };
+  }, []);
 
   useEffect(() => {
     fetchData();
+    syncNow(true, 'results').then(fetchData).catch(fetchData);
   }, []);
 
   const handleRefresh = async () => {

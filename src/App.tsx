@@ -5,12 +5,12 @@ import { Loader2 } from 'lucide-react';
 import { useGoogleDrive } from './context/GoogleDriveContext';
 
 // Eagerly loaded core components
-import Login from './pages/Login';
-import ProfileSetup from './pages/ProfileSetup';
 import Layout from './components/Layout';
 import SyncWorker from './components/SyncWorker';
 
-// Lazy loaded pages
+// Lazy loaded pages (all pages are lazy to keep initial bundle small)
+const Login = lazy(() => import('./pages/Login'));
+const ProfileSetup = lazy(() => import('./pages/ProfileSetup'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const StudentDashboard = lazy(() => import('./pages/student/Dashboard'));
 const BuatUjian = lazy(() => import('./pages/BuatUjian'));
@@ -66,7 +66,7 @@ export default function App() {
 
   return (
     <Router>
-      <SyncWorker />
+      {userRole === 'guru' && <SyncWorker />}
       <ErrorBoundary>
         <Suspense fallback={
           <div className="flex items-center justify-center min-h-screen bg-slate-50">

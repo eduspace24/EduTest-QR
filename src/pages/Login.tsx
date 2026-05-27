@@ -4,6 +4,7 @@ import { GraduationCap, Loader2, AlertCircle, ArrowRight, Chrome, QrCode } from 
 import { motion } from 'framer-motion';
 import React from 'react';
 import { useGoogleLogin } from '@react-oauth/google';
+import { setTokenData } from '../lib/tokenManager';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -28,6 +29,8 @@ export default function Login() {
         const profile = await res.json();
         const accessToken = tokenResponse.access_token;
         
+        setTokenData(accessToken, tokenResponse.expires_in);
+
         const session = {
           user: {
             id: profile.sub,
@@ -40,7 +43,6 @@ export default function Login() {
         };
 
         localStorage.setItem('edu_session', JSON.stringify(session));
-        localStorage.setItem('edu_token', accessToken);
         window.location.href = '/dashboard';
       } catch (err: any) {
         setError('Gagal mengambil profil Google.');
