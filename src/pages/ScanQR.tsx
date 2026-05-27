@@ -110,11 +110,15 @@ export default function ScanQR() {
     setIsSendingBulk(true);
     let successCount = 0;
     let failCount = 0;
+    let lastErrorMsg = '';
 
     for (const result of pendingResults) {
-      const serverUrl = result.serverUrl || activeServerUrl;
+      const rawUrl = result.serverUrl || activeServerUrl;
+      const serverUrl = rawUrl ? rawUrl.trim() : '';
+      
       if (!serverUrl || !serverUrl.startsWith('http')) {
         console.warn("Skipping Apps Script send: serverUrl not configured or invalid", serverUrl);
+        lastErrorMsg = "URL Apps Script kosong atau tidak valid (harus diawali http/https)";
         failCount++;
         continue;
       }
@@ -157,8 +161,9 @@ export default function ScanQR() {
           }
           await saveCollection('results', currentData);
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error("Gagal mengirim ke Apps Script:", err);
+        lastErrorMsg = err.message || err.toString();
         failCount++;
       }
     }
@@ -169,7 +174,7 @@ export default function ScanQR() {
     if (failCount > 0) {
       showAlert({
         title: 'Gagal Mengirim Sebagian Data',
-        message: `Gagal mengirim ${failCount} data ke Apps Script. Pastikan URL Apps Script diisi dengan benar dan Anda terhubung ke internet.`,
+        message: `Gagal mengirim ${failCount} data ke Apps Script. Error: ${lastErrorMsg}. Pastikan URL Apps Script diisi dengan benar dan perangkat terhubung ke internet.`,
         type: 'error'
       });
     } else {
