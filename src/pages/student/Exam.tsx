@@ -17,7 +17,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../lib/utils';
 import { fetchExamFromUrl } from '../../lib/googleDrive';
-import { addToPendingSubmissions } from '../../lib/db';
+import { addToPendingSubmissions, getCollectionData } from '../../lib/db';
 import { packResult } from '../../lib/hash';
 
 export default function StudentExam() {
@@ -38,6 +38,24 @@ export default function StudentExam() {
   const [studentCode, setStudentCode] = useState('');
   const [foundStudent, setFoundStudent] = useState<any>(null);
   const [studentData, setStudentData] = useState({ nama: '', kelas: '', id: '' });
+  const [allDbStudents, setAllDbStudents] = useState<any[]>([]);
+  const [allDbClasses, setAllDbClasses] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchDbData = async () => {
+      try {
+        const [studentsData, classesData] = await Promise.all([
+          getCollectionData('students'),
+          getCollectionData('classes')
+        ]);
+        setAllDbStudents(studentsData);
+        setAllDbClasses(classesData);
+      } catch (e) {
+        console.error('Error fetching global student list:', e);
+      }
+    };
+    fetchDbData();
+  }, []);
 
   useEffect(() => {
     const session = JSON.parse(localStorage.getItem('edu_session') || '{}');
@@ -221,28 +239,37 @@ export default function StudentExam() {
 
   const handleCheckCode = (code: string) => {
     const input = code.trim().toUpperCase();
+    const cleanInput = input.replace('EDU-', '');
     setStudentCode(code);
     
-    if (!exam?.allowedStudents) {
-      console.warn('Exam allowedStudents is missing or empty');
-      return;
-    }
-    
-    // Clean matching: exact or partial (without EDU- prefix)
-    const student = exam.allowedStudents.find((s: any) => {
+    // 1. Try to find in allowedStudents first
+    let student = exam?.allowedStudents?.find((s: any) => {
       const dbCode = s.code.trim().toUpperCase();
-      return dbCode === input || dbCode.replace('EDU-', '') === input;
+      const cleanDbCode = dbCode.replace('EDU-', '');
+      return dbCode === input || cleanDbCode === cleanInput;
     });
 
+    // 2. Fallback to global database if not in allowedStudents (helps with testing/class mismatches)
+    if (!student && allDbStudents && allDbStudents.length > 0) {
+      student = allDbStudents.find((s: any) => {
+        const dbCode = s.code.trim().toUpperCase();
+        const cleanDbCode = dbCode.replace('EDU-', '');
+        return dbCode === input || cleanDbCode === cleanInput;
+      });
+    }
+
     if (student) {
+      const className = student.className || 
+                        allDbClasses.find((c: any) => c.id === student.classId)?.name || 
+                        'Umum';
       setFoundStudent(student);
       setStudentData({
         nama: student.name,
-        kelas: student.className || 'Umum', 
+        kelas: className, 
         id: student.id
       });
     } else {
-      console.log('Code mismatch. Input:', input, 'Available codes:', exam.allowedStudents.map((s: any) => s.code));
+      console.log('Code mismatch. Input:', input, 'Available codes:', exam?.allowedStudents?.map((s: any) => s.code) || []);
       setFoundStudent(null);
     }
   };
