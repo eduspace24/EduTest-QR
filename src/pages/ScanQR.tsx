@@ -112,6 +112,8 @@ export default function ScanQR() {
     let failCount = 0;
     let lastErrorMsg = '';
 
+    const sentCodes: string[] = [];
+
     for (const result of pendingResults) {
       const rawUrl = result.serverUrl || activeServerUrl;
       const serverUrl = rawUrl ? rawUrl.trim() : '';
@@ -148,24 +150,21 @@ export default function ScanQR() {
         });
         
         successCount++;
-        
-        const currentData = await getCollectionData('results');
-        const idx = currentData.findIndex((r: any) => 
-          r.student?.code === result.student?.code && r.examFileId === result.examFileId
-        );
-        if (idx !== -1) {
-          currentData[idx].sent_to_server = true;
-          currentData[idx].server_received_at = new Date().toISOString();
-          if (!currentData[idx].serverUrl) {
-            currentData[idx].serverUrl = serverUrl;
-          }
-          await saveCollection('results', currentData);
-        }
+        sentCodes.push(`${result.student?.code}_${result.examFileId}`);
       } catch (err: any) {
         console.error("Gagal mengirim ke Apps Script:", err);
         lastErrorMsg = err.message || err.toString();
         failCount++;
       }
+    }
+
+    // Hapus hasil yang berhasil terkirim dari daftar lokal
+    if (sentCodes.length > 0) {
+      const currentData = await getCollectionData('results');
+      const filtered = currentData.filter((r: any) =>
+        !sentCodes.includes(`${r.student?.code}_${r.examFileId}`)
+      );
+      await saveCollection('results', filtered);
     }
 
     setIsSendingBulk(false);
@@ -326,9 +325,17 @@ export default function ScanQR() {
       );
 
       if (isDuplicate) {
+        // Hapus data lama yang duplikat
+        const filtered = currentResults.filter((r: any) =>
+          !(r.student?.code === parsed.code && r.examFileId === parsed.driveFileId)
+        );
+        await saveCollection('results', filtered);
+        await loadLocalResults();
+
+        setScannedData(null);
         showAlert({
-          title: 'Hasil Sudah Ada',
-          message: `Hasil ujian untuk siswa "${parsed.nama}" pada sesi ini sudah pernah terekam sebelumnya.`,
+          title: 'Data Sudah Ada & Dihapus',
+          message: `Hasil "${parsed.nama}" untuk ujian ini sudah ada. Data lama telah dihapus. Scan ulang jika ingin memperbarui.`,
           type: 'warning'
         });
         setScanStatus('idle');
