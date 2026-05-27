@@ -171,16 +171,16 @@ export default function DaftarUjian() {
                     <div className="flex items-center gap-1.5">
                       <Shield className="w-3.5 h-3.5" /> {exam.anti_cheat ? 'Anti Curang' : 'Reguler'}
                     </div>
-                    {exam.anti_cheat && exam.unlock_code && (
-                      <div className="flex items-center gap-1.5 text-emerald-600">
-                        <KeyRound className="w-3.5 h-3.5" />
-                        <span className="font-mono tracking-widest text-[10px]">{exam.unlock_code}</span>
-                      </div>
-                    )}
                   </div>
                 </div>
 
                 <div className="flex items-center gap-2 mt-2 sm:mt-0">
+                  {exam.anti_cheat && exam.unlock_code && (
+                    <div className="flex items-center gap-1.5 px-3 py-2 bg-emerald-50 text-emerald-700 rounded-lg border border-emerald-100">
+                      <KeyRound className="w-3.5 h-3.5" />
+                      <span className="font-mono tracking-widest text-[10px] font-black">{exam.unlock_code}</span>
+                    </div>
+                  )}
                   <button 
                     onClick={() => showShareLink(exam)}
                     className="flex-1 sm:flex-none bg-blue-50 text-blue-700 px-4 py-2 rounded-lg font-bold text-xs flex items-center justify-center gap-2 hover:bg-blue-100 transition-all active:scale-95 border border-blue-100"
