@@ -204,7 +204,7 @@ export async function readJsonFromDrive(folderId: string, fileName: string) {
     let fileId = cachedFileIds[fileName];
     if (!fileId) {
       const escapedFileName = fileName.replace(/'/g, "\\'");
-      const response = await fetchApi(`/files?q=name='${escapedFileName}' and '${folderId}' in parents and trashed=false&fields=files(id)`);
+      const response = await fetchApi(`/files?q=name='${escapedFileName}' and '${folderId}' in parents and trashed=false&fields=files(id)&t=${Date.now()}`);
       const files = response.files;
       if (files && files.length > 0) {
         fileId = files[0].id;
@@ -213,10 +213,13 @@ export async function readJsonFromDrive(folderId: string, fileName: string) {
     }
 
     if (fileId) {
-      const meta = await fetchApi(`/files/${fileId}?fields=modifiedTime`);
-      const fileData = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+      // Add timestamp to prevent browser cache
+      const meta = await fetchApi(`/files/${fileId}?fields=modifiedTime&t=${Date.now()}`);
+      const fileData = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&t=${Date.now()}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
         },
       });
       if (!fileData.ok) return null;
