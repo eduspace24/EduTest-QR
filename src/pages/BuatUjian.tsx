@@ -345,8 +345,15 @@ export default function BuatUjian() {
         title: formData.title,
         duration: formData.duration,
         totalQuestions: questions.length,
-        folderId: folderId, // ADDED THIS
-        createdAt: new Date().toISOString()
+        folderId: folderId,
+        createdAt: new Date().toISOString(),
+        randomized: formData.randomized,
+        randomize_options: formData.randomize_options,
+        anti_cheat: formData.anti_cheat,
+        cheat_tolerance: formData.cheat_tolerance,
+        unlock_code: formData.unlock_code,
+        strict_mode: formData.strict_mode,
+        show_score: formData.show_score
       };
       
       const updatedExams = [newExamMeta, ...savedExams];
