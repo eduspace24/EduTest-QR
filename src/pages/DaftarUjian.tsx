@@ -23,7 +23,7 @@ import { getOrCreateRootFolder, saveJsonToDrive, readJsonFromDrive, deleteFileFr
 import { useAlert } from '../context/AlertContext';
 import { useGoogleDrive } from '../context/GoogleDriveContext';
 import { TableSkeleton } from '../components/Skeleton';
-import { getCollectionData, saveCollection } from '../lib/db';
+import { getCollection, getCollectionData, saveCollection } from '../lib/db';
 
 export default function DaftarUjian() {
   const navigate = useNavigate();
@@ -54,7 +54,20 @@ export default function DaftarUjian() {
       // Load from IndexedDB first
       const localExams = await getCollectionData('exams_list');
       if (localExams.length > 0) {
-        setExams(localExams);
+        const enriched = await Promise.all(localExams.map(async (exam: any) => {
+          if (!exam.unlock_code && exam.driveFileId) {
+            try {
+              const full = await getCollection('exam_' + exam.driveFileId);
+              if (full?.data?.anti_cheat) {
+                exam.anti_cheat = full.data.anti_cheat;
+                exam.unlock_code = full.data.unlock_code;
+                exam.cheat_tolerance = full.data.cheat_tolerance;
+              }
+            } catch {}
+          }
+          return exam;
+        }));
+        setExams(enriched);
       }
 
       try {
@@ -63,8 +76,22 @@ export default function DaftarUjian() {
         
         if (driveData && driveData.data) {
           const examsData = Array.isArray(driveData.data) ? driveData.data : [];
-          setExams(examsData);
-          await saveCollection('exams_list', examsData);
+          // Enrich exams with missing fields from full exam data
+          const enriched = await Promise.all(examsData.map(async (exam: any) => {
+            if (!exam.unlock_code && exam.driveFileId) {
+              try {
+                const full = await getCollection('exam_' + exam.driveFileId);
+                if (full?.data?.anti_cheat) {
+                  exam.anti_cheat = full.data.anti_cheat;
+                  exam.unlock_code = full.data.unlock_code;
+                  exam.cheat_tolerance = full.data.cheat_tolerance;
+                }
+              } catch {}
+            }
+            return exam;
+          }));
+          setExams(enriched);
+          await saveCollection('exams_list', enriched);
         }
       } catch (err) {
         console.warn('Sync failed:', err);
