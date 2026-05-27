@@ -36,9 +36,19 @@ export default function ScanQR() {
   const [scanStatus, setScanStatus] = useState<'idle' | 'scanning' | 'success' | 'error'>('idle');
   const [scannedData, setScannedData] = useState<any>(null);
   
+  const isLoggedIn = !!localStorage.getItem('edu_session');
+
   // New local accumulation states
   const [localResults, setLocalResults] = useState<any[]>([]);
   const [isSendingBulk, setIsSendingBulk] = useState(false);
+  const [customServerUrl, setCustomServerUrl] = useState<string>(() => {
+    return localStorage.getItem('edu_guest_server_url') || '';
+  });
+
+  const profileStr = localStorage.getItem('edu_profile');
+  const profile = profileStr ? JSON.parse(profileStr) : null;
+  const teacherServerUrl = profile?.serverUrl || '';
+  const activeServerUrl = isLoggedIn ? teacherServerUrl : customServerUrl;
   
   const qrScannerRef = useRef<Html5Qrcode | null>(null);
   const scannerId = "qr-reader-element";
@@ -102,9 +112,9 @@ export default function ScanQR() {
     let failCount = 0;
 
     for (const result of pendingResults) {
-      const serverUrl = result.serverUrl;
-      if (!serverUrl) {
-        console.warn("Skipping Apps Script send: serverUrl not configured for result", result);
+      const serverUrl = result.serverUrl || activeServerUrl;
+      if (!serverUrl || !serverUrl.startsWith('http')) {
+        console.warn("Skipping Apps Script send: serverUrl not configured or invalid", serverUrl);
         failCount++;
         continue;
       }
@@ -142,6 +152,9 @@ export default function ScanQR() {
         if (idx !== -1) {
           currentData[idx].sent_to_server = true;
           currentData[idx].server_received_at = new Date().toISOString();
+          if (!currentData[idx].serverUrl) {
+            currentData[idx].serverUrl = serverUrl;
+          }
           await saveCollection('results', currentData);
         }
       } catch (err) {
@@ -155,9 +168,9 @@ export default function ScanQR() {
 
     if (failCount > 0) {
       showAlert({
-        title: 'Pengiriman Sebagian Sukses',
-        message: `Berhasil mengirim ${successCount} data. ${failCount} data gagal terkirim karena kendala jaringan.`,
-        type: 'warning'
+        title: 'Gagal Mengirim Sebagian Data',
+        message: `Gagal mengirim ${failCount} data ke Apps Script. Pastikan URL Apps Script diisi dengan benar dan Anda terhubung ke internet.`,
+        type: 'error'
       });
     } else {
       showAlert({
@@ -340,10 +353,14 @@ export default function ScanQR() {
         serverUrl: parsed.serverUrl || examConfig?.serverUrl
       };
 
+      if (parsed.serverUrl && !isLoggedIn) {
+        setCustomServerUrl(parsed.serverUrl);
+        localStorage.setItem('edu_guest_server_url', parsed.serverUrl);
+      }
+
       const updatedResults = [...currentResults, newResult];
       await saveCollection('results', updatedResults);
 
-      const isLoggedIn = !!localStorage.getItem('edu_session');
       let alertMsg = `Nilai siswa ${parsed.nama} (${parsed.score}) berhasil disimpan secara lokal. Klik tombol kirim di bawah setelah semua siswa selesai discan.`;
 
       // 5. Sync ke Google Drive (jika online dan login)
@@ -379,7 +396,7 @@ export default function ScanQR() {
     setScanStatus('idle');
   };
 
-  const isLoggedIn = !!localStorage.getItem('edu_session');
+
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 w-full">
@@ -490,9 +507,8 @@ export default function ScanQR() {
               </div>
             </div>
 
-            {/* Guest mode warning box */}
             {!isLoggedIn && (
-              <div className="bg-amber-50/50 border border-amber-200/60 rounded-3xl p-5 space-y-2 text-xs text-amber-800 animate-in fade-in slide-in-from-right-4 duration-300">
+              <div className="bg-amber-50/50 border border-amber-200/60 rounded-3xl p-5 space-y-4 text-xs text-amber-800 animate-in fade-in slide-in-from-right-4 duration-300">
                 <div className="flex items-center gap-2 text-amber-600 font-bold">
                   <AlertTriangle className="w-4 h-4" />
                   <span>Mode Pengawas (Belum Login)</span>
@@ -501,6 +517,22 @@ export default function ScanQR() {
                   Hasil scan saat ini disimpan secara lokal di browser HP/perangkat ini.
                   Silakan <button onClick={() => { stopScanner(); navigate('/login'); }} className="underline font-bold text-amber-900 bg-transparent border-none cursor-pointer p-0 outline-none">Login</button> di perangkat ini agar data otomatis tersinkronisasi ke Google Drive akun Guru Anda.
                 </p>
+                <div className="space-y-1.5 border-t border-amber-200/40 pt-3">
+                  <label className="font-bold text-amber-900">URL Server Apps Script Guru:</label>
+                  <input
+                    type="text"
+                    placeholder="https://script.google.com/macros/s/.../exec"
+                    value={customServerUrl}
+                    onChange={(e) => {
+                      setCustomServerUrl(e.target.value);
+                      localStorage.setItem('edu_guest_server_url', e.target.value);
+                    }}
+                    className="w-full px-3 py-2 bg-white border border-amber-200 rounded-xl outline-none text-indigo-950 font-bold placeholder:text-slate-300"
+                  />
+                  <p className="text-[10px] text-amber-600/80 leading-normal">
+                    *URL ini otomatis terisi saat memindai QR Code baru dari lembar ujian. Tempelkan URL secara manual di atas jika memindai QR lama yang tidak memiliki info URL server.
+                  </p>
+                </div>
               </div>
             )}
 
