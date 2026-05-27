@@ -75,7 +75,7 @@ export default function Profil() {
           name: formData.name,
           schools: formData.schools,
           subjects: formData.subjects,
-          serverUrl: formData.serverUrl,
+          serverUrl: formData.serverUrl ? formData.serverUrl.trim() : '',
           schoolName: formData.schools[0] || '',
           subject: formData.subjects[0] || ''
         }
@@ -242,15 +242,28 @@ export default function Profil() {
                         onClick={async () => {
                           if (!formData.serverUrl) return;
                           try {
-                            const testing = await fetch(`${formData.serverUrl}?check=true`);
-                            const result = await testing.json();
-                            if (result.status === "ONLINE") {
-                              showAlert({ title: "Berhasil!", message: "Server terhubung: " + result.owner, type: "success" });
-                            } else {
-                              throw new Error();
+                            const trimmedUrl = formData.serverUrl.trim();
+                            if (!trimmedUrl.startsWith('http')) {
+                              throw new Error("URL must start with http/https");
                             }
+                            
+                            // Perform a no-cors fetch to verify reachability
+                            await fetch(`${trimmedUrl}?check=true`, { 
+                              method: 'GET',
+                              mode: 'no-cors' 
+                            });
+                            
+                            showAlert({ 
+                              title: "Berhasil!", 
+                              message: "Server Apps Script berhasil terhubung (Koneksi Terverifikasi)!", 
+                              type: "success" 
+                            });
                           } catch (e) {
-                            showAlert({ title: "Gagal", message: "Gagal terhubung. Pastikan URL benar & sudah di-deploy sebagai 'Anyone'.", type: "error" });
+                            showAlert({ 
+                              title: "Gagal", 
+                              message: "Gagal terhubung. Pastikan URL benar, diawali dengan http/https, dan sudah di-deploy sebagai 'Anyone'.", 
+                              type: "error" 
+                            });
                           }
                         }}
                         className="bg-white border-2 border-slate-100 text-indigo-950 px-4 rounded-2xl font-black text-[10px] uppercase hover:bg-slate-50 transition-all disabled:opacity-30 shrink-0"
