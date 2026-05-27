@@ -96,7 +96,7 @@ export default function StudentResult() {
           )}
 
           <Link 
-            to="/exam"
+            to={meta?.examLink || '/exam'}
             onClick={() => {
               localStorage.removeItem('edu_last_submission_qr');
               localStorage.removeItem('edu_last_submission_meta');

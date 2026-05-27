@@ -220,7 +220,8 @@ export default function StudentExam() {
         studentName: session.user?.nama || session.user?.name || '-',
         studentKelas: session.user?.kelas || '-',
         score,
-        totalQuestions: exam.questions.length
+        totalQuestions: exam.questions.length,
+        examLink: `/test/${teacherId}/${examId}`
       }));
 
       // Cleanup & Selesai
