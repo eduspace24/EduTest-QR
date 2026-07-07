@@ -24,18 +24,6 @@ export default defineConfig(({mode}) => {
       target: 'es2020',
       minify: 'esbuild',
       cssMinify: true,
-      rollupOptions: {
-        output: {
-          manualChunks: (id) => {
-            if (id.includes('node_modules')) {
-              if (id.includes('recharts')) return 'charts';
-              if (id.includes('lucide-react')) return 'icons';
-              if (id.includes('framer-motion')) return 'motion';
-              if (id.includes('react') || id.includes('router')) return 'react';
-            }
-          }
-        }
-      }
     },
     esbuild: {
       // Remove console.logs in production to reduce bundle size and protect data
