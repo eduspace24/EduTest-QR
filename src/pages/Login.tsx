@@ -8,6 +8,8 @@ import {
   User, 
   Eye, 
   EyeOff,
+  ShieldCheck,
+  Zap,
   Lock
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -126,9 +128,8 @@ export default function Login() {
       }
 
       // =========================================================================
-      // 4. CEK SUPABASE DATABASE (Fallback Online)
+      // 4. CEK SUPABASE DATABASE (Online Fallback)
       // =========================================================================
-      // Cek tabel profiles (Guru / Admin)
       try {
         const { data: supaProfile } = await supabase
           .from('profiles')
@@ -151,12 +152,11 @@ export default function Login() {
           };
           localStorage.setItem('edu_session', JSON.stringify(session));
           localStorage.setItem('edu_profile', JSON.stringify(session.user));
-          window.location.href = supaProfile.role === 'superadmin' ? '/dashboard' : '/dashboard';
+          window.location.href = '/dashboard';
           return;
         }
       } catch {}
 
-      // Cek tabel students (Murid)
       try {
         const { data: supaStudent } = await supabase
           .from('students')
@@ -187,7 +187,7 @@ export default function Login() {
       } catch {}
 
       // =========================================================================
-      // 5. AUTO-DETECT BERDASARKAN PASSWORD KEY
+      // 5. AUTO-DETECT FALLBACK BY PASSWORD
       // =========================================================================
       if (cleanPass === 'guru19*') {
         const session = {
@@ -230,7 +230,7 @@ export default function Login() {
         return;
       }
 
-      throw new Error('Username atau Password yang Anda masukkan tidak valid.');
+      throw new Error('Username atau Password yang Anda masukkan tidak sesuai.');
 
     } catch (err: any) {
       setError(err.message || 'Gagal masuk. Periksa kembali username dan password Anda.');
@@ -240,107 +240,173 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 sm:p-6 relative overflow-hidden">
-      {/* Background Glow */}
-      <div className="absolute inset-0 pointer-events-none opacity-30">
-        <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-indigo-600/40 rounded-full blur-[140px]" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-blue-600/30 rounded-full blur-[140px]" />
+    <div className="min-h-screen bg-slate-50 flex flex-col lg:flex-row">
+      {/* ========================================================= */}
+      {/* DESKTOP LEFT SIDE: HERO TITLE & TAGLINE (Hidden on Mobile) */}
+      {/* ========================================================= */}
+      <div className="hidden lg:flex lg:w-1/2 bg-indigo-950 relative items-center justify-center p-12 xl:p-16 overflow-hidden">
+        {/* Ambient Glow */}
+        <div className="absolute inset-0 opacity-20 pointer-events-none">
+          <div className="absolute top-[-10%] left-[-10%] w-[450px] h-[450px] bg-blue-500 rounded-full blur-[120px]" />
+          <div className="absolute bottom-[-10%] right-[-10%] w-[450px] h-[450px] bg-indigo-400 rounded-full blur-[120px]" />
+        </div>
+
+        <motion.div 
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.6 }}
+          className="relative z-10 max-w-lg space-y-8 text-white"
+        >
+          {/* Logo */}
+          <div className="flex items-center gap-3">
+            <div className="bg-white/10 backdrop-blur-xl w-14 h-14 rounded-2xl flex items-center justify-center border border-white/20 shadow-2xl">
+              <GraduationCap className="text-blue-400 w-8 h-8" />
+            </div>
+            <div>
+              <span className="text-3xl font-black tracking-tight text-white">
+                Nineteen <span className="text-blue-400">Exam</span>
+              </span>
+              <p className="text-xs text-slate-300 font-semibold tracking-wider uppercase">
+                SMAN 19 Bandung
+              </p>
+            </div>
+          </div>
+
+          {/* Big Title & Tagline */}
+          <div className="space-y-4">
+            <h1 className="text-4xl xl:text-5xl font-black leading-tight text-white">
+              Platform Ujian Digital <span className="text-blue-400">CBT Modern</span> & Offline-First.
+            </h1>
+            <p className="text-slate-300 text-base leading-relaxed font-medium">
+              Sistem evaluasi pembelajaran terintegrasi. Ujian berjalan lancar tanpa hambatan koneksi internet dengan pengumpulan hasil berbasis enkripsi QR Code.
+            </p>
+          </div>
+
+          {/* Badges / Highlights */}
+          <div className="pt-6 border-t border-white/10 grid grid-cols-2 gap-4">
+            <div className="bg-white/5 p-4 rounded-2xl border border-white/10 backdrop-blur-sm">
+              <ShieldCheck className="w-5 h-5 text-emerald-400 mb-2" />
+              <h4 className="text-sm font-bold text-white">Aman & Terproteksi</h4>
+              <p className="text-xs text-slate-400 mt-0.5">Sistem kunci layar anti-curang.</p>
+            </div>
+            <div className="bg-white/5 p-4 rounded-2xl border border-white/10 backdrop-blur-sm">
+              <Zap className="w-5 h-5 text-blue-400 mb-2" />
+              <h4 className="text-sm font-bold text-white">100% Offline-First</h4>
+              <p className="text-xs text-slate-400 mt-0.5">Bebas gangguan sinyal sekolah.</p>
+            </div>
+          </div>
+        </motion.div>
       </div>
 
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="max-w-md w-full bg-white rounded-[2.5rem] p-8 sm:p-10 shadow-2xl relative z-10 border border-slate-100 space-y-8"
-      >
-        {/* App Branding */}
-        <div className="text-center space-y-2">
-          <div className="w-16 h-16 bg-indigo-950 text-white rounded-3xl flex items-center justify-center mx-auto shadow-xl shadow-indigo-950/20 mb-4">
-            <GraduationCap className="w-8 h-8 text-blue-400" />
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-indigo-950 tracking-tight">
-            Nineteen <span className="text-blue-600">Exam</span>
-          </h1>
-          <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider">
-            SMAN 19 Bandung • Sistem Ujian Digital
-          </p>
-        </div>
-
-        {/* Error Alert */}
-        {error && (
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }} 
-            animate={{ opacity: 1, scale: 1 }}
-            className="p-4 bg-rose-50 border border-rose-100 rounded-2xl flex items-center gap-3 text-rose-600 text-xs font-bold"
-          >
-            <AlertCircle className="w-5 h-5 shrink-0" />
-            <span>{error}</span>
-          </motion.div>
-        )}
-
-        {/* Unified Login Form */}
-        <form onSubmit={handleLogin} className="space-y-4">
-          <div>
-            <label className="text-xs font-black text-slate-600 uppercase tracking-wider mb-2 block">
-              Username / ID Pengguna
-            </label>
-            <div className="relative">
-              <User className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                required
-                placeholder="NIP, NIS, atau Email"
-                value={identifier}
-                onChange={(e) => setIdentifier(e.target.value)}
-                className="w-full pl-12 pr-4 py-4 bg-slate-50 rounded-2xl border border-slate-200 outline-none text-indigo-950 font-bold text-sm focus:bg-white focus:border-indigo-950 focus:ring-4 focus:ring-indigo-950/5 transition-all"
-              />
+      {/* ========================================================= */}
+      {/* RIGHT SIDE (Desktop) / CENTER (Mobile): LOGIN PANEL        */}
+      {/* ========================================================= */}
+      <div className="flex-1 flex flex-col justify-center items-center px-6 sm:px-12 lg:px-16 py-12 min-h-screen bg-slate-50/70">
+        <motion.div 
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="max-w-md w-full bg-white p-8 sm:p-10 rounded-[2.5rem] shadow-xl shadow-slate-200/60 border border-slate-100 space-y-6"
+        >
+          {/* Mobile-Only Header */}
+          <div className="lg:hidden text-center space-y-1.5 pb-2 border-b border-slate-100">
+            <div className="w-12 h-12 bg-indigo-950 text-white rounded-2xl flex items-center justify-center mx-auto shadow-md mb-2">
+              <GraduationCap className="w-6 h-6 text-blue-400" />
             </div>
+            <h2 className="text-xl font-black text-indigo-950">
+              Nineteen <span className="text-blue-600">Exam</span>
+            </h2>
+            <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">
+              SMAN 19 Bandung
+            </p>
           </div>
 
+          {/* Form Header */}
           <div>
-            <label className="text-xs font-black text-slate-600 uppercase tracking-wider mb-2 block">
-              Password
-            </label>
-            <div className="relative">
-              <KeyRound className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type={showPassword ? 'text' : 'password'}
-                required
-                placeholder="Masukkan password Anda"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-12 pr-12 py-4 bg-slate-50 rounded-2xl border border-slate-200 outline-none text-indigo-950 font-bold text-sm focus:bg-white focus:border-indigo-950 focus:ring-4 focus:ring-indigo-950/5 transition-all"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-950"
-              >
-                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-              </button>
-            </div>
+            <h2 className="text-2xl font-black text-indigo-950 tracking-tight">
+              Masuk ke Akun
+            </h2>
+            <p className="text-slate-500 mt-1 text-xs sm:text-sm font-medium">
+              Masukkan ID Pengguna dan Password Anda untuk melanjutkan.
+            </p>
           </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-indigo-950 text-white py-4 rounded-2xl font-bold hover:bg-indigo-900 active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-xl shadow-indigo-950/20 text-sm disabled:opacity-50 mt-2"
-          >
-            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (
-              <>
-                <span>Masuk ke Akun</span>
-                <ArrowRight className="w-4 h-4" />
-              </>
-            )}
-          </button>
-        </form>
+          {/* Error Alert */}
+          {error && (
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }} 
+              animate={{ opacity: 1, scale: 1 }}
+              className="p-4 bg-rose-50 border border-rose-100 rounded-2xl flex items-center gap-3 text-rose-600 text-xs font-bold"
+            >
+              <AlertCircle className="w-5 h-5 shrink-0" />
+              <span>{error}</span>
+            </motion.div>
+          )}
 
-        <div className="text-center pt-2">
-          <p className="text-[11px] text-slate-400 font-medium">
-            Aplikasi Ujian CBT Terproteksi • © Nineteen Exam
-          </p>
-        </div>
-      </motion.div>
+          {/* Form */}
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="text-xs font-black text-slate-600 uppercase tracking-wider mb-2 block">
+                ID Pengguna (NIP / NIS / Email)
+              </label>
+              <div className="relative">
+                <User className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  required
+                  placeholder="Ketik NIP, NIS, atau Email..."
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3.5 sm:py-4 bg-slate-50 rounded-2xl border border-slate-200 outline-none text-indigo-950 font-bold text-sm focus:bg-white focus:border-indigo-950 focus:ring-4 focus:ring-indigo-950/5 transition-all"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-black text-slate-600 uppercase tracking-wider mb-2 block">
+                Password
+              </label>
+              <div className="relative">
+                <KeyRound className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full pl-12 pr-12 py-3.5 sm:py-4 bg-slate-50 rounded-2xl border border-slate-200 outline-none text-indigo-950 font-bold text-sm focus:bg-white focus:border-indigo-950 focus:ring-4 focus:ring-indigo-950/5 transition-all"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-950"
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-indigo-950 text-white py-4 rounded-2xl font-bold hover:bg-indigo-900 active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-xl shadow-indigo-950/20 text-sm disabled:opacity-50 mt-2"
+            >
+              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (
+                <>
+                  <span>Masuk ke Akun</span>
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
+            </button>
+          </form>
+
+          <div className="text-center pt-2">
+            <p className="text-[11px] text-slate-400 font-medium">
+              Aplikasi Ujian CBT Terproteksi • © Nineteen Exam
+            </p>
+          </div>
+        </motion.div>
+      </div>
     </div>
   );
 }
