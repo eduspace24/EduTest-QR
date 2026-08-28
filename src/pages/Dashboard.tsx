@@ -21,10 +21,16 @@ import SchoolSwitcher from '../components/SchoolSwitcher';
 
 export default function Dashboard() {
   const { activeSchool } = useSchool();
+  const session = JSON.parse(localStorage.getItem('edu_session') || '{}');
+  const userRole = session?.user?.role || 'guru';
+  const isSuperAdmin = userRole === 'superadmin';
+  const userName = session?.user?.name || session?.user?.nama || 'Pengguna';
+
   const [stats, setStats] = useState({
     totalExams: 0,
     totalQuestions: 0,
     totalParticipants: 0,
+    totalTeachers: 0,
     avgScore: 0
   });
   const [loading, setLoading] = useState(true);
@@ -33,24 +39,28 @@ export default function Dashboard() {
     const fetchStats = async () => {
       setLoading(true);
       const [bankSoal, students, exams, results] = await Promise.all([
-        getCollectionData('bank_soal'), // Universal
-        getCollectionData('students', activeSchool?.id), // School-specific
-        getCollectionData('exams_list'), // Universal
-        getCollectionData('results') // Universal
+        getCollectionData('bank_soal'),
+        getCollectionData('students', activeSchool?.id),
+        getCollectionData('exams_list'),
+        getCollectionData('results')
       ]);
 
-      // Filter results for current school
-      const schoolStudentCodes = new Set(students.map(s => s.code));
-      const schoolResults = results.filter(r => schoolStudentCodes.has(r.student?.code));
-      
-      const avg = schoolResults.length > 0 
-        ? Math.round(schoolResults.reduce((acc, curr) => acc + (curr.score || 0), 0) / schoolResults.length)
+      const avg = results.length > 0 
+        ? Math.round(results.reduce((acc: number, curr: any) => acc + (curr.score || 0), 0) / results.length)
         : 0;
+
+      // Teachers cache check
+      let teacherCount = 0;
+      try {
+        const cachedT = localStorage.getItem('nineteen_teachers_cache');
+        if (cachedT) teacherCount = JSON.parse(cachedT).length;
+      } catch {}
 
       setStats({
         totalExams: exams.length,
         totalQuestions: bankSoal.length,
         totalParticipants: students.length,
+        totalTeachers: teacherCount || 1,
         avgScore: avg
       });
       setLoading(false);
@@ -59,10 +69,15 @@ export default function Dashboard() {
     fetchStats();
   }, [activeSchool?.id]);
 
-  const statCards = [
-    { label: 'Total Ujian', value: stats.totalExams, icon: FileText, color: 'text-blue-600', bg: 'bg-blue-500/10', border: 'border-blue-200' },
-    { label: 'Bank Soal', value: stats.totalQuestions, icon: BookOpen, color: 'text-indigo-600', bg: 'bg-indigo-500/10', border: 'border-indigo-200' },
-    { label: 'Total Peserta', value: stats.totalParticipants, icon: Users, color: 'text-emerald-600', bg: 'bg-emerald-500/10', border: 'border-emerald-200' },
+  const statCards = isSuperAdmin ? [
+    { label: 'Total Guru', value: stats.totalTeachers, icon: Users, color: 'text-indigo-600', bg: 'bg-indigo-500/10', border: 'border-indigo-200' },
+    { label: 'Total Siswa', value: stats.totalParticipants, icon: GraduationCap, color: 'text-blue-600', bg: 'bg-blue-500/10', border: 'border-blue-200' },
+    { label: 'Bank Soal Sekolah', value: stats.totalQuestions, icon: BookOpen, color: 'text-purple-600', bg: 'bg-purple-500/10', border: 'border-purple-200' },
+    { label: 'Total Sesi Ujian', value: stats.totalExams, icon: FileText, color: 'text-emerald-600', bg: 'bg-emerald-500/10', border: 'border-emerald-200' },
+  ] : [
+    { label: 'Ujian Diterbitkan', value: stats.totalExams, icon: FileText, color: 'text-blue-600', bg: 'bg-blue-500/10', border: 'border-blue-200' },
+    { label: 'Bank Soal Saya', value: stats.totalQuestions, icon: BookOpen, color: 'text-indigo-600', bg: 'bg-indigo-500/10', border: 'border-indigo-200' },
+    { label: 'Siswa Mengikuti', value: stats.totalParticipants, icon: Users, color: 'text-emerald-600', bg: 'bg-emerald-500/10', border: 'border-emerald-200' },
     { label: 'Rata-rata Nilai', value: `${stats.avgScore}%`, icon: TrendingUp, color: 'text-amber-600', bg: 'bg-amber-500/10', border: 'border-amber-200' },
   ];
 
@@ -86,23 +101,61 @@ export default function Dashboard() {
     <div className="space-y-8 pb-12">
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div>
-          <h2 className="tracking-tight mb-1">Ringkasan Dashboard</h2>
-          <p className="text-slate-500 text-sm font-medium">Pantau performa ujian dan bank soal Anda.</p>
+          <div className="flex items-center gap-2">
+            <span className="bg-indigo-100 text-indigo-950 text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider">
+              {isSuperAdmin ? 'Super Administrator' : 'Guru Pengampu'}
+            </span>
+          </div>
+          <h2 className="tracking-tight text-2xl sm:text-3xl font-black text-indigo-950 mt-1">
+            Selamat Datang, {userName}!
+          </h2>
+          <p className="text-slate-500 text-sm font-medium">
+            {isSuperAdmin 
+              ? 'Pusat kendali master data, akun guru, dan jadwal ujian sekolah.' 
+              : 'Kelola materi ujian dan pindai QR barcode hasil pengerjaan siswa.'}
+          </p>
         </div>
         
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-          <SchoolSwitcher />
-          <Link 
-            to="/buat-ujian"
-            className="bg-indigo-950 text-white px-6 py-3 rounded-2xl font-black flex items-center justify-center gap-2 shadow-xl shadow-indigo-950/20 active:scale-95 transition-all text-sm w-full sm:w-auto"
-          >
-            <Plus className="w-4 h-4" />
-            Ujian Baru
-          </Link>
+        <div className="flex flex-wrap items-center gap-3">
+          {isSuperAdmin ? (
+            <>
+              <Link 
+                to="/kelola-guru"
+                className="bg-indigo-950 text-white px-5 py-3 rounded-2xl font-bold flex items-center gap-2 shadow-lg text-xs active:scale-95 transition-all"
+              >
+                <Users className="w-4 h-4" />
+                Kelola Akun Guru
+              </Link>
+              <Link 
+                to="/kelola-siswa"
+                className="bg-blue-600 text-white px-5 py-3 rounded-2xl font-bold flex items-center gap-2 shadow-lg text-xs active:scale-95 transition-all"
+              >
+                <GraduationCap className="w-4 h-4" />
+                Kelola Murid & Kartu
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link 
+                to="/scan-qr"
+                className="bg-emerald-600 text-white px-5 py-3 rounded-2xl font-bold flex items-center gap-2 shadow-lg text-xs active:scale-95 transition-all"
+              >
+                <Zap className="w-4 h-4" />
+                Pindai QR Siswa
+              </Link>
+              <Link 
+                to="/buat-ujian"
+                className="bg-indigo-950 text-white px-5 py-3 rounded-2xl font-bold flex items-center gap-2 shadow-lg text-xs active:scale-95 transition-all"
+              >
+                <Plus className="w-4 h-4" />
+                Buat Ujian Baru
+              </Link>
+            </>
+          )}
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <motion.div variants={slideUp} initial="hidden" animate="show" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {statCards.map((stat, idx) => {
           const Icon = stat.icon;
           return (
@@ -121,7 +174,7 @@ export default function Dashboard() {
             </motion.div>
           );
         })}
-      </div>
+      </motion.div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 bg-white rounded-[2rem] border border-slate-100 p-8 sm:p-10 flex flex-col items-center justify-center text-center relative overflow-hidden group min-h-[300px]">
@@ -132,10 +185,19 @@ export default function Dashboard() {
             <div className="bg-indigo-50 text-indigo-600 w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4">
               <Zap className="w-6 h-6" />
             </div>
-            <h3 className="text-lg sm:text-xl font-black text-indigo-950 mb-2">Mulai Sesi Ujian</h3>
-            <p className="text-slate-500 text-sm font-medium max-w-xs mb-6 px-4">Buat sesi ujian baru dan bagikan kode unik kepada siswa sekarang.</p>
-            <Link to="/buat-ujian" className="bg-indigo-950 text-white px-8 py-3 rounded-xl font-bold inline-block shadow-md shadow-indigo-950/20 hover:-translate-y-0.5 transition-all text-sm">
-              Buat Sekarang
+            <h3 className="text-lg sm:text-xl font-black text-indigo-950 mb-2">
+              {isSuperAdmin ? 'Pusat Kendali Ujian' : 'Mulai Sesi Ujian'}
+            </h3>
+            <p className="text-slate-500 text-sm font-medium max-w-xs mb-6 px-4">
+              {isSuperAdmin 
+                ? 'Kelola akun guru, cetak kartu ujian siswa, dan pantau hasil ujian terpusat.' 
+                : 'Buat sesi ujian baru dan bagikan token unik kepada siswa sekarang.'}
+            </p>
+            <Link 
+              to={isSuperAdmin ? "/kelola-guru" : "/buat-ujian"} 
+              className="bg-indigo-950 text-white px-8 py-3 rounded-xl font-bold inline-block shadow-md shadow-indigo-950/20 hover:-translate-y-0.5 transition-all text-sm"
+            >
+              {isSuperAdmin ? 'Kelola Guru' : 'Buat Sekarang'}
             </Link>
           </div>
         </div>
@@ -145,8 +207,8 @@ export default function Dashboard() {
           <div className="space-y-2">
             {[
               { label: 'Bank Soal', desc: 'Kelola pertanyaan', icon: BookOpen, color: 'text-blue-600', to: '/bank-soal' },
-              { label: 'Kelola Kelas', desc: 'Atur grup siswa', icon: GraduationCap, color: 'text-purple-600', to: '/kelola-kelas' },
-              { label: 'Daftar Ujian', desc: 'Laporan aktif', icon: FileText, color: 'text-amber-600', to: '/daftar-ujian' },
+              { label: isSuperAdmin ? 'Kelola Akun Guru' : 'Kelola Kelas', desc: isSuperAdmin ? 'Atur akun pendidik' : 'Atur grup siswa', icon: isSuperAdmin ? Users : GraduationCap, color: 'text-purple-600', to: isSuperAdmin ? '/kelola-guru' : '/kelola-kelas' },
+              { label: isSuperAdmin ? 'Kelola Murid & Kartu' : 'Daftar Ujian', desc: isSuperAdmin ? 'Cetak kartu ujian' : 'Laporan aktif', icon: FileText, color: 'text-amber-600', to: isSuperAdmin ? '/kelola-siswa' : '/daftar-ujian' },
             ].map((item, idx) => {
               const Icon = item.icon;
               return (

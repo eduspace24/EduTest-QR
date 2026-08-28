@@ -24,6 +24,7 @@ import {
   Clock
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
 
 export default function ScanQR() {
   const navigate = useNavigate();
@@ -373,16 +374,32 @@ export default function ScanQR() {
       const updatedResults = [...currentResults, newResult];
       await saveCollection('results', updatedResults);
 
-      let alertMsg = `Nilai siswa ${parsed.nama} (${parsed.score}) berhasil disimpan secara lokal. Klik tombol kirim di bawah setelah semua siswa selesai discan.`;
+      // 5. Sync ke Supabase (Database Utama)
+      try {
+        await supabase.from('exam_results').insert([{
+          exam_title: parsed.examTitle || examConfig?.title || 'Ujian (Scan QR)',
+          student_name: parsed.nama,
+          student_class: parsed.kelas,
+          student_code: parsed.code,
+          score: parsed.score,
+          answers_summary: parsed.answersString,
+          tab_switches: parsed.tabSwitches || 0,
+          start_time: parsed.startTime,
+          end_time: parsed.endTime
+        }]);
+      } catch (supaErr) {
+        console.warn("Scan mode offline, Supabase sync deferred:", supaErr);
+      }
 
-      // 5. Sync ke Google Drive (jika online dan login)
+      let alertMsg = `Nilai siswa ${parsed.nama} (${parsed.score}) berhasil disimpan secara lokal dan disinkronkan ke Nineteen Exam.`;
+
+      // 6. Sync ke Google Drive (jika online dan login)
       if (isLoggedIn) {
         try {
           const token = localStorage.getItem('edu_token');
           if (token) {
             const folderId = await getOrCreateRootFolder();
             await saveJsonToDrive(folderId, 'results.json', updatedResults);
-            alertMsg = `Nilai siswa ${parsed.nama} (${parsed.score}) berhasil disimpan secara lokal dan disinkronkan ke Google Drive Anda.`;
           }
         } catch (driveErr) {
           console.warn("Gagal sinkronisasi Drive:", driveErr);

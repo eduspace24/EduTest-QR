@@ -35,6 +35,20 @@ export default function Layout({ session }: LayoutProps) {
   const userRole = session?.user?.role || 'guru';
   const userName = session?.user?.name || session?.user?.email?.split('@')[0];
 
+  const superAdminMenuItems = [
+    { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
+    { icon: Users, label: 'Kelola Guru', path: '/kelola-guru' },
+    { icon: LayoutGrid, label: 'Kelola Kelas', path: '/kelola-kelas' },
+    { icon: Users, label: 'Kelola Siswa', path: '/kelola-siswa' },
+    { icon: BookOpen, label: 'Bank Soal', path: '/bank-soal' },
+    { icon: PlusCircle, label: 'Buat Ujian', path: '/buat-ujian' },
+    { icon: ListTodo, label: 'Daftar Ujian', path: '/daftar-ujian' },
+    { icon: CheckCircle2, label: 'Hasil Ujian', path: '/hasil-ujian' },
+    { icon: BarChart3, label: 'Analisis', path: '/analisis' },
+    { icon: QrCode, label: 'Pindai QR', path: '/scan-qr' },
+    { icon: User, label: 'Profil Saya', path: '/profil' },
+  ];
+
   const teacherMenuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
     { icon: LayoutGrid, label: 'Kelola Kelas', path: '/kelola-kelas' },
@@ -54,7 +68,11 @@ export default function Layout({ session }: LayoutProps) {
     { icon: User, label: 'Profil Saya', path: '/profil' },
   ];
 
-  const menuItems = userRole === 'guru' ? teacherMenuItems : studentMenuItems;
+  const menuItems = userRole === 'superadmin' 
+    ? superAdminMenuItems 
+    : userRole === 'guru' 
+      ? teacherMenuItems 
+      : studentMenuItems;
 
   const handleLogout = () => {
     localStorage.removeItem('edu_session');
@@ -69,7 +87,7 @@ export default function Layout({ session }: LayoutProps) {
           <div className="bg-gradient-to-br from-indigo-950 to-indigo-900 p-2 rounded-xl shadow-md text-white">
             <GraduationCap className="w-5 h-5" />
           </div>
-          <span className="text-xl font-bold tracking-tight text-indigo-950">Edu<span className="text-blue-600">Test</span></span>
+          <span className="text-xl font-bold tracking-tight text-indigo-950">Nineteen <span className="text-blue-600">Exam</span></span>
         </div>
 
         <nav className="flex-1 px-4 py-3 space-y-1 relative z-10">
@@ -162,7 +180,7 @@ export default function Layout({ session }: LayoutProps) {
                   <div className="bg-gradient-to-br from-indigo-950 to-indigo-900 p-2 rounded-xl text-white">
                     <GraduationCap className="w-4 h-4" />
                   </div>
-                  <span className="text-lg font-bold tracking-tight text-indigo-950">Edu<span className="text-blue-600">Test</span></span>
+                  <span className="text-lg font-bold tracking-tight text-indigo-950">Nineteen <span className="text-blue-600">Exam</span></span>
                 </div>
                 <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 text-slate-400 hover:text-indigo-950">
                   <X className="w-5 h-5" />

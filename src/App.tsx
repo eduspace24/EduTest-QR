@@ -25,6 +25,8 @@ const KelolaKelas = lazy(() => import('./pages/KelolaKelas'));
 const KelolaSiswa = lazy(() => import('./pages/KelolaSiswa'));
 const ScanQR = lazy(() => import('./pages/ScanQR'));
 
+const KelolaGuru = lazy(() => import('./pages/KelolaGuru'));
+
 export default function App() {
   const [session, setSession] = useState<any>(() => {
     const saved = localStorage.getItem('edu_session');
@@ -50,23 +52,26 @@ export default function App() {
   }, [isInitialized]);
 
   const userRole = session?.user?.role || 'guru';
-  // Use localStorage as fallback to prevent race condition after fresh login & sync
-  const profileCompleted = !!session?.user?.profileCompleted || !!localStorage.getItem('edu_profile');
+  // Super Admin never needs profile setup wizard
+  const isSuperAdmin = userRole === 'superadmin';
+  const profileCompleted = isSuperAdmin || !!session?.user?.profileCompleted || !!localStorage.getItem('edu_profile');
 
   if (!isInitialized) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-slate-50">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="animate-spin h-10 w-10 text-indigo-950" />
-          <p className="text-slate-500 font-bold animate-pulse text-sm">Menyingkronkan Data...</p>
+          <p className="text-slate-500 font-bold animate-pulse text-sm">Menyiapkan Nineteen Exam...</p>
         </div>
       </div>
     );
   }
 
+  const isStaff = userRole === 'guru' || userRole === 'superadmin';
+
   return (
     <Router>
-      {userRole === 'guru' && <SyncWorker />}
+      {isStaff && <SyncWorker />}
       <ErrorBoundary>
         <Suspense fallback={
           <div className="flex items-center justify-center min-h-screen bg-slate-50">
@@ -76,7 +81,7 @@ export default function App() {
           <Routes>
             {/* Auth & Setup */}
             <Route path="/login" element={!session ? <Login /> : <Navigate to={profileCompleted ? "/dashboard" : "/profil-guru"} />} />
-            <Route path="/profil-guru" element={session ? <ProfileSetup /> : <Navigate to="/login" />} />
+            <Route path="/profil-guru" element={session ? (isSuperAdmin ? <Navigate to="/dashboard" /> : <ProfileSetup />) : <Navigate to="/login" />} />
             
             {/* Protected Routes with Layout */}
             <Route element={
@@ -90,14 +95,15 @@ export default function App() {
                 <Navigate to="/login" replace />
               )
             }>
-              <Route path="/dashboard" element={userRole === 'guru' ? <Dashboard /> : <StudentDashboard />} />
-              <Route path="/buat-ujian" element={userRole === 'guru' ? <BuatUjian /> : <Navigate to="/dashboard" />} />
-              <Route path="/bank-soal" element={userRole === 'guru' ? <BankSoal /> : <Navigate to="/dashboard" />} />
+              <Route path="/dashboard" element={isStaff ? <Dashboard /> : <StudentDashboard />} />
+              <Route path="/kelola-guru" element={isSuperAdmin ? <KelolaGuru /> : <Navigate to="/dashboard" />} />
+              <Route path="/buat-ujian" element={isStaff ? <BuatUjian /> : <Navigate to="/dashboard" />} />
+              <Route path="/bank-soal" element={isStaff ? <BankSoal /> : <Navigate to="/dashboard" />} />
               <Route path="/daftar-ujian" element={<DaftarUjian />} />
-              <Route path="/hasil-ujian" element={userRole === 'guru' ? <HasilUjian /> : <Navigate to="/dashboard" />} />
-              <Route path="/analisis" element={userRole === 'guru' ? <Analisis /> : <Navigate to="/dashboard" />} />
-              <Route path="/kelola-kelas" element={userRole === 'guru' ? <KelolaKelas /> : <Navigate to="/dashboard" />} />
-              <Route path="/kelola-siswa" element={userRole === 'guru' ? <KelolaSiswa /> : <Navigate to="/dashboard" />} />
+              <Route path="/hasil-ujian" element={isStaff ? <HasilUjian /> : <Navigate to="/dashboard" />} />
+              <Route path="/analisis" element={isStaff ? <Analisis /> : <Navigate to="/dashboard" />} />
+              <Route path="/kelola-kelas" element={isStaff ? <KelolaKelas /> : <Navigate to="/dashboard" />} />
+              <Route path="/kelola-siswa" element={isStaff ? <KelolaSiswa /> : <Navigate to="/dashboard" />} />
               <Route path="/profil" element={<Profil />} />
             </Route>
 

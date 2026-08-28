@@ -32,6 +32,8 @@ import {
 import { useGoogleDrive } from '../context/GoogleDriveContext';
 import { getCollectionData, saveCollection } from '../lib/db';
 import { useRef } from 'react';
+import { uploadQuestionImage } from '../lib/cloudinary';
+import { supabase } from '../lib/supabase';
 // @ts-ignore
 import mammoth from 'mammoth';
 
@@ -98,7 +100,7 @@ export default function BankSoal() {
       const folderId = await getOrCreateRootFolder();
       await saveJsonToDrive(folderId, 'bank_soal.json', updatedQuestions);
     } catch (err) {
-      console.error('Failed to sync bank soal:', err);
+      console.warn('Drive sync note:', err);
     }
   };
 
@@ -106,26 +108,21 @@ export default function BankSoal() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Optional: Size check (e.g., 2MB)
-    if (file.size > 2 * 1024 * 1024) {
-      showAlert({ title: 'Gagal', message: 'Ukuran gambar terlalu besar (Maks 2MB)', type: 'warning' });
-      return;
-    }
-
     try {
       setIsUploading(true);
-      const folderId = await getOrCreateRootFolder();
-      const fileId = await uploadFileToDrive(file, folderId) as string;
-      const url = getFileUrl(fileId);
+      const { url, sizeReductionPercent } = await uploadQuestionImage(file);
       
       setNewQuestion(prev => ({ ...prev, image_url: url }));
-      showAlert({ title: 'Berhasil', message: 'Gambar berhasil diupload.', type: 'success' });
+      showAlert({ 
+        title: 'Gambar Terkompresi & Terpasang', 
+        message: `Gambar berhasil dikompresi otomatis (hemat ${sizeReductionPercent}%) dan siap dipakai pada soal!`, 
+        type: 'success' 
+      });
     } catch (err) {
       console.error('Upload error:', err);
-      showAlert({ title: 'Gagal', message: 'Gagal mengupload gambar ke Drive.', type: 'error' });
+      showAlert({ title: 'Gagal', message: 'Gagal memproses gambar.', type: 'error' });
     } finally {
       setIsUploading(false);
-      // Reset input
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
