@@ -14,23 +14,22 @@ import {
   Printer, 
   KeyRound, 
   QrCode, 
-  X,
-  FileSpreadsheet,
-  CheckCircle2,
-  RefreshCw
+  X, 
+  CheckCircle2, 
+  RefreshCw 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import React from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import * as XLSX from 'xlsx';
-import { cn, generateStudentCode } from '../lib/utils';
 import { useAlert } from '../context/AlertContext';
 import { supabase } from '../lib/supabase';
 import { getCollectionData, saveCollection } from '../lib/db';
+import { MURIDS_LIST } from '../lib/seedAccounts';
 
 export default function KelolaSiswa() {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [students, setStudents] = useState<any[]>([]);
+  const [students, setStudents] = useState<any[]>(MURIDS_LIST);
   const [classes, setClasses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -45,7 +44,7 @@ export default function KelolaSiswa() {
     nisn: '',
     classId: '',
     noAbsen: '',
-    passwordPin: '123456'
+    passwordPin: 'murid19*'
   });
 
   const { showAlert } = useAlert();
@@ -59,12 +58,17 @@ export default function KelolaSiswa() {
         supabase.from('classes').select('*').order('nama_kelas', { ascending: true })
       ]);
 
-      if (!studentsRes.error && studentsRes.data) {
+      if (!studentsRes.error && studentsRes.data && studentsRes.data.length > 0) {
         setStudents(studentsRes.data);
         saveCollection('students', studentsRes.data);
       } else {
         const local = await getCollectionData('students');
-        setStudents(local || []);
+        if (local && local.length > 0) {
+          setStudents(local);
+        } else {
+          setStudents(MURIDS_LIST);
+          saveCollection('students', MURIDS_LIST);
+        }
       }
 
       if (!classesRes.error && classesRes.data) {
@@ -80,7 +84,7 @@ export default function KelolaSiswa() {
         getCollectionData('students'),
         getCollectionData('classes')
       ]);
-      setStudents(localStudents || []);
+      setStudents(localStudents && localStudents.length > 0 ? localStudents : MURIDS_LIST);
       setClasses(localClasses || []);
     } finally {
       setLoading(false);
@@ -100,7 +104,7 @@ export default function KelolaSiswa() {
 
     const targetClass = classes.find(c => c.id === formData.classId || c.nama_kelas === formData.classId);
     const className = targetClass ? targetClass.nama_kelas || targetClass.name : formData.classId;
-    const generatedNisn = formData.nisn || `NISN-${Date.now().toString().slice(-6)}`;
+    const generatedNisn = formData.nisn || `NIS-${Date.now().toString().slice(-6)}`;
 
     const newStudent = {
       id: crypto.randomUUID(),
@@ -111,7 +115,8 @@ export default function KelolaSiswa() {
       nama_kelas: className,
       classId: formData.classId,
       nomor_absen: formData.noAbsen || '1',
-      password_pin: formData.passwordPin || '123456',
+      password_pin: formData.passwordPin || 'murid19*',
+      role: 'murid',
       created_at: new Date().toISOString()
     };
 
@@ -126,14 +131,14 @@ export default function KelolaSiswa() {
     setStudents(updated);
     saveCollection('students', updated);
 
-    setFormData({ name: '', nisn: '', classId: '', noAbsen: '', passwordPin: '123456' });
+    setFormData({ name: '', nisn: '', classId: '', noAbsen: '', passwordPin: 'murid19*' });
     setShowAddModal(false);
     showAlert({ title: 'Berhasil', message: `Akun murid ${newStudent.nama} berhasil dibuat.`, type: 'success' });
   };
 
   const deleteStudent = (id: string, name: string) => {
     showAlert({
-      title: 'Hapus Siswa?',
+      title: 'Hapus Murid?',
       message: `Apakah Anda yakin ingin menghapus akun ${name}?`,
       type: 'confirm',
       confirmText: 'Ya, Hapus',
@@ -163,16 +168,16 @@ export default function KelolaSiswa() {
         const data: any[] = XLSX.utils.sheet_to_json(ws);
 
         if (!data || data.length === 0) {
-          showAlert({ title: 'File Kosong', message: 'File tidak memiliki data siswa.', type: 'error' });
+          showAlert({ title: 'File Kosong', message: 'File tidak memiliki data murid.', type: 'error' });
           return;
         }
 
         const newParsedStudents = data.map((row: any, idx: number) => {
-          const sName = row['Nama'] || row['nama'] || row['Nama Siswa'] || row['Student Name'] || `Siswa ${idx + 1}`;
-          const sNisn = String(row['NISN'] || row['nisn'] || row['No Induk'] || row['ID'] || `NISN${100000 + idx}`);
-          const sKelas = String(row['Kelas'] || row['kelas'] || row['Class'] || 'Umum');
+          const sName = row['Nama'] || row['nama'] || row['Nama Murid'] || row['Nama Siswa'] || `Murid ${idx + 1}`;
+          const sNisn = String(row['NIS'] || row['NISN'] || row['nis'] || `NIS${100000 + idx}`);
+          const sKelas = String(row['Kelas'] || row['kelas'] || 'Umum');
           const sAbsen = String(row['No Absen'] || row['absen'] || idx + 1);
-          const sPin = String(row['PIN'] || row['pin'] || row['Password'] || '123456');
+          const sPin = String(row['PIN'] || row['Password'] || 'murid19*');
 
           return {
             id: crypto.randomUUID(),
@@ -183,6 +188,7 @@ export default function KelolaSiswa() {
             nama_kelas: sKelas,
             nomor_absen: sAbsen,
             password_pin: sPin,
+            role: 'murid',
             created_at: new Date().toISOString()
           };
         });
@@ -200,7 +206,7 @@ export default function KelolaSiswa() {
 
         showAlert({
           title: 'Impor Berhasil',
-          message: `Berhasil meng-generate ${newParsedStudents.length} akun siswa ke Nineteen Exam!`,
+          message: `Berhasil meng-generate ${newParsedStudents.length} akun murid ke Nineteen Exam!`,
           type: 'success'
         });
       } catch (err) {
@@ -215,14 +221,14 @@ export default function KelolaSiswa() {
 
   const downloadTemplate = () => {
     const sample = [
-      { 'NISN': '0061234567', 'Nama': 'Ahmad Fauzi', 'Kelas': 'X-IPA-1', 'No Absen': '1', 'PIN': '123456' },
-      { 'NISN': '0061234568', 'Nama': 'Budi Santoso', 'Kelas': 'X-IPA-1', 'No Absen': '2', 'PIN': '123456' },
-      { 'NISN': '0061234569', 'Nama': 'Citra Lestari', 'Kelas': 'X-IPA-2', 'No Absen': '1', 'PIN': '123456' }
+      { 'NIS': '242510311', 'Nama': 'Rahmadina', 'Kelas': 'XII', 'No Absen': '1', 'Password': 'murid19*' },
+      { 'NIS': '252610209', 'Nama': 'M Nazril', 'Kelas': 'XI', 'No Absen': '2', 'Password': 'murid19*' },
+      { 'NIS': '262710001', 'Nama': 'Aditya Fathir', 'Kelas': 'X', 'No Absen': '3', 'Password': 'murid19*' }
     ];
     const ws = XLSX.utils.json_to_sheet(sample);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Template Siswa');
-    XLSX.writeFile(wb, 'Template_Impor_Akun_Siswa.xlsx');
+    XLSX.utils.book_append_sheet(wb, ws, 'Template Murid');
+    XLSX.writeFile(wb, 'Template_Impor_Akun_Murid.xlsx');
   };
 
   const filteredStudents = students.filter(s => {
@@ -243,11 +249,11 @@ export default function KelolaSiswa() {
         <div>
           <div className="flex items-center gap-2">
             <span className="bg-blue-100 text-blue-950 text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider">
-              Manajemen Siswa
+              Manajemen Akun
             </span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-black text-indigo-950 mt-1">Kelola Akun Murid</h1>
-          <p className="text-slate-500 text-sm font-medium">Kelola akun login siswa, PIN, cetak kartu ujian, dan impor massal CSV/Excel.</p>
+          <p className="text-slate-500 text-sm font-medium">Kelola akun login murid, PIN, cetak kartu ujian, dan impor massal CSV/Excel.</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
@@ -280,7 +286,7 @@ export default function KelolaSiswa() {
             className="bg-indigo-950 text-white px-6 py-3.5 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 shadow-xl shadow-indigo-950/20 active:scale-95 transition-all"
           >
             <UserPlus className="w-5 h-5" />
-            Tambah Siswa
+            Tambah Murid
           </button>
         </div>
       </div>
@@ -291,7 +297,7 @@ export default function KelolaSiswa() {
           <Search className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
-            placeholder="Cari nama siswa atau NISN..."
+            placeholder="Cari nama murid atau NIS..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-12 pr-4 py-3.5 bg-white rounded-2xl border border-slate-200 outline-none text-indigo-950 font-bold text-sm focus:border-indigo-950 transition-all"
@@ -303,7 +309,7 @@ export default function KelolaSiswa() {
           onChange={(e) => setSelectedClass(e.target.value)}
           className="px-4 py-3.5 bg-white rounded-2xl border border-slate-200 outline-none text-slate-700 font-bold text-sm focus:border-indigo-950 transition-all"
         >
-          <option value="all">Semua Kelas ({students.length} Siswa)</option>
+          <option value="all">Semua Kelas ({students.length} Murid)</option>
           {distinctClassNames.map(cn => (
             <option key={cn} value={cn}>Kelas {cn}</option>
           ))}
@@ -315,16 +321,16 @@ export default function KelolaSiswa() {
         {loading ? (
           <div className="py-20 flex flex-col items-center justify-center gap-3">
             <Loader2 className="w-8 h-8 text-indigo-950 animate-spin" />
-            <p className="text-slate-400 text-sm font-bold">Memuat data siswa...</p>
+            <p className="text-slate-400 text-sm font-bold">Memuat data murid...</p>
           </div>
         ) : filteredStudents.length === 0 ? (
           <div className="py-20 text-center px-4">
             <div className="w-16 h-16 bg-slate-50 text-slate-300 rounded-3xl flex items-center justify-center mx-auto mb-4">
               <Users className="w-8 h-8" />
             </div>
-            <h3 className="text-lg font-black text-indigo-950">Belum Ada Data Siswa</h3>
+            <h3 className="text-lg font-black text-indigo-950">Belum Ada Data Murid</h3>
             <p className="text-slate-400 text-sm max-w-sm mx-auto mt-1 font-medium">
-              Gunakan tombol "Impor Akun Massal" untuk memasukkan data siswa dari Excel/CSV.
+              Gunakan tombol "Impor Akun Massal" untuk memasukkan data murid dari Excel/CSV.
             </p>
           </div>
         ) : (
@@ -333,14 +339,14 @@ export default function KelolaSiswa() {
               <thead>
                 <tr className="bg-slate-50/80 border-b border-slate-100">
                   <th className="px-6 py-4 text-left text-[11px] font-black text-slate-400 uppercase tracking-wider">Nama & No Absen</th>
-                  <th className="px-6 py-4 text-left text-[11px] font-black text-slate-400 uppercase tracking-wider">NISN (Username)</th>
+                  <th className="px-6 py-4 text-left text-[11px] font-black text-slate-400 uppercase tracking-wider">NIS (Username)</th>
                   <th className="px-6 py-4 text-left text-[11px] font-black text-slate-400 uppercase tracking-wider">Kelas</th>
-                  <th className="px-6 py-4 text-center text-[11px] font-black text-slate-400 uppercase tracking-wider">PIN Login</th>
+                  <th className="px-6 py-4 text-center text-[11px] font-black text-slate-400 uppercase tracking-wider">Password Login</th>
                   <th className="px-6 py-4 text-right text-[11px] font-black text-slate-400 uppercase tracking-wider">Aksi & Kartu</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {filteredStudents.map((s) => (
+                {filteredStudents.slice(0, 100).map((s) => (
                   <tr key={s.id} className="hover:bg-slate-50/60 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
@@ -366,7 +372,7 @@ export default function KelolaSiswa() {
                             setTimeout(() => setCopyCode(null), 2000);
                           }}
                           className="text-slate-400 hover:text-indigo-950 p-1"
-                          title="Salin NISN"
+                          title="Salin NIS"
                         >
                           {copyCode === s.id ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
                         </button>
@@ -381,7 +387,7 @@ export default function KelolaSiswa() {
 
                     <td className="px-6 py-4 text-center">
                       <span className="font-mono text-xs font-black text-slate-600 bg-slate-100 px-2 py-0.5 rounded">
-                        {s.password_pin || '123456'}
+                        {s.password_pin || 'murid19*'}
                       </span>
                     </td>
 
@@ -393,7 +399,7 @@ export default function KelolaSiswa() {
                             setShowCardModal(true);
                           }}
                           className="px-3 py-1.5 bg-indigo-50 text-indigo-950 hover:bg-indigo-100 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all"
-                          title="Lihat Kartu Ujian Siswa"
+                          title="Lihat Kartu Ujian Murid"
                         >
                           <QrCode className="w-3.5 h-3.5 text-indigo-600" />
                           Kartu Ujian
@@ -402,7 +408,7 @@ export default function KelolaSiswa() {
                         <button
                           onClick={() => deleteStudent(s.id, s.nama || s.name)}
                           className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
-                          title="Hapus Akun Siswa"
+                          title="Hapus Akun Murid"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -412,6 +418,11 @@ export default function KelolaSiswa() {
                 ))}
               </tbody>
             </table>
+            {filteredStudents.length > 100 && (
+              <div className="p-4 text-center bg-slate-50 border-t border-slate-100 text-xs font-bold text-slate-500">
+                Menampilkan 100 dari total {filteredStudents.length} murid. Gunakan kotak pencarian untuk menemukan murid tertentu.
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -427,7 +438,7 @@ export default function KelolaSiswa() {
               className="bg-white rounded-[2.5rem] p-8 max-w-md w-full shadow-2xl border border-slate-100 space-y-6"
             >
               <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-                <h3 className="text-xl font-black text-indigo-950">Tambah Akun Siswa</h3>
+                <h3 className="text-xl font-black text-indigo-950">Tambah Akun Murid</h3>
                 <button onClick={() => setShowAddModal(false)} className="p-2 text-slate-400 hover:text-indigo-950">
                   <X className="w-5 h-5" />
                 </button>
@@ -436,7 +447,7 @@ export default function KelolaSiswa() {
               <form onSubmit={handleAddStudent} className="space-y-4">
                 <div>
                   <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-1.5 block">
-                    Nama Lengkap Siswa *
+                    Nama Lengkap Murid *
                   </label>
                   <input
                     type="text"
@@ -451,11 +462,11 @@ export default function KelolaSiswa() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-1.5 block">
-                      NISN (Username)
+                      NIS (Username)
                     </label>
                     <input
                       type="text"
-                      placeholder="0061234567"
+                      placeholder="242510001"
                       value={formData.nisn}
                       onChange={(e) => setFormData({ ...formData, nisn: e.target.value })}
                       className="w-full px-4 py-3 bg-slate-50 rounded-2xl border border-slate-200 outline-none text-indigo-950 font-bold text-sm focus:bg-white focus:border-indigo-950 transition-all"
@@ -478,12 +489,12 @@ export default function KelolaSiswa() {
 
                 <div>
                   <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-1.5 block">
-                    Kelas Siswa *
+                    Kelas Murid *
                   </label>
                   <input
                     type="text"
                     required
-                    placeholder="Contoh: X-IPA-1 atau XII-TKJ"
+                    placeholder="Contoh: X, XI, atau XII"
                     value={formData.classId}
                     onChange={(e) => setFormData({ ...formData, classId: e.target.value })}
                     className="w-full px-4 py-3 bg-slate-50 rounded-2xl border border-slate-200 outline-none text-indigo-950 font-bold text-sm focus:bg-white focus:border-indigo-950 transition-all"
@@ -492,7 +503,7 @@ export default function KelolaSiswa() {
 
                 <div>
                   <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-1.5 block">
-                    PIN Login Siswa (Default: 123456)
+                    Password Login Murid (Default: murid19*)
                   </label>
                   <input
                     type="text"
@@ -515,7 +526,7 @@ export default function KelolaSiswa() {
                     className="flex-[2] py-3.5 bg-indigo-950 text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-2 shadow-xl shadow-indigo-950/20 active:scale-95 transition-all"
                   >
                     <CheckCircle2 className="w-5 h-5" />
-                    Simpan Siswa
+                    Simpan Murid
                   </button>
                 </div>
               </form>
@@ -524,7 +535,7 @@ export default function KelolaSiswa() {
         )}
       </AnimatePresence>
 
-      {/* Kartu Ujian Siswa Modal */}
+      {/* Kartu Ujian Murid Modal */}
       <AnimatePresence>
         {showCardModal && activeStudentForCard && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-indigo-950/40 backdrop-blur-sm">
@@ -540,7 +551,7 @@ export default function KelolaSiswa() {
                   KARTU PESERTA UJIAN DIGITAL
                 </span>
                 <h3 className="text-xl font-black text-indigo-950 mt-2">Nineteen Exam</h3>
-                <p className="text-xs text-slate-400 font-medium">SMA / SMK Negeri 19</p>
+                <p className="text-xs text-slate-400 font-medium">SMAN 19 Bandung</p>
               </div>
 
               {/* QR Code Container */}
@@ -559,10 +570,10 @@ export default function KelolaSiswa() {
                 </p>
               </div>
 
-              {/* Detail Siswa */}
+              {/* Detail Murid */}
               <div className="space-y-1.5 text-left bg-slate-50/50 p-4 rounded-2xl text-xs">
                 <div className="flex justify-between">
-                  <span className="text-slate-400 font-medium">Nama Siswa:</span>
+                  <span className="text-slate-400 font-medium">Nama Murid:</span>
                   <span className="font-bold text-indigo-950">{activeStudentForCard.nama || activeStudentForCard.name}</span>
                 </div>
                 <div className="flex justify-between">
@@ -570,8 +581,8 @@ export default function KelolaSiswa() {
                   <span className="font-bold text-indigo-950">{activeStudentForCard.nama_kelas || activeStudentForCard.classId}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400 font-medium">PIN Login:</span>
-                  <span className="font-mono font-bold text-indigo-950">{activeStudentForCard.password_pin || '123456'}</span>
+                  <span className="text-slate-400 font-medium">Password Login:</span>
+                  <span className="font-mono font-bold text-indigo-950">{activeStudentForCard.password_pin || 'murid19*'}</span>
                 </div>
               </div>
 

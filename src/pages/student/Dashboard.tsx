@@ -30,10 +30,10 @@ export default function StudentDashboard() {
   useEffect(() => {
     const session = JSON.parse(localStorage.getItem('edu_session') || '{}');
     const user = session?.user || {
-      nama: 'Siswa Nineteen',
-      nisn: '0061234567',
-      kelas: 'X-IPA-1',
-      role: 'siswa'
+      nama: 'Murid Nineteen',
+      nisn: '242510311',
+      kelas: 'XII',
+      role: 'murid'
     };
     setSessionUser(user);
 
@@ -84,10 +84,10 @@ export default function StudentDashboard() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <span className="bg-blue-100 text-blue-900 text-xs font-black px-3.5 py-1.5 rounded-full uppercase tracking-wider">
-            Portal Siswa • Nineteen Exam
+            Portal Murid • Nineteen Exam
           </span>
           <h1 className="text-2xl sm:text-3xl font-black text-indigo-950 mt-2">
-            Halo, {sessionUser?.nama || sessionUser?.name || 'Siswa'}! 👋
+            Halo, {sessionUser?.nama || sessionUser?.name || 'Murid'}! 👋
           </h1>
           <p className="text-slate-500 text-sm font-medium">Selamat datang di ruang ujian digital. Pastikan kartu ujian Anda selalu siap.</p>
         </div>
@@ -106,7 +106,7 @@ export default function StudentDashboard() {
                 </div>
                 <div>
                   <h4 className="text-sm font-black text-white leading-none">Nineteen Exam</h4>
-                  <p className="text-[10px] text-slate-300 font-bold mt-0.5">SMA / SMK Negeri 19</p>
+                  <p className="text-[10px] text-slate-300 font-bold mt-0.5">SMAN 19 Bandung</p>
                 </div>
               </div>
               <span className="text-[9px] font-black uppercase tracking-widest bg-emerald-500/20 text-emerald-300 px-2.5 py-1 rounded-full border border-emerald-500/30">
@@ -118,27 +118,27 @@ export default function StudentDashboard() {
             <div className="bg-white p-4 rounded-3xl shadow-inner flex flex-col items-center justify-center">
               <QRCodeSVG
                 value={JSON.stringify({
-                  nisn: sessionUser?.nisn || sessionUser?.code || '0061234567',
-                  nama: sessionUser?.nama || sessionUser?.name || 'Siswa',
-                  kelas: sessionUser?.kelas || sessionUser?.nama_kelas || 'Umum'
+                  nisn: sessionUser?.nisn || sessionUser?.code || '242510311',
+                  nama: sessionUser?.nama || sessionUser?.name || 'Murid',
+                  kelas: sessionUser?.kelas || sessionUser?.nama_kelas || 'XII'
                 })}
                 size={130}
                 level="M"
               />
               <p className="font-mono text-xs font-black text-indigo-950 mt-2 tracking-wider">
-                {sessionUser?.nisn || sessionUser?.code || '0061234567'}
+                {sessionUser?.nisn || sessionUser?.code || '242510311'}
               </p>
             </div>
 
             {/* Details */}
             <div className="space-y-2 text-xs bg-white/5 p-4 rounded-2xl border border-white/10">
               <div className="flex justify-between">
-                <span className="text-slate-400 font-medium">Nama Siswa:</span>
-                <span className="font-bold text-white text-right">{sessionUser?.nama || sessionUser?.name || 'Siswa'}</span>
+                <span className="text-slate-400 font-medium">Nama Murid:</span>
+                <span className="font-bold text-white text-right">{sessionUser?.nama || sessionUser?.name || 'Murid'}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400 font-medium">Kelas / Jurusan:</span>
-                <span className="font-bold text-blue-300">{sessionUser?.kelas || sessionUser?.nama_kelas || 'X-IPA-1'}</span>
+                <span className="font-bold text-blue-300">{sessionUser?.kelas || sessionUser?.nama_kelas || 'XII'}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400 font-medium">Mode Ujian:</span>

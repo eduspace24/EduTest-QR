@@ -3,12 +3,12 @@ import {
   Users, 
   FileText, 
   Clock, 
-  ArrowUpRight,
-  Plus,
-  TrendingUp,
-  Zap,
-  BookOpen,
-  GraduationCap
+  ArrowUpRight, 
+  Plus, 
+  TrendingUp, 
+  Zap, 
+  BookOpen, 
+  GraduationCap 
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -16,7 +16,8 @@ import { slideUp } from '../lib/animations';
 import { Skeleton } from '../components/Skeleton';
 import { getCollectionData } from '../lib/db';
 import { useSchool } from '../context/SchoolContext';
-
+import { GURUS_LIST, MURIDS_LIST } from '../lib/seedAccounts';
+import { supabase } from '../lib/supabase';
 import SchoolSwitcher from '../components/SchoolSwitcher';
 
 export default function Dashboard() {
@@ -29,8 +30,8 @@ export default function Dashboard() {
   const [stats, setStats] = useState({
     totalExams: 0,
     totalQuestions: 0,
-    totalParticipants: 0,
-    totalTeachers: 0,
+    totalParticipants: MURIDS_LIST.length, // 1252 murid default
+    totalTeachers: GURUS_LIST.length,     // 51 guru default
     avgScore: 0
   });
   const [loading, setLoading] = useState(true);
@@ -38,32 +39,45 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchStats = async () => {
       setLoading(true);
-      const [bankSoal, students, exams, results] = await Promise.all([
-        getCollectionData('bank_soal'),
-        getCollectionData('students', activeSchool?.id),
-        getCollectionData('exams_list'),
-        getCollectionData('results')
-      ]);
-
-      const avg = results.length > 0 
-        ? Math.round(results.reduce((acc: number, curr: any) => acc + (curr.score || 0), 0) / results.length)
-        : 0;
-
-      // Teachers cache check
-      let teacherCount = 0;
       try {
-        const cachedT = localStorage.getItem('nineteen_teachers_cache');
-        if (cachedT) teacherCount = JSON.parse(cachedT).length;
-      } catch {}
+        const [bankSoal, students, exams, results] = await Promise.all([
+          getCollectionData('bank_soal'),
+          getCollectionData('students', activeSchool?.id),
+          getCollectionData('exams_list'),
+          getCollectionData('results')
+        ]);
 
-      setStats({
-        totalExams: exams.length,
-        totalQuestions: bankSoal.length,
-        totalParticipants: students.length,
-        totalTeachers: teacherCount || 1,
-        avgScore: avg
-      });
-      setLoading(false);
+        const avg = results.length > 0 
+          ? Math.round(results.reduce((acc: number, curr: any) => acc + (curr.score || 0), 0) / results.length)
+          : 0;
+
+        // Check Supabase count if available
+        let studentCount = students.length > 0 ? students.length : MURIDS_LIST.length;
+        try {
+          const { count, error } = await supabase.from('students').select('*', { count: 'exact', head: true });
+          if (!error && count && count > 0) {
+            studentCount = count;
+          }
+        } catch {}
+
+        setStats({
+          totalExams: exams.length,
+          totalQuestions: bankSoal.length,
+          totalParticipants: studentCount,
+          totalTeachers: GURUS_LIST.length || 51,
+          avgScore: avg
+        });
+      } catch (e) {
+        setStats({
+          totalExams: 0,
+          totalQuestions: 0,
+          totalParticipants: MURIDS_LIST.length,
+          totalTeachers: GURUS_LIST.length,
+          avgScore: 0
+        });
+      } finally {
+        setLoading(false);
+      }
     };
 
     fetchStats();
@@ -71,13 +85,13 @@ export default function Dashboard() {
 
   const statCards = isSuperAdmin ? [
     { label: 'Total Guru', value: stats.totalTeachers, icon: Users, color: 'text-indigo-600', bg: 'bg-indigo-500/10', border: 'border-indigo-200' },
-    { label: 'Total Siswa', value: stats.totalParticipants, icon: GraduationCap, color: 'text-blue-600', bg: 'bg-blue-500/10', border: 'border-blue-200' },
+    { label: 'Total Murid', value: stats.totalParticipants, icon: GraduationCap, color: 'text-blue-600', bg: 'bg-blue-500/10', border: 'border-blue-200' },
     { label: 'Bank Soal Sekolah', value: stats.totalQuestions, icon: BookOpen, color: 'text-purple-600', bg: 'bg-purple-500/10', border: 'border-purple-200' },
     { label: 'Total Sesi Ujian', value: stats.totalExams, icon: FileText, color: 'text-emerald-600', bg: 'bg-emerald-500/10', border: 'border-emerald-200' },
   ] : [
     { label: 'Ujian Diterbitkan', value: stats.totalExams, icon: FileText, color: 'text-blue-600', bg: 'bg-blue-500/10', border: 'border-blue-200' },
     { label: 'Bank Soal Saya', value: stats.totalQuestions, icon: BookOpen, color: 'text-indigo-600', bg: 'bg-indigo-500/10', border: 'border-indigo-200' },
-    { label: 'Siswa Mengikuti', value: stats.totalParticipants, icon: Users, color: 'text-emerald-600', bg: 'bg-emerald-500/10', border: 'border-emerald-200' },
+    { label: 'Murid Mengikuti', value: stats.totalParticipants, icon: Users, color: 'text-emerald-600', bg: 'bg-emerald-500/10', border: 'border-emerald-200' },
     { label: 'Rata-rata Nilai', value: `${stats.avgScore}%`, icon: TrendingUp, color: 'text-amber-600', bg: 'bg-amber-500/10', border: 'border-amber-200' },
   ];
 
@@ -112,7 +126,7 @@ export default function Dashboard() {
           <p className="text-slate-500 text-sm font-medium">
             {isSuperAdmin 
               ? 'Pusat kendali master data, akun guru, dan jadwal ujian sekolah.' 
-              : 'Kelola materi ujian dan pindai QR barcode hasil pengerjaan siswa.'}
+              : 'Kelola materi ujian dan pindai QR barcode hasil pengerjaan murid.'}
           </p>
         </div>
         
@@ -141,7 +155,7 @@ export default function Dashboard() {
                 className="bg-emerald-600 text-white px-5 py-3 rounded-2xl font-bold flex items-center gap-2 shadow-lg text-xs active:scale-95 transition-all"
               >
                 <Zap className="w-4 h-4" />
-                Pindai QR Siswa
+                Pindai QR Murid
               </Link>
               <Link 
                 to="/buat-ujian"
@@ -190,8 +204,8 @@ export default function Dashboard() {
             </h3>
             <p className="text-slate-500 text-sm font-medium max-w-xs mb-6 px-4">
               {isSuperAdmin 
-                ? 'Kelola akun guru, cetak kartu ujian siswa, dan pantau hasil ujian terpusat.' 
-                : 'Buat sesi ujian baru dan bagikan token unik kepada siswa sekarang.'}
+                ? 'Kelola akun guru, cetak kartu ujian murid, dan pantau hasil ujian terpusat.' 
+                : 'Buat sesi ujian baru dan bagikan token unik kepada murid sekarang.'}
             </p>
             <Link 
               to={isSuperAdmin ? "/kelola-guru" : "/buat-ujian"} 
@@ -207,8 +221,8 @@ export default function Dashboard() {
           <div className="space-y-2">
             {[
               { label: 'Bank Soal', desc: 'Kelola pertanyaan', icon: BookOpen, color: 'text-blue-600', to: '/bank-soal' },
-              { label: isSuperAdmin ? 'Kelola Akun Guru' : 'Kelola Kelas', desc: isSuperAdmin ? 'Atur akun pendidik' : 'Atur grup siswa', icon: isSuperAdmin ? Users : GraduationCap, color: 'text-purple-600', to: isSuperAdmin ? '/kelola-guru' : '/kelola-kelas' },
-              { label: isSuperAdmin ? 'Kelola Murid & Kartu' : 'Daftar Ujian', desc: isSuperAdmin ? 'Cetak kartu ujian' : 'Laporan aktif', icon: FileText, color: 'text-amber-600', to: isSuperAdmin ? '/kelola-siswa' : '/daftar-ujian' },
+              { label: isSuperAdmin ? 'Kelola Akun Guru' : 'Kelola Kelas', desc: isSuperAdmin ? 'Atur akun pendidik' : 'Atur grup murid', icon: isSuperAdmin ? Users : GraduationCap, color: 'text-purple-600', to: isSuperAdmin ? '/kelola-guru' : '/kelola-kelas' },
+              { label: isSuperAdmin ? 'Kelola Akun Murid' : 'Daftar Ujian', desc: isSuperAdmin ? 'Cetak kartu ujian' : 'Laporan aktif', icon: FileText, color: 'text-amber-600', to: isSuperAdmin ? '/kelola-siswa' : '/daftar-ujian' },
             ].map((item, idx) => {
               const Icon = item.icon;
               return (

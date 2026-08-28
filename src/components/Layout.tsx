@@ -39,7 +39,7 @@ export default function Layout({ session }: LayoutProps) {
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
     { icon: Users, label: 'Kelola Guru', path: '/kelola-guru' },
     { icon: LayoutGrid, label: 'Kelola Kelas', path: '/kelola-kelas' },
-    { icon: Users, label: 'Kelola Siswa', path: '/kelola-siswa' },
+    { icon: Users, label: 'Kelola Murid', path: '/kelola-siswa' },
     { icon: BookOpen, label: 'Bank Soal', path: '/bank-soal' },
     { icon: PlusCircle, label: 'Buat Ujian', path: '/buat-ujian' },
     { icon: ListTodo, label: 'Daftar Ujian', path: '/daftar-ujian' },
@@ -52,7 +52,7 @@ export default function Layout({ session }: LayoutProps) {
   const teacherMenuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
     { icon: LayoutGrid, label: 'Kelola Kelas', path: '/kelola-kelas' },
-    { icon: Users, label: 'Kelola Siswa', path: '/kelola-siswa' },
+    { icon: Users, label: 'Kelola Murid', path: '/kelola-siswa' },
     { icon: BookOpen, label: 'Bank Soal', path: '/bank-soal' },
     { icon: PlusCircle, label: 'Buat Ujian', path: '/buat-ujian' },
     { icon: ListTodo, label: 'Daftar Ujian', path: '/daftar-ujian' },
@@ -63,8 +63,8 @@ export default function Layout({ session }: LayoutProps) {
   ];
 
   const studentMenuItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
-    { icon: ListTodo, label: 'Ujian Saya', path: '/daftar-ujian' },
+    { icon: LayoutDashboard, label: 'Portal Murid', path: '/student/dashboard' },
+    { icon: ListTodo, label: 'Ujian Saya', path: '/student/dashboard' },
     { icon: User, label: 'Profil Saya', path: '/profil' },
   ];
 
