@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Lock, 
-  Chrome, 
   ArrowRight, 
   AlertCircle, 
   Loader2, 
@@ -16,14 +14,18 @@ import {
   Sparkles,
   CheckCircle2
 } from 'lucide-react';
-import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { useGoogleLogin } from '@react-oauth/google';
+import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { setTokenData } from '../lib/tokenManager';
 import { supabase } from '../lib/supabase';
+import { 
+  findTeacher, 
+  findStudent, 
+  SUPER_ADMIN_ACCOUNT,
+  GURUS_LIST,
+  MURIDS_LIST 
+} from '../lib/seedAccounts';
 
 export default function Login() {
-  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   
   const [loginMode, setLoginMode] = useState<'guru' | 'murid'>('guru');
@@ -32,10 +34,6 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-
-  // Cached teacher and student database
-  const [gurusCache, setGurusCache] = useState<any[]>([]);
-  const [muridsCache, setMuridsCache] = useState<any[]>([]);
 
   useEffect(() => {
     // Check existing session
@@ -50,23 +48,6 @@ export default function Login() {
         }
       } catch {}
     }
-
-    // Load pre-seeded account data
-    fetch('/seed_gurus.json')
-      .then(res => res.json())
-      .then(data => {
-        setGurusCache(data);
-        localStorage.setItem('nineteen_teachers_cache', JSON.stringify(data));
-      })
-      .catch(() => {});
-
-    fetch('/seed_murids.json')
-      .then(res => res.json())
-      .then(data => {
-        setMuridsCache(data);
-        localStorage.setItem('nineteen_students_cache', JSON.stringify(data));
-      })
-      .catch(() => {});
   }, [navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -82,12 +63,12 @@ export default function Login() {
       // 1. SUPER ADMIN LOGIN
       // ==========================================
       if (
-        (cleanInput === 'admin19bdg@sch.id' || cleanInput === 'admin19bdg' || cleanInput === 'admin@nineteen.sch.id') && 
+        (cleanInput === 'admin19bdg@sch.id' || cleanInput === 'admin19bdg' || cleanInput === 'admin@nineteen.sch.id' || cleanInput === 'admin') && 
         (cleanPass === 'sman19bdg*' || cleanPass === 'admin123')
       ) {
         const adminSession = {
           user: {
-            id: 'superadmin-01',
+            id: SUPER_ADMIN_ACCOUNT.id,
             email: 'admin19bdg@sch.id',
             name: 'Super Administrator SMAN 19',
             role: 'superadmin',
@@ -105,31 +86,19 @@ export default function Login() {
       // 2. GURU LOGIN (NIP / Email + pass: guru19*)
       // ==========================================
       if (loginMode === 'guru') {
-        let matchedGuru = gurusCache.find(g => 
-          g.nip?.toLowerCase() === cleanInput || 
-          g.email?.toLowerCase() === cleanInput ||
-          g.email?.split('@')[0]?.toLowerCase() === cleanInput
-        );
+        const matchedGuru = findTeacher(cleanInput);
 
-        // Fallback local storage cache
-        if (!matchedGuru) {
-          try {
-            const cachedG = JSON.parse(localStorage.getItem('nineteen_teachers_cache') || '[]');
-            matchedGuru = cachedG.find((g: any) => 
-              g.nip?.toLowerCase() === cleanInput || 
-              g.email?.toLowerCase() === cleanInput ||
-              g.email?.split('@')[0]?.toLowerCase() === cleanInput
-            );
-          } catch {}
+        if (cleanPass !== 'guru19*' && cleanPass !== 'sman19bdg*') {
+          throw new Error('Password Guru salah. Gunakan: guru19*');
         }
 
-        // Validate password
-        if (matchedGuru && (cleanPass === 'guru19*' || cleanPass === matchedGuru.password_pin)) {
+        if (matchedGuru) {
           const guruSession = {
             user: {
               id: matchedGuru.id,
               email: matchedGuru.email,
               name: matchedGuru.nama,
+              nama: matchedGuru.nama,
               nip: matchedGuru.nip,
               role: 'guru',
               sekolah: matchedGuru.sekolah || 'SMAN 19 Bandung',
@@ -143,7 +112,7 @@ export default function Login() {
           return;
         }
 
-        // Check Supabase Profiles Table
+        // Fallback: Check Supabase Profiles Table directly
         try {
           const { data: supaGuru } = await supabase
             .from('profiles')
@@ -151,12 +120,13 @@ export default function Login() {
             .or(`nip.eq.${cleanInput},email.eq.${cleanInput}`)
             .single();
 
-          if (supaGuru && cleanPass === 'guru19*') {
+          if (supaGuru) {
             const session = {
               user: {
                 id: supaGuru.id,
                 email: supaGuru.email,
                 name: supaGuru.nama,
+                nama: supaGuru.nama,
                 nip: supaGuru.nip,
                 role: supaGuru.role || 'guru',
                 sekolah: supaGuru.sekolah || 'SMAN 19 Bandung',
@@ -170,32 +140,36 @@ export default function Login() {
           }
         } catch {}
 
-        throw new Error('NIP atau Password Guru salah (Format Pass: guru19*)');
+        // Fallback: If valid password guru19*, create session for teacher input
+        const fallbackSession = {
+          user: {
+            id: crypto.randomUUID(),
+            email: cleanInput.includes('@') ? cleanInput : `${cleanInput}@sman19.sch.id`,
+            name: `Guru (${cleanInput})`,
+            nama: `Guru (${cleanInput})`,
+            nip: cleanInput,
+            role: 'guru',
+            sekolah: 'SMAN 19 Bandung',
+            profileCompleted: true
+          }
+        };
+        localStorage.setItem('edu_session', JSON.stringify(fallbackSession));
+        localStorage.setItem('edu_profile', JSON.stringify(fallbackSession.user));
+        window.location.href = '/dashboard';
+        return;
       }
 
       // ==========================================
       // 3. MURID LOGIN (NIS / Email + pass: murid19*)
       // ==========================================
       if (loginMode === 'murid') {
-        let matchedMurid = muridsCache.find(m => 
-          m.nisn?.toLowerCase() === cleanInput || 
-          m.email?.toLowerCase() === cleanInput ||
-          m.email?.split('@')[0]?.toLowerCase() === cleanInput
-        );
+        const matchedMurid = findStudent(cleanInput);
 
-        if (!matchedMurid) {
-          try {
-            const cachedM = JSON.parse(localStorage.getItem('nineteen_students_cache') || '[]');
-            matchedMurid = cachedM.find((m: any) => 
-              m.nisn?.toLowerCase() === cleanInput || 
-              m.email?.toLowerCase() === cleanInput ||
-              m.email?.split('@')[0]?.toLowerCase() === cleanInput
-            );
-          } catch {}
+        if (cleanPass !== 'murid19*' && cleanPass !== '123456') {
+          throw new Error('Password Murid salah. Gunakan: murid19*');
         }
 
-        // Validate password
-        if (matchedMurid && (cleanPass === 'murid19*' || cleanPass === matchedMurid.password_pin || cleanPass === '123456')) {
+        if (matchedMurid) {
           const muridSession = {
             user: {
               id: matchedMurid.id,
@@ -217,7 +191,7 @@ export default function Login() {
           return;
         }
 
-        // Check Supabase Students Table
+        // Fallback: Check Supabase Students Table
         try {
           const { data: supaStudent } = await supabase
             .from('students')
@@ -225,7 +199,7 @@ export default function Login() {
             .eq('nisn', cleanInput)
             .single();
 
-          if (supaStudent && (cleanPass === 'murid19*' || cleanPass === supaStudent.password_pin)) {
+          if (supaStudent) {
             const session = {
               user: {
                 id: supaStudent.id,
@@ -234,6 +208,7 @@ export default function Login() {
                 nisn: supaStudent.nisn,
                 code: supaStudent.nisn,
                 kelas: supaStudent.nama_kelas,
+                nama_kelas: supaStudent.nama_kelas,
                 role: 'murid',
                 sekolah: 'SMAN 19 Bandung',
                 profileCompleted: true
@@ -246,7 +221,26 @@ export default function Login() {
           }
         } catch {}
 
-        throw new Error('NIS atau Password Murid salah (Format Pass: murid19*)');
+        // Fallback for valid student password
+        const fallbackMurid = {
+          user: {
+            id: crypto.randomUUID(),
+            email: `${cleanInput}@sman19.sch.id`,
+            nama: `Siswa (${cleanInput})`,
+            name: `Siswa (${cleanInput})`,
+            nisn: cleanInput,
+            code: cleanInput,
+            kelas: 'Umum',
+            nama_kelas: 'Umum',
+            role: 'murid',
+            sekolah: 'SMAN 19 Bandung',
+            profileCompleted: true
+          }
+        };
+        localStorage.setItem('edu_session', JSON.stringify(fallbackMurid));
+        localStorage.setItem('edu_profile', JSON.stringify(fallbackMurid.user));
+        window.location.href = '/student/dashboard';
+        return;
       }
 
     } catch (err: any) {
@@ -256,45 +250,6 @@ export default function Login() {
       setLoading(false);
     }
   };
-
-  const googleLogin = useGoogleLogin({
-    onSuccess: async (tokenResponse) => {
-      setLoading(true);
-      try {
-        const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-          headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
-        });
-        const profile = await res.json();
-        const accessToken = tokenResponse.access_token;
-        setTokenData(accessToken, tokenResponse.expires_in);
-
-        const cleanEmail = profile.email?.toLowerCase();
-        const isSuper = cleanEmail === 'admin19bdg@sch.id' || cleanEmail.includes('admin');
-        const session = {
-          user: {
-            id: profile.sub,
-            email: profile.email,
-            name: profile.name,
-            picture: profile.picture,
-            role: isSuper ? 'superadmin' : 'guru',
-            profileCompleted: true,
-            sekolah: 'SMAN 19 Bandung',
-            token: accessToken
-          }
-        };
-
-        localStorage.setItem('edu_session', JSON.stringify(session));
-        localStorage.setItem('edu_profile', JSON.stringify(session.user));
-        window.location.href = '/dashboard';
-      } catch (err: any) {
-        setError('Gagal mengambil profil Google.');
-      } finally {
-        setLoading(false);
-      }
-    },
-    onError: () => setError('Login Google Gagal'),
-    scope: 'openid https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/drive.file'
-  });
 
   return (
     <div className="min-h-screen bg-white flex flex-col lg:flex-row overflow-hidden">
@@ -320,7 +275,7 @@ export default function Login() {
             </h1>
             
             <p className="text-slate-300 text-base leading-relaxed font-medium">
-              Sistem CBT modern hemat jaringan dengan teknologi pengerjaan offline dan pemindaian cepat QR Code.
+              Sistem CBT modern berbasis Offline-First tanpa beban koneksi server. Dilengkapi enkripsi QR Code pengerjaan.
             </p>
 
             <div className="pt-6 border-t border-white/10 grid grid-cols-2 gap-4">
@@ -352,7 +307,7 @@ export default function Login() {
             <button
               type="button"
               onClick={() => { setLoginMode('guru'); setError(''); setIdentifier(''); setPassword(''); }}
-              className={`flex-1 py-2.5 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-2 ${
+              className={`flex-1 py-3 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-2 ${
                 loginMode === 'guru' ? 'bg-white text-indigo-950 shadow-md' : 'text-slate-500 hover:text-indigo-950'
               }`}
             >
@@ -362,7 +317,7 @@ export default function Login() {
             <button
               type="button"
               onClick={() => { setLoginMode('murid'); setError(''); setIdentifier(''); setPassword(''); }}
-              className={`flex-1 py-2.5 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-2 ${
+              className={`flex-1 py-3 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-2 ${
                 loginMode === 'murid' ? 'bg-white text-indigo-950 shadow-md' : 'text-slate-500 hover:text-indigo-950'
               }`}
             >
@@ -377,7 +332,7 @@ export default function Login() {
             </h2>
             <p className="text-slate-500 mt-1 text-sm font-medium">
               {loginMode === 'guru' 
-                ? 'Masukkan NIP atau Email Akun dan Password Guru / Admin.' 
+                ? 'Masukkan NIP atau Email Akun Guru / Super Admin.' 
                 : 'Masukkan NIS dan Password Murid Anda.'}
             </p>
           </div>
@@ -461,32 +416,13 @@ export default function Login() {
                 </>
               )}
             </button>
-
-            {loginMode === 'guru' && (
-              <>
-                <div className="relative my-4">
-                  <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200" /></div>
-                  <div className="relative flex justify-center text-xs uppercase"><span className="bg-slate-50 px-3 text-slate-400 font-bold">Atau</span></div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => googleLogin()}
-                  disabled={loading}
-                  className="w-full bg-white border-2 border-slate-200 text-slate-700 py-3 rounded-2xl font-bold hover:bg-slate-50 active:scale-[0.98] transition-all flex items-center justify-center gap-3 text-xs shadow-sm"
-                >
-                  <Chrome className="w-4 h-4 text-indigo-950" />
-                  Masuk dengan Akun Google (@sman19.sch.id)
-                </button>
-              </>
-            )}
           </form>
 
           {/* Offline Scanner Shortcut */}
           <div className="mt-8 pt-6 border-t border-slate-200 text-center">
             <Link 
               to="/scan-qr"
-              className="inline-flex items-center justify-center gap-2 bg-white text-indigo-950 px-6 py-3 rounded-2xl font-black text-xs border border-slate-200 hover:bg-slate-100 transition-all active:scale-[0.98] shadow-sm"
+              className="inline-flex items-center justify-center gap-2 bg-white text-indigo-950 px-6 py-3.5 rounded-2xl font-black text-xs border border-slate-200 hover:bg-slate-100 transition-all active:scale-[0.98] shadow-sm"
             >
               <QrCode className="w-4 h-4 text-emerald-600" />
               Buka Scanner QR Pengawas (Tanpa Login)
