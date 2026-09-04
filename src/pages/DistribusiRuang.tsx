@@ -170,13 +170,32 @@ export default function DistribusiRuang() {
 
   const studentsByGrade = useMemo(() => {
     const grouped: Record<string, Student[]> = { X: [], XI: [], XII: [] };
-    eligibleStudents.forEach(s => {
+    students.forEach(s => {
       if (s.grade && grouped[s.grade]) {
         grouped[s.grade].push(s);
       }
     });
     return grouped;
-  }, [eligibleStudents]);
+  }, [students]);
+
+  // Toggle individual grade on/off
+  const handleToggleGrade = (gradeId: string) => {
+    if (selectedGrades.includes(gradeId)) {
+      if (selectedGrades.length <= 1) {
+        showAlert({
+          title: 'Minimal 1 Angkatan Aktif',
+          message: 'Minimal harus memilih 1 angkatan kelas yang aktif untuk ujian.',
+          type: 'warning'
+        });
+        return;
+      }
+      setSelectedGrades(selectedGrades.filter(g => g !== gradeId));
+    } else {
+      const order = ['X', 'XI', 'XII'];
+      const updated = [...selectedGrades, gradeId].sort((a, b) => order.indexOf(a) - order.indexOf(b));
+      setSelectedGrades(updated);
+    }
+  };
 
   // Handle Add Custom Proctor
   const handleAddCustomProctor = () => {
@@ -656,81 +675,94 @@ export default function DistribusiRuang() {
                 <Sliders className="w-4 h-4 text-blue-600" /> Parameter Penataan & Distribusi
               </h3>
 
-              {/* 1. Pemilihan Jenjang */}
-              <div className="space-y-2">
+              {/* 1. Pemilihan Jenjang Berbasis Toggle Aktif/Nonaktif */}
+              <div className="space-y-2.5">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-slate-700">Jenjang Peserta Ujian:</label>
-                  <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
-                    {eligibleStudents.length} Murid Terpilih
+                  <label className="text-xs font-bold text-slate-700">Pilih Angkatan yang Ujian:</label>
+                  <span className="text-[10px] font-black text-indigo-950 bg-indigo-50 border border-indigo-100 px-2.5 py-0.5 rounded-full">
+                    {eligibleStudents.length} Murid Mengikuti Ujian
                   </span>
                 </div>
 
-                {/* Preset Cepat */}
-                <div className="flex flex-wrap gap-1.5 pb-1">
+                {/* Toggle Angkatan: Kelas X, XI, XII */}
+                <div className="space-y-2">
                   {[
-                    { label: 'Semua (X, XI, XII)', grades: ['X', 'XI', 'XII'] },
-                    { label: 'X & XI (ASAT)', grades: ['X', 'XI'] },
-                    { label: 'XI & XII', grades: ['XI', 'XII'] },
-                    { label: 'X & XII', grades: ['X', 'XII'] },
-                    { label: 'Hanya XII', grades: ['XII'] },
-                    { label: 'Hanya XI', grades: ['XI'] },
-                    { label: 'Hanya X', grades: ['X'] }
-                  ].map((p, idx) => {
-                    const isCurrent = p.grades.length === selectedGrades.length && p.grades.every(g => selectedGrades.includes(g));
+                    { id: 'X', label: 'Kelas X', desc: 'Angkatan Kelas 10', count: studentsByGrade['X']?.length || 0, color: 'indigo' },
+                    { id: 'XI', label: 'Kelas XI', desc: 'Angkatan Kelas 11', count: studentsByGrade['XI']?.length || 0, color: 'purple' },
+                    { id: 'XII', label: 'Kelas XII', desc: 'Angkatan Kelas 12', count: studentsByGrade['XII']?.length || 0, color: 'emerald' }
+                  ].map(g => {
+                    const isSelected = selectedGrades.includes(g.id);
+                    const style = getGradeBadgeStyle(g.id);
+
                     return (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => setSelectedGrades(p.grades)}
+                      <div
+                        key={g.id}
+                        onClick={() => handleToggleGrade(g.id)}
                         className={cn(
-                          "text-[10px] font-bold px-2 py-1 rounded-lg border transition-all",
-                          isCurrent 
-                            ? "bg-indigo-950 text-white border-indigo-950 shadow-xs" 
-                            : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                          "p-3 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-between gap-3 select-none",
+                          isSelected
+                            ? cn("border-slate-300 shadow-xs", style.box)
+                            : "bg-slate-50/70 border-slate-200 opacity-60 hover:opacity-80"
                         )}
                       >
-                        {p.label}
-                      </button>
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className={cn(
+                            "w-9 h-9 rounded-xl flex items-center justify-center font-black text-xs shrink-0 transition-all",
+                            isSelected ? style.badge : "bg-slate-200 text-slate-500"
+                          )}>
+                            {g.id}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h4 className={cn("text-xs font-black transition-colors", isSelected ? "text-indigo-950" : "text-slate-500")}>
+                                {g.label}
+                              </h4>
+                              <span className={cn(
+                                "text-[9px] font-bold px-2 py-0.5 rounded-md",
+                                isSelected ? "bg-white/90 text-slate-700 border" : "bg-slate-200 text-slate-500"
+                              )}>
+                                {g.count} Murid
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-slate-400 font-medium">
+                              {isSelected ? 'Aktif mengikuti ujian' : 'Nonaktif (tidak ikut ujian)'}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Modern Toggle Switch */}
+                        <div className={cn(
+                          "w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 flex items-center",
+                          isSelected 
+                            ? (g.color === 'emerald' ? 'bg-emerald-600' : g.color === 'purple' ? 'bg-purple-600' : 'bg-indigo-950') 
+                            : "bg-slate-300"
+                        )}>
+                          <div className={cn(
+                            "w-5 h-5 rounded-full bg-white shadow-md transform transition-transform duration-200 flex items-center justify-center",
+                            isSelected ? "translate-x-5" : "translate-x-0"
+                          )}>
+                            {isSelected && (
+                              <Check className={cn("w-3 h-3", 
+                                g.color === 'emerald' ? 'text-emerald-600' : 
+                                g.color === 'purple' ? 'text-purple-600' : 
+                                'text-indigo-950'
+                              )} />
+                            )}
+                          </div>
+                        </div>
+                      </div>
                     );
                   })}
                 </div>
 
-                {/* Tombol Checklist Jenjang */}
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { id: 'X', label: 'Kelas X', count: studentsByGrade['X']?.length || 0 },
-                    { id: 'XI', label: 'Kelas XI', count: studentsByGrade['XI']?.length || 0 },
-                    { id: 'XII', label: 'Kelas XII', count: studentsByGrade['XII']?.length || 0 }
-                  ].map(g => {
-                    const isSelected = selectedGrades.includes(g.id);
-                    const style = getGradeBadgeStyle(g.id);
-                    return (
-                      <button
-                        key={g.id}
-                        type="button"
-                        onClick={() => {
-                          if (isSelected) {
-                            if (selectedGrades.length > 1) {
-                              setSelectedGrades(selectedGrades.filter(x => x !== g.id));
-                            } else {
-                              showAlert({ title: 'Minimal 1 Jenjang', message: 'Minimal harus memilih 1 jenjang murid.', type: 'warning' });
-                            }
-                          } else {
-                            setSelectedGrades([...selectedGrades, g.id]);
-                          }
-                        }}
-                        className={cn(
-                          "py-2 px-2.5 rounded-xl border text-center transition-all flex flex-col items-center justify-center",
-                          isSelected
-                            ? cn("border-2 shadow-xs", style.pill)
-                            : "bg-slate-50 text-slate-400 border-slate-200 opacity-60 hover:opacity-100"
-                        )}
-                      >
-                        <span className="text-xs font-black">{g.label}</span>
-                        <span className="text-[10px] font-bold opacity-80">{g.count} Murid</span>
-                      </button>
-                    );
-                  })}
+                {/* Ringkasan Status Angkatan Terpilih */}
+                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-[11px] font-bold text-slate-600">
+                  <span>Angkatan Terpilih:</span>
+                  <span className="text-indigo-950 font-black">
+                    {selectedGrades.length === 3 
+                      ? 'Seluruh Angkatan (X, XI, XII)' 
+                      : selectedGrades.map(g => `Kelas ${g}`).join(' & ')}
+                  </span>
                 </div>
               </div>
 
