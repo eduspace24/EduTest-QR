@@ -32,6 +32,7 @@ import { generateExamCode, cn } from '../lib/utils';
 import { getCollectionData, saveCollection } from '../lib/db';
 import { useSchool } from '../context/SchoolContext';
 import { uploadQuestionImage } from '../lib/cloudinary';
+import { ALL_SCHOOL_SUBJECTS } from './BankSoal';
 
 export default function BuatUjian() {
   const navigate = useNavigate();
@@ -370,7 +371,7 @@ export default function BuatUjian() {
 
       const examPayload = {
         ...formData,
-        subject: formData.subject || teacherSubjects[0] || 'Umum',
+        subject: formData.subject || teacherSubjects[0] || 'Informatika',
         id: examId,
         driveFileId: examId,
         questions: safeQuestions,
@@ -391,7 +392,7 @@ export default function BuatUjian() {
           examId,
           {
             title: formData.title,
-            subject: formData.subject || teacherSubjects[0] || 'Umum',
+            subject: formData.subject || teacherSubjects[0] || 'Informatika',
             duration: Number(formData.duration) || 60,
             status: 'active',
             driveFileId: examId,
@@ -410,7 +411,7 @@ export default function BuatUjian() {
         id: examId,
         driveFileId: examId,
         title: formData.title,
-        subject: formData.subject || teacherSubjects[0] || 'Umum',
+        subject: formData.subject || teacherSubjects[0] || 'Informatika',
         exam_type: formData.exam_type || 'semester',
         session_name: formData.session_name || 'Sesi 1',
         start_time: formData.start_time || '07:30',
@@ -594,7 +595,7 @@ export default function BuatUjian() {
                     type="text"
                     readOnly
                     className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-100 font-bold text-indigo-950 text-sm cursor-not-allowed"
-                    value={formData.subject || teacherSubjects[0] || 'Umum'}
+                    value={formData.subject || teacherSubjects[0] || 'Informatika'}
                   />
                 )}
               </div>
