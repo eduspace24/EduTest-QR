@@ -84,7 +84,7 @@ export default function Layout({ session, onLogout }: LayoutProps) {
   return (
     <div className="flex min-h-screen bg-slate-50 relative overflow-hidden">
       {/* Sidebar Desktop */}
-      <aside className="w-[240px] bg-white/70 backdrop-blur-3xl border-r border-white/40 hidden lg:flex flex-col sticky top-0 h-screen z-40 transition-all duration-300">
+      <aside className="w-[240px] bg-white/70 backdrop-blur-3xl border-r border-white/40 hidden lg:flex flex-col sticky top-0 h-screen z-20 transition-all duration-300">
         <div className="p-6 flex items-center gap-3 relative z-10">
           <div className="bg-gradient-to-br from-indigo-950 to-indigo-900 p-2 rounded-xl shadow-md text-white">
             <GraduationCap className="w-5 h-5" />
@@ -128,8 +128,8 @@ export default function Layout({ session, onLogout }: LayoutProps) {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col min-w-0 h-screen overflow-y-scroll overflow-x-hidden relative z-10">
-        <header className="h-16 shrink-0 bg-white/60 backdrop-blur-xl shadow-sm flex items-center justify-between px-4 lg:px-8 sticky top-0 z-30 border-b border-white/50">
+      <main className="flex-1 flex flex-col min-w-0 h-screen overflow-y-scroll overflow-x-hidden relative">
+        <header className="h-16 shrink-0 bg-white/60 backdrop-blur-xl shadow-sm flex items-center justify-between px-4 lg:px-8 sticky top-0 z-10 border-b border-white/50">
           <div className="flex items-center gap-3">
             <button onClick={() => setIsMobileMenuOpen(true)} className="lg:hidden p-2 text-slate-600">
               <Menu className="w-5 h-5" />
@@ -168,14 +168,14 @@ export default function Layout({ session, onLogout }: LayoutProps) {
               animate={{ opacity: 1 }} 
               exit={{ opacity: 0 }}
               onClick={() => setIsMobileMenuOpen(false)}
-              className="fixed inset-0 bg-indigo-950/40 backdrop-blur-sm z-[100] lg:hidden"
+              className="fixed inset-0 bg-indigo-950/40 backdrop-blur-sm z-[80] lg:hidden"
             />
             <motion.aside 
               initial={{ x: '-100%' }} 
               animate={{ x: 0 }} 
               exit={{ x: '-100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed inset-y-0 left-0 w-64 bg-white shadow-2xl z-[101] lg:hidden flex flex-col border-r border-slate-100"
+              className="fixed inset-y-0 left-0 w-64 bg-white shadow-2xl z-[85] lg:hidden flex flex-col border-r border-slate-100"
             >
               <div className="p-5 flex items-center justify-between border-b border-slate-50">
                 <div className="flex items-center gap-3">

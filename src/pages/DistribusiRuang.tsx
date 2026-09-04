@@ -2090,7 +2090,7 @@ export default function DistribusiRuang() {
       {/* MODAL 1: BATCH MANUAL ASSIGNMENT (CHECKBOX, SEARCH & FILTER MURID)         */}
       {/* ========================================================================= */}
       {showManualAssignModal && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150">
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-xs z-[100] flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150">
           <motion.div
             initial={{ scale: 0.96, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
@@ -2410,7 +2410,7 @@ export default function DistribusiRuang() {
       {/* MODAL 2: DETAIL DENAH RUANG DENGAN KONTROL EDIT KURSI & PINDAH SISWA       */}
       {/* ========================================================================= */}
       {selectedRoomDetail && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150">
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-xs z-[100] flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150">
           <motion.div
             initial={{ scale: 0.95, y: 10 }} animate={{ scale: 1, y: 0 }}
             className="bg-white rounded-3xl w-full max-w-5xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden border border-slate-100"
@@ -2590,7 +2590,7 @@ export default function DistribusiRuang() {
       {/* MODAL 3: BUAT RUANGAN BARU SECARA MANUAL                                  */}
       {/* ========================================================================= */}
       {showCreateRoomModal && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 animate-in fade-in duration-150">
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-xs z-[100] flex items-center justify-center p-4 animate-in fade-in duration-150">
           <motion.div
             initial={{ scale: 0.95 }} animate={{ scale: 1 }}
             className="bg-white rounded-3xl w-full max-w-md p-6 shadow-2xl space-y-4 border border-slate-100"
@@ -2651,7 +2651,7 @@ export default function DistribusiRuang() {
       {/* MODAL 4: PINDAH RUANG SISWA INDIVIDUAL                                    */}
       {/* ========================================================================= */}
       {moveStudentModal && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 animate-in fade-in duration-150">
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-xs z-[100] flex items-center justify-center p-4 animate-in fade-in duration-150">
           <motion.div
             initial={{ scale: 0.95 }} animate={{ scale: 1 }}
             className="bg-white rounded-3xl w-full max-w-md p-6 shadow-2xl space-y-4 border border-slate-100"
@@ -2716,7 +2716,7 @@ export default function DistribusiRuang() {
       {/* MODAL 5: TUKAR POSISI MEJA DUDUK (SWAP SEATS)                              */}
       {/* ========================================================================= */}
       {swapSeatModal && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 animate-in fade-in duration-150">
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-xs z-[100] flex items-center justify-center p-4 animate-in fade-in duration-150">
           <motion.div
             initial={{ scale: 0.95 }} animate={{ scale: 1 }}
             className="bg-white rounded-3xl w-full max-w-md p-6 shadow-2xl space-y-4 border border-slate-100"
@@ -2776,7 +2776,7 @@ export default function DistribusiRuang() {
       {/* MODAL 6: QUICK ASSIGN TO SPECIFIC EMPTY DESK                              */}
       {/* ========================================================================= */}
       {quickAssignDeskModal && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 animate-in fade-in duration-150">
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-xs z-[100] flex items-center justify-center p-4 animate-in fade-in duration-150">
           <motion.div
             initial={{ scale: 0.95 }} animate={{ scale: 1 }}
             className="bg-white rounded-3xl w-full max-w-md max-h-[85vh] flex flex-col shadow-2xl border border-slate-100 overflow-hidden"
@@ -2846,7 +2846,7 @@ export default function DistribusiRuang() {
       {/* MODAL 7: INPUT PENGAWAS KUSTOM (PPL / MAHASISWA / EKSTERNAL)               */}
       {/* ========================================================================= */}
       {showAddProctorModal && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 animate-in fade-in duration-150">
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-xs z-[100] flex items-center justify-center p-4 animate-in fade-in duration-150">
           <motion.div
             initial={{ scale: 0.95 }} animate={{ scale: 1 }}
             className="bg-white rounded-3xl w-full max-w-md p-6 shadow-2xl space-y-4 border border-slate-100"

@@ -1140,7 +1140,7 @@ export default function BuatUjian() {
 
         {showBankModal && (
           <div 
-            className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 animate-in fade-in duration-150"
+            className="fixed inset-0 bg-black/75 backdrop-blur-xs z-[100] flex items-center justify-center p-4 animate-in fade-in duration-150"
           >
             <motion.div 
               initial={{ scale: 0.95 }} animate={{ scale: 1 }}
