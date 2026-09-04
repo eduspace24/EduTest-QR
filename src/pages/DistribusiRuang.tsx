@@ -24,7 +24,8 @@ import {
   Edit3,
   Sliders,
   Sparkles,
-  ArrowLeft
+  ArrowLeft,
+  ListOrdered
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { QRCodeSVG } from 'qrcode.react';
@@ -57,6 +58,8 @@ interface ExamRoom {
   pengawas_1: string;
   pengawas_2: string;
   seats: AssignedSeat[];
+  method?: string;
+  classes?: string[];
 }
 
 interface CustomProctor {
@@ -82,6 +85,7 @@ export default function DistribusiRuang() {
 
   // Configuration States
   const [selectedGrades, setSelectedGrades] = useState<string[]>(['X', 'XI']);
+  const [seatingMethod, setSeatingMethod] = useState<'cross_grade' | 'standard_class' | 'class_shuffled_seats' | 'full_random'>('cross_grade');
   const [distributionMode, setDistributionMode] = useState<'capacity' | 'rooms'>('capacity');
   const [capacityPerRoom, setCapacityPerRoom] = useState<number>(36);
   const [targetRoomsCount, setTargetRoomsCount] = useState<number>(24);
@@ -223,19 +227,44 @@ export default function DistribusiRuang() {
     return shuffled;
   };
 
-  // Generate Rooms with Cross-Grade Interleaving
+  // Color and badge helper for grades (X, XI, XII)
+  const getGradeBadgeStyle = (grade?: string) => {
+    switch (grade) {
+      case 'X':
+        return {
+          pill: 'bg-indigo-50 text-indigo-900 border-indigo-200',
+          badge: 'bg-indigo-950 text-white',
+          border: 'border-indigo-300',
+          box: 'bg-indigo-50/50'
+        };
+      case 'XI':
+        return {
+          pill: 'bg-purple-50 text-purple-900 border-purple-200',
+          badge: 'bg-purple-900 text-white',
+          border: 'border-purple-300',
+          box: 'bg-purple-50/50'
+        };
+      case 'XII':
+        return {
+          pill: 'bg-emerald-50 text-emerald-900 border-emerald-200',
+          badge: 'bg-emerald-900 text-white',
+          border: 'border-emerald-300',
+          box: 'bg-emerald-50/50'
+        };
+      default:
+        return {
+          pill: 'bg-slate-50 text-slate-800 border-slate-200',
+          badge: 'bg-slate-800 text-white',
+          border: 'border-slate-300',
+          box: 'bg-slate-50'
+        };
+    }
+  };
+
+  // Generate Rooms with Chosen Seating Method
   const handleGenerateDistribution = async () => {
     if (eligibleStudents.length === 0) {
       showAlert({ title: 'Murid Kosong', message: 'Tidak ada murid yang cocok dengan jenjang terpilih.', type: 'warning' });
-      return;
-    }
-
-    if (selectedGrades.length < 2) {
-      showAlert({ 
-        title: 'Pilih Minimal 2 Jenjang', 
-        message: 'Pengacakan bersilang membutuhkan minimal 2 jenjang (contoh: Kelas X & Kelas XI).', 
-        type: 'warning' 
-      });
       return;
     }
 
@@ -251,81 +280,267 @@ export default function DistribusiRuang() {
       capPerRoom = Math.ceil(eligibleStudents.length / totalRooms);
     }
 
-    // Shuffle each grade pool independently to mix classes
-    const gradePools: Record<string, Student[]> = {};
-    selectedGrades.forEach(g => {
-      gradePools[g] = shuffleArray(studentsByGrade[g] || []);
-    });
-
     const newRooms: ExamRoom[] = [];
-    const gradeA = selectedGrades[0];
-    const gradeB = selectedGrades[1];
 
-    let poolAIndex = 0;
-    let poolBIndex = 0;
+    // ==========================================
+    // 1. MODE STANDAR (SESUAI ROMBEL & NO. ABSEN)
+    // ==========================================
+    if (seatingMethod === 'standard_class') {
+      const sortedStudents = [...eligibleStudents].sort((a, b) => {
+        const gradeOrder: Record<string, number> = { X: 1, XI: 2, XII: 3, OTHER: 4 };
+        const ga = gradeOrder[a.grade || 'OTHER'] || 99;
+        const gb = gradeOrder[b.grade || 'OTHER'] || 99;
+        if (ga !== gb) return ga - gb;
 
-    for (let r = 1; r <= totalRooms; r++) {
-      const roomSeats: AssignedSeat[] = [];
-      const roomCapacity = capPerRoom;
+        const classComp = (a.nama_kelas || '').localeCompare(b.nama_kelas || '', undefined, { numeric: true });
+        if (classComp !== 0) return classComp;
 
-      for (let s = 1; s <= roomCapacity; s++) {
-        let assignedStudent: Student | null = null;
-        let assignedGrade: 'X' | 'XI' | 'XII' | 'OTHER' = gradeA as any;
+        const absA = parseInt(a.nomor_absen || '0', 10) || 0;
+        const absB = parseInt(b.nomor_absen || '0', 10) || 0;
+        if (absA !== absB) return absA - absB;
 
-        // Determine which grade sits here based on pattern
-        let targetGradeForSeat = gradeA;
-        if (seatingPattern === 'alternate_column') {
-          // Odd seats = Grade A, Even seats = Grade B
-          targetGradeForSeat = (s % 2 !== 0) ? gradeA : gradeB;
-        } else {
-          // Zigzag / Chessboard (Row by col, assume 4 cols)
-          const row = Math.floor((s - 1) / 4);
-          const col = (s - 1) % 4;
-          targetGradeForSeat = ((row + col) % 2 === 0) ? gradeA : gradeB;
+        return (a.nama || '').localeCompare(b.nama || '');
+      });
+
+      let stuIdx = 0;
+      for (let r = 1; r <= totalRooms; r++) {
+        const roomSeats: AssignedSeat[] = [];
+        for (let s = 1; s <= capPerRoom; s++) {
+          if (stuIdx < sortedStudents.length) {
+            const student = sortedStudents[stuIdx++];
+            roomSeats.push({
+              seat_number: s,
+              student,
+              grade: student.grade || 'OTHER'
+            });
+          }
         }
-
-        if (targetGradeForSeat === gradeA && poolAIndex < gradePools[gradeA].length) {
-          assignedStudent = gradePools[gradeA][poolAIndex++];
-          assignedGrade = gradeA as any;
-        } else if (targetGradeForSeat === gradeB && poolBIndex < gradePools[gradeB].length) {
-          assignedStudent = gradePools[gradeB][poolBIndex++];
-          assignedGrade = gradeB as any;
-        } else if (poolAIndex < gradePools[gradeA].length) {
-          // Fallback if poolB is exhausted
-          assignedStudent = gradePools[gradeA][poolAIndex++];
-          assignedGrade = gradeA as any;
-        } else if (poolBIndex < gradePools[gradeB].length) {
-          // Fallback if poolA is exhausted
-          assignedStudent = gradePools[gradeB][poolBIndex++];
-          assignedGrade = gradeB as any;
-        }
-
-        if (assignedStudent) {
-          roomSeats.push({
-            seat_number: s,
-            student: assignedStudent,
-            grade: assignedGrade
+        if (roomSeats.length > 0) {
+          const roomClasses = Array.from(new Set(roomSeats.map(st => st.student.nama_kelas)));
+          newRooms.push({
+            id: `room_${r}_${Date.now()}`,
+            room_number: r,
+            name: `Ruang ${String(r).padStart(2, '0')}`,
+            capacity: capPerRoom,
+            pengawas_1: '',
+            pengawas_2: '',
+            seats: roomSeats,
+            method: 'Standar Rombel & Absen',
+            classes: roomClasses
           });
         }
       }
-
-      const roomName = `Ruang ${String(r).padStart(2, '0')}`;
-      newRooms.push({
-        id: `room_${r}_${Date.now()}`,
-        room_number: r,
-        name: roomName,
-        capacity: roomCapacity,
-        pengawas_1: '',
-        pengawas_2: '',
-        seats: roomSeats
+    } 
+    // ==========================================
+    // 2. MODE PER KELAS / ROMBEL (ABSEN DIACAK)
+    // ==========================================
+    else if (seatingMethod === 'class_shuffled_seats') {
+      const classMap = new Map<string, Student[]>();
+      eligibleStudents.forEach(s => {
+        const k = s.nama_kelas || 'Lainnya';
+        if (!classMap.has(k)) classMap.set(k, []);
+        classMap.get(k)!.push(s);
       });
+
+      const sortedClasses = Array.from(classMap.keys()).sort((a, b) =>
+        a.localeCompare(b, undefined, { numeric: true })
+      );
+
+      const orderedStudents: Student[] = [];
+      sortedClasses.forEach(cls => {
+        const classStudents = classMap.get(cls)!;
+        const shuffled = shuffleArray(classStudents);
+        orderedStudents.push(...shuffled);
+      });
+
+      let stuIdx = 0;
+      for (let r = 1; r <= totalRooms; r++) {
+        const roomSeats: AssignedSeat[] = [];
+        for (let s = 1; s <= capPerRoom; s++) {
+          if (stuIdx < orderedStudents.length) {
+            const student = orderedStudents[stuIdx++];
+            roomSeats.push({
+              seat_number: s,
+              student,
+              grade: student.grade || 'OTHER'
+            });
+          }
+        }
+        if (roomSeats.length > 0) {
+          const roomClasses = Array.from(new Set(roomSeats.map(st => st.student.nama_kelas)));
+          newRooms.push({
+            id: `room_${r}_${Date.now()}`,
+            room_number: r,
+            name: `Ruang ${String(r).padStart(2, '0')}`,
+            capacity: capPerRoom,
+            pengawas_1: '',
+            pengawas_2: '',
+            seats: roomSeats,
+            method: 'Per Kelas (Absen Diacak)',
+            classes: roomClasses
+          });
+        }
+      }
+    }
+    // ==========================================
+    // 3. MODE ACAK BEBAS / CAMPUR PENUH
+    // ==========================================
+    else if (seatingMethod === 'full_random') {
+      const shuffledAll: Student[] = shuffleArray<Student>(eligibleStudents);
+      let stuIdx = 0;
+      for (let r = 1; r <= totalRooms; r++) {
+        const roomSeats: AssignedSeat[] = [];
+        for (let s = 1; s <= capPerRoom; s++) {
+          if (stuIdx < shuffledAll.length) {
+            const student = shuffledAll[stuIdx++];
+            roomSeats.push({
+              seat_number: s,
+              student,
+              grade: student.grade || 'OTHER'
+            });
+          }
+        }
+        if (roomSeats.length > 0) {
+          const roomClasses = Array.from(new Set(roomSeats.map(st => st.student.nama_kelas)));
+          newRooms.push({
+            id: `room_${r}_${Date.now()}`,
+            room_number: r,
+            name: `Ruang ${String(r).padStart(2, '0')}`,
+            capacity: capPerRoom,
+            pengawas_1: '',
+            pengawas_2: '',
+            seats: roomSeats,
+            method: 'Acak Bebas Penuh',
+            classes: roomClasses
+          });
+        }
+      }
+    }
+    // ==========================================
+    // 4. MODE SILANG ANTAR-JENJANG (ASAT)
+    // ==========================================
+    else {
+      // If only 1 grade selected in cross-grade, interleave by classes
+      if (selectedGrades.length === 1) {
+        const singleGrade = selectedGrades[0];
+        const classMap = new Map<string, Student[]>();
+        eligibleStudents.forEach(s => {
+          const k = s.nama_kelas || 'Lainnya';
+          if (!classMap.has(k)) classMap.set(k, []);
+          classMap.get(k)!.push(s);
+        });
+
+        const classKeys = Array.from(classMap.keys()).sort();
+        const classPools: Record<string, Student[]> = {};
+        const classIndices: Record<string, number> = {};
+        classKeys.forEach(k => {
+          classPools[k] = shuffleArray(classMap.get(k)!);
+          classIndices[k] = 0;
+        });
+
+        let currentClassPtr = 0;
+        for (let r = 1; r <= totalRooms; r++) {
+          const roomSeats: AssignedSeat[] = [];
+          for (let s = 1; s <= capPerRoom; s++) {
+            let assignedStudent: Student | null = null;
+            for (let tries = 0; tries < classKeys.length; tries++) {
+              const cls = classKeys[(currentClassPtr + tries) % classKeys.length];
+              if (classIndices[cls] < classPools[cls].length) {
+                assignedStudent = classPools[cls][classIndices[cls]++];
+                currentClassPtr = (currentClassPtr + tries + 1) % classKeys.length;
+                break;
+              }
+            }
+            if (assignedStudent) {
+              roomSeats.push({
+                seat_number: s,
+                student: assignedStudent,
+                grade: (assignedStudent.grade || singleGrade) as any
+              });
+            }
+          }
+          if (roomSeats.length > 0) {
+            newRooms.push({
+              id: `room_${r}_${Date.now()}`,
+              room_number: r,
+              name: `Ruang ${String(r).padStart(2, '0')}`,
+              capacity: capPerRoom,
+              pengawas_1: '',
+              pengawas_2: '',
+              seats: roomSeats,
+              method: 'Silang Antar-Kelas',
+              classes: Array.from(new Set(roomSeats.map(st => st.student.nama_kelas)))
+            });
+          }
+        }
+      } else {
+        // Multi-grade interleaving supporting 2 or 3 grades (X, XI, XII)
+        const gradePools: Record<string, Student[]> = {};
+        const gradeIndices: Record<string, number> = {};
+        selectedGrades.forEach(g => {
+          gradePools[g] = shuffleArray(studentsByGrade[g] || []);
+          gradeIndices[g] = 0;
+        });
+
+        const M = selectedGrades.length;
+
+        for (let r = 1; r <= totalRooms; r++) {
+          const roomSeats: AssignedSeat[] = [];
+          for (let s = 1; s <= capPerRoom; s++) {
+            let targetGradeIdx = 0;
+            if (seatingPattern === 'alternate_column') {
+              targetGradeIdx = (s - 1) % M;
+            } else {
+              const row = Math.floor((s - 1) / 4);
+              const col = (s - 1) % 4;
+              targetGradeIdx = (row + col) % M;
+            }
+
+            let chosenGrade: string | null = null;
+            for (let offset = 0; offset < M; offset++) {
+              const candGrade = selectedGrades[(targetGradeIdx + offset) % M];
+              if (gradeIndices[candGrade] < gradePools[candGrade].length) {
+                chosenGrade = candGrade;
+                break;
+              }
+            }
+
+            if (chosenGrade) {
+              const student = gradePools[chosenGrade][gradeIndices[chosenGrade]++];
+              roomSeats.push({
+                seat_number: s,
+                student,
+                grade: chosenGrade as any
+              });
+            }
+          }
+
+          if (roomSeats.length > 0) {
+            newRooms.push({
+              id: `room_${r}_${Date.now()}`,
+              room_number: r,
+              name: `Ruang ${String(r).padStart(2, '0')}`,
+              capacity: capPerRoom,
+              pengawas_1: '',
+              pengawas_2: '',
+              seats: roomSeats,
+              method: 'Silang Antar-Angkatan',
+              classes: Array.from(new Set(roomSeats.map(st => st.student.nama_kelas)))
+            });
+          }
+        }
+      }
     }
 
     setRooms(newRooms);
     await saveCollection('exam_rooms_distribution', newRooms);
     showAlert({
-      title: 'Pengacakan Berhasil!',
-      message: `${eligibleStudents.length} murid berhasil diacak dan didistribusikan secara bersilang ke ${newRooms.length} ruangan.`,
+      title: 'Distribusi Ruang Berhasil!',
+      message: `${eligibleStudents.length} murid berhasil ditempatkan ke ${newRooms.length} ruangan dengan metode: ${
+        seatingMethod === 'standard_class' ? 'Standar Urut Kelas & Absen' :
+        seatingMethod === 'class_shuffled_seats' ? 'Per Kelas (Absen Diacak)' :
+        seatingMethod === 'full_random' ? 'Acak Bebas Penuh' : 'Silang Antar-Angkatan'
+      }.`,
       type: 'success'
     });
   };
@@ -438,19 +653,57 @@ export default function DistribusiRuang() {
             {/* Panel Pengaturan */}
             <div className="lg:col-span-1 bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-5">
               <h3 className="font-bold text-indigo-950 text-sm flex items-center gap-2">
-                <Sliders className="w-4 h-4 text-blue-600" /> Parameter Acak Bersilang
+                <Sliders className="w-4 h-4 text-blue-600" /> Parameter Penataan & Distribusi
               </h3>
 
-              {/* 1. Pemilihan Jenjang Bersilang */}
+              {/* 1. Pemilihan Jenjang */}
               <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-700">Pilih Jenjang yang Digabung:</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-700">Jenjang Peserta Ujian:</label>
+                  <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
+                    {eligibleStudents.length} Murid Terpilih
+                  </span>
+                </div>
+
+                {/* Preset Cepat */}
+                <div className="flex flex-wrap gap-1.5 pb-1">
+                  {[
+                    { label: 'Semua (X, XI, XII)', grades: ['X', 'XI', 'XII'] },
+                    { label: 'X & XI (ASAT)', grades: ['X', 'XI'] },
+                    { label: 'XI & XII', grades: ['XI', 'XII'] },
+                    { label: 'X & XII', grades: ['X', 'XII'] },
+                    { label: 'Hanya XII', grades: ['XII'] },
+                    { label: 'Hanya XI', grades: ['XI'] },
+                    { label: 'Hanya X', grades: ['X'] }
+                  ].map((p, idx) => {
+                    const isCurrent = p.grades.length === selectedGrades.length && p.grades.every(g => selectedGrades.includes(g));
+                    return (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setSelectedGrades(p.grades)}
+                        className={cn(
+                          "text-[10px] font-bold px-2 py-1 rounded-lg border transition-all",
+                          isCurrent 
+                            ? "bg-indigo-950 text-white border-indigo-950 shadow-xs" 
+                            : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                        )}
+                      >
+                        {p.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Tombol Checklist Jenjang */}
                 <div className="grid grid-cols-3 gap-2">
                   {[
-                    { id: 'X', label: 'Kelas X' },
-                    { id: 'XI', label: 'Kelas XI' },
-                    { id: 'XII', label: 'Kelas XII' }
+                    { id: 'X', label: 'Kelas X', count: studentsByGrade['X']?.length || 0 },
+                    { id: 'XI', label: 'Kelas XI', count: studentsByGrade['XI']?.length || 0 },
+                    { id: 'XII', label: 'Kelas XII', count: studentsByGrade['XII']?.length || 0 }
                   ].map(g => {
                     const isSelected = selectedGrades.includes(g.id);
+                    const style = getGradeBadgeStyle(g.id);
                     return (
                       <button
                         key={g.id}
@@ -459,29 +712,204 @@ export default function DistribusiRuang() {
                           if (isSelected) {
                             if (selectedGrades.length > 1) {
                               setSelectedGrades(selectedGrades.filter(x => x !== g.id));
+                            } else {
+                              showAlert({ title: 'Minimal 1 Jenjang', message: 'Minimal harus memilih 1 jenjang murid.', type: 'warning' });
                             }
                           } else {
                             setSelectedGrades([...selectedGrades, g.id]);
                           }
                         }}
                         className={cn(
-                          "py-2 px-3 rounded-xl border text-xs font-black transition-all",
+                          "py-2 px-2.5 rounded-xl border text-center transition-all flex flex-col items-center justify-center",
                           isSelected
-                            ? "bg-indigo-950 text-white border-indigo-950 shadow-xs"
-                            : "bg-slate-50 text-slate-600 border-slate-200 hover:border-slate-300"
+                            ? cn("border-2 shadow-xs", style.pill)
+                            : "bg-slate-50 text-slate-400 border-slate-200 opacity-60 hover:opacity-100"
                         )}
                       >
-                        {g.label}
+                        <span className="text-xs font-black">{g.label}</span>
+                        <span className="text-[10px] font-bold opacity-80">{g.count} Murid</span>
                       </button>
                     );
                   })}
                 </div>
-                <p className="text-[10px] text-slate-400 italic">
-                  💡 Standar ASAT: Pilih minimal 2 jenjang (misal X & XI) untuk duduk bersilang.
-                </p>
               </div>
 
-              {/* 2. Mode Distribusi (Kapasitas vs Jumlah Ruang) */}
+              {/* 2. Metode Penataan Meja & Urutan Duduk */}
+              <div className="space-y-2 pt-3 border-t border-slate-100">
+                <label className="text-xs font-bold text-slate-700">Metode Penataan & Urutan Meja:</label>
+                <div className="space-y-2">
+                  {/* Pilihan 1: Standar Rombel & Absen */}
+                  <label 
+                    onClick={() => setSeatingMethod('standard_class')}
+                    className={cn(
+                      "flex items-start gap-2.5 p-2.5 rounded-2xl border cursor-pointer transition-all",
+                      seatingMethod === 'standard_class'
+                        ? "bg-blue-50/50 border-blue-600 shadow-xs"
+                        : "bg-white border-slate-200 hover:bg-slate-50"
+                    )}
+                  >
+                    <input 
+                      type="radio" 
+                      name="seatingMethod" 
+                      checked={seatingMethod === 'standard_class'} 
+                      onChange={() => setSeatingMethod('standard_class')}
+                      className="mt-1 accent-indigo-950" 
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-black text-indigo-950 flex items-center gap-1.5">
+                          <ListOrdered className="w-3.5 h-3.5 text-blue-600" />
+                          Standar Rombel & No. Absen
+                        </p>
+                        <span className="text-[9px] font-bold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
+                          Default
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-slate-500 mt-0.5 leading-relaxed">
+                        Sesuai rombel (A-Z) dan nomor absen urut (1, 2, 3...). Rapi tanpa pengacakan.
+                      </p>
+                    </div>
+                  </label>
+
+                  {/* Pilihan 2: Per Kelas Namun Absen Diacak */}
+                  <label 
+                    onClick={() => setSeatingMethod('class_shuffled_seats')}
+                    className={cn(
+                      "flex items-start gap-2.5 p-2.5 rounded-2xl border cursor-pointer transition-all",
+                      seatingMethod === 'class_shuffled_seats'
+                        ? "bg-purple-50/50 border-purple-600 shadow-xs"
+                        : "bg-white border-slate-200 hover:bg-slate-50"
+                    )}
+                  >
+                    <input 
+                      type="radio" 
+                      name="seatingMethod" 
+                      checked={seatingMethod === 'class_shuffled_seats'} 
+                      onChange={() => setSeatingMethod('class_shuffled_seats')}
+                      className="mt-1 accent-indigo-950" 
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-black text-indigo-950 flex items-center gap-1.5">
+                          <Users className="w-3.5 h-3.5 text-purple-600" />
+                          Per Rombel (Absen Diacak)
+                        </p>
+                        <span className="text-[9px] font-bold bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded">
+                          1 Rombel 1 Ruang
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-slate-500 mt-0.5 leading-relaxed">
+                        Tetap berkumpul per kelas di ruang yang sama, namun posisi nomor meja diacak.
+                      </p>
+                    </div>
+                  </label>
+
+                  {/* Pilihan 3: Silang Antar-Jenjang (ASAT Anti-Nyontek) */}
+                  <label 
+                    onClick={() => setSeatingMethod('cross_grade')}
+                    className={cn(
+                      "flex items-start gap-2.5 p-2.5 rounded-2xl border cursor-pointer transition-all",
+                      seatingMethod === 'cross_grade'
+                        ? "bg-indigo-50/50 border-indigo-950 shadow-xs"
+                        : "bg-white border-slate-200 hover:bg-slate-50"
+                    )}
+                  >
+                    <input 
+                      type="radio" 
+                      name="seatingMethod" 
+                      checked={seatingMethod === 'cross_grade'} 
+                      onChange={() => setSeatingMethod('cross_grade')}
+                      className="mt-1 accent-indigo-950" 
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-black text-indigo-950 flex items-center gap-1.5">
+                          <Shuffle className="w-3.5 h-3.5 text-indigo-600" />
+                          Silang Antar-Jenjang (ASAT)
+                        </p>
+                        <span className="text-[9px] font-bold bg-indigo-100 text-indigo-950 px-1.5 py-0.5 rounded">
+                          Anti-Contek
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-slate-500 mt-0.5 leading-relaxed">
+                        Siswa antar angkatan (X, XI, XII) duduk selang-seling per meja. Teman sekelas dipisah.
+                      </p>
+                    </div>
+                  </label>
+
+                  {/* Pilihan 4: Acak Bebas Campur Penuh */}
+                  <label 
+                    onClick={() => setSeatingMethod('full_random')}
+                    className={cn(
+                      "flex items-start gap-2.5 p-2.5 rounded-2xl border cursor-pointer transition-all",
+                      seatingMethod === 'full_random'
+                        ? "bg-amber-50/50 border-amber-600 shadow-xs"
+                        : "bg-white border-slate-200 hover:bg-slate-50"
+                    )}
+                  >
+                    <input 
+                      type="radio" 
+                      name="seatingMethod" 
+                      checked={seatingMethod === 'full_random'} 
+                      onChange={() => setSeatingMethod('full_random')}
+                      className="mt-1 accent-indigo-950" 
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-black text-indigo-950 flex items-center gap-1.5">
+                          <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                          Acak Campur Bebas
+                        </p>
+                        <span className="text-[9px] font-bold bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded">
+                          Bebas
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-slate-500 mt-0.5 leading-relaxed">
+                        Seluruh murid dari jenjang terpilih dicampur dan diacak ke seluruh ruangan.
+                      </p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              {/* 3. Sub-Pilihan Khusus Mode Silang */}
+              {seatingMethod === 'cross_grade' && (
+                <div className="space-y-2 pt-2 border-t border-slate-100">
+                  <label className="text-xs font-bold text-slate-700">Pola Duduk Bersilang:</label>
+                  <div className="space-y-1.5">
+                    <label className="flex items-center gap-2 p-2 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="seatingPattern"
+                        value="alternate_column"
+                        checked={seatingPattern === 'alternate_column'}
+                        onChange={() => setSeatingPattern('alternate_column')}
+                        className="accent-indigo-950"
+                      />
+                      <div>
+                        <p className="text-xs font-bold text-indigo-950">Kolom Berselang-Seling</p>
+                        <p className="text-[10px] text-slate-400">Meja bergantian per urutan kursi jenjang</p>
+                      </div>
+                    </label>
+                    <label className="flex items-center gap-2 p-2 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="seatingPattern"
+                        value="zigzag"
+                        checked={seatingPattern === 'zigzag'}
+                        onChange={() => setSeatingPattern('zigzag')}
+                        className="accent-indigo-950"
+                      />
+                      <div>
+                        <p className="text-xs font-bold text-indigo-950">Pola Catur / Zig-Zag</p>
+                        <p className="text-[10px] text-slate-400">Kanan-kiri & depan-belakang berbeda jenjang</p>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              {/* 4. Mode Pembagian Ruang (Kapasitas vs Jumlah Ruang) */}
               <div className="space-y-2 pt-2 border-t border-slate-100">
                 <label className="text-xs font-bold text-slate-700">Metode Pembagian Ruang:</label>
                 <div className="grid grid-cols-2 gap-2">
@@ -496,7 +924,7 @@ export default function DistribusiRuang() {
                     )}
                   >
                     <p className="font-black text-xs">Kapasitas Meja</p>
-                    <p className="text-[10px] text-slate-400 font-medium">Berdasarkan isi per ruang</p>
+                    <p className="text-[10px] text-slate-400 font-medium">Isi meja per ruang</p>
                   </button>
                   <button
                     type="button"
@@ -509,7 +937,7 @@ export default function DistribusiRuang() {
                     )}
                   >
                     <p className="font-black text-xs">Jumlah Ruang</p>
-                    <p className="text-[10px] text-slate-400 font-medium">Bagi rata ke N ruangan</p>
+                    <p className="text-[10px] text-slate-400 font-medium">Bagi rata ke N ruang</p>
                   </button>
                 </div>
 
@@ -565,47 +993,19 @@ export default function DistribusiRuang() {
                 )}
               </div>
 
-              {/* 3. Pola Duduk Silang */}
-              <div className="space-y-2 pt-2 border-t border-slate-100">
-                <label className="text-xs font-bold text-slate-700">Pola Duduk Bersilang:</label>
-                <div className="space-y-1.5">
-                  <label className="flex items-center gap-2 p-2 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="seatingPattern"
-                      value="alternate_column"
-                      checked={seatingPattern === 'alternate_column'}
-                      onChange={() => setSeatingPattern('alternate_column')}
-                      className="accent-indigo-950"
-                    />
-                    <div>
-                      <p className="text-xs font-bold text-indigo-950">Kolom Berselang-Seling</p>
-                      <p className="text-[10px] text-slate-400">Meja ganjil ({selectedGrades[0]}) - Meja genap ({selectedGrades[1]})</p>
-                    </div>
-                  </label>
-                  <label className="flex items-center gap-2 p-2 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="seatingPattern"
-                      value="zigzag"
-                      checked={seatingPattern === 'zigzag'}
-                      onChange={() => setSeatingPattern('zigzag')}
-                      className="accent-indigo-950"
-                    />
-                    <div>
-                      <p className="text-xs font-bold text-indigo-950">Pola Catur / Zig-Zag</p>
-                      <p className="text-[10px] text-slate-400">Kanan-kiri dan depan-belakang selalu berbeda jenjang</p>
-                    </div>
-                  </label>
-                </div>
-              </div>
-
               {/* Tombol Eksekusi */}
               <button
                 onClick={handleGenerateDistribution}
                 className="w-full bg-indigo-950 hover:bg-indigo-900 text-white py-3 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all"
               >
-                <Shuffle className="w-4 h-4" /> Bentuk & Acak Ruangan Sekarang
+                {seatingMethod === 'standard_class' && <ListOrdered className="w-4 h-4" />}
+                {seatingMethod === 'class_shuffled_seats' && <Users className="w-4 h-4" />}
+                {seatingMethod === 'cross_grade' && <Shuffle className="w-4 h-4" />}
+                {seatingMethod === 'full_random' && <Sparkles className="w-4 h-4" />}
+                {seatingMethod === 'standard_class' ? 'Bentuk Ruangan Standar (Urut Absen)' :
+                 seatingMethod === 'class_shuffled_seats' ? 'Bentuk Ruangan (Per Kelas Absen Acak)' :
+                 seatingMethod === 'full_random' ? 'Bentuk & Acak Ruangan Bebas' :
+                 'Bentuk & Acak Ruangan Bersilang'}
               </button>
             </div>
 
@@ -623,7 +1023,7 @@ export default function DistribusiRuang() {
                 <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-xs">
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Jumlah Ruangan</p>
                   <p className="text-xl font-black text-blue-600 mt-1">{rooms.length}</p>
-                  <p className="text-[10px] text-slate-400 mt-0.5">{rooms.length > 0 ? 'Ruang Ujian' : 'Belum diacak'}</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">{rooms.length > 0 ? 'Ruang Ujian' : 'Belum dibentuk'}</p>
                 </div>
                 <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-xs">
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Rata-rata/Ruang</p>
@@ -633,11 +1033,15 @@ export default function DistribusiRuang() {
                   <p className="text-[10px] text-slate-400 mt-0.5">Murid per ruang</p>
                 </div>
                 <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-xs">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status Acak</p>
-                  <p className="text-xl font-black text-purple-600 mt-1">
-                    {rooms.length > 0 ? 'Bersilang' : 'Standby'}
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Metode Penataan</p>
+                  <p className="text-xs font-black text-purple-600 mt-1.5 line-clamp-1">
+                    {seatingMethod === 'standard_class' ? 'Urut Rombel & Absen' :
+                     seatingMethod === 'class_shuffled_seats' ? 'Per Rombel (Absen Acak)' :
+                     seatingMethod === 'full_random' ? 'Acak Campur Bebas' : 'Silang Antar-Angkatan'}
                   </p>
-                  <p className="text-[10px] text-slate-400 mt-0.5">Fisher-Yates 100%</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">
+                    {rooms.length > 0 ? `${rooms.length} Ruang Siap` : 'Menunggu Eksekusi'}
+                  </p>
                 </div>
               </div>
 
@@ -647,7 +1051,7 @@ export default function DistribusiRuang() {
                   <Building2 className="w-12 h-12 text-slate-300 mx-auto mb-3" />
                   <h4 className="font-bold text-indigo-950 text-base">Belum Ada Ruangan yang Dibentuk</h4>
                   <p className="text-slate-400 text-xs max-w-md mx-auto mt-1">
-                    Silakan tentukan jenjang dan kapasitas meja di panel kiri, lalu klik <strong>"Bentuk & Acak Ruangan Sekarang"</strong>.
+                    Silakan tentukan jenjang, metode penataan meja, dan kapasitas di panel kiri, lalu klik tombol pembentukan ruang.
                   </p>
                 </div>
               ) : (
@@ -659,8 +1063,7 @@ export default function DistribusiRuang() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                     {rooms.map(room => {
-                      const countA = room.seats.filter(s => s.grade === selectedGrades[0]).length;
-                      const countB = room.seats.filter(s => s.grade === selectedGrades[1]).length;
+                      const presentGrades: string[] = (Array.from(new Set(room.seats.map(s => String(s.grade || 'OTHER')))) as string[]).sort();
 
                       return (
                         <div
@@ -678,14 +1081,25 @@ export default function DistribusiRuang() {
                               </span>
                             </div>
 
-                            <div className="flex items-center gap-1.5 text-xs text-slate-500 font-bold mb-3">
-                              <span className="bg-indigo-50 text-indigo-900 px-2 py-0.5 rounded text-[10px]">
-                                Kelas {selectedGrades[0]}: {countA}
-                              </span>
-                              <span className="bg-purple-50 text-purple-900 px-2 py-0.5 rounded text-[10px]">
-                                Kelas {selectedGrades[1]}: {countB}
-                              </span>
+                            {/* Badge Jenjang Dinamis (Termasuk Kelas XII) */}
+                            <div className="flex flex-wrap items-center gap-1 mb-2">
+                              {presentGrades.map(g => {
+                                const cnt = room.seats.filter(s => s.grade === g).length;
+                                const style = getGradeBadgeStyle(g);
+                                return (
+                                  <span key={g} className={cn("px-2 py-0.5 rounded text-[10px] font-black border", style.pill)}>
+                                    Kelas {g}: {cnt}
+                                  </span>
+                                );
+                              })}
                             </div>
+
+                            {/* Info Rombel */}
+                            {room.classes && room.classes.length > 0 && (
+                              <p className="text-[10px] text-slate-500 font-medium line-clamp-1 mb-3">
+                                Rombel: <span className="font-bold text-slate-700">{room.classes.join(', ')}</span>
+                              </p>
+                            )}
                           </div>
 
                           <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
@@ -1117,13 +1531,13 @@ export default function DistribusiRuang() {
               {/* Grid Meja 4 Kolom */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {selectedRoomDetail.seats.map(seat => {
-                  const isGradeA = seat.grade === selectedGrades[0];
+                  const style = getGradeBadgeStyle(seat.grade);
                   return (
                     <div
                       key={seat.seat_number}
                       className={cn(
                         "p-3 rounded-2xl border-2 flex flex-col justify-between transition-all",
-                        isGradeA ? "bg-indigo-50/40 border-indigo-300" : "bg-purple-50/40 border-purple-300"
+                        style.box, style.border
                       )}
                     >
                       <div className="flex items-center justify-between mb-1.5">
@@ -1132,7 +1546,7 @@ export default function DistribusiRuang() {
                         </span>
                         <span className={cn(
                           "text-[9px] font-black px-1.5 py-0.5 rounded text-white",
-                          isGradeA ? "bg-indigo-950" : "bg-purple-900"
+                          style.badge
                         )}>
                           Kelas {seat.grade}
                         </span>
