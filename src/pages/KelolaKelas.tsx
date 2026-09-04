@@ -19,6 +19,7 @@ import { useAlert } from '../context/AlertContext';
 import { getCollectionData, saveCollection } from '../lib/db';
 import { useSchool } from '../context/SchoolContext';
 import { CLASSES_LIST, MURIDS_LIST } from '../lib/seedAccounts';
+import { formatStudentName } from '../lib/utils';
 import SchoolSwitcher from '../components/SchoolSwitcher';
 
 export default function KelolaKelas() {
@@ -176,6 +177,28 @@ export default function KelolaKelas() {
     });
   };
 
+  // Precompute student counts per class for O(1) instantaneous lookup (Performance Optimization)
+  const studentCountMap = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const s of students) {
+      const k = String(s.nama_kelas || s.classId || '').trim().toLowerCase();
+      if (k) map[k] = (map[k] || 0) + 1;
+    }
+    return map;
+  }, [students]);
+
+  // Precompute counts per tingkat
+  const tingkatCounts = useMemo(() => {
+    let x = 0, xi = 0, xii = 0;
+    for (const c of classes) {
+      const name = c.name || c.nama_kelas || '';
+      if (name.startsWith('X-')) x++;
+      else if (name.startsWith('XI-')) xi++;
+      else if (name.startsWith('XII-')) xii++;
+    }
+    return { all: classes.length, X: x, XI: xi, XII: xii };
+  }, [classes]);
+
   // Grouping and filtering
   const sortedClasses = useMemo(() => {
     return [...classes].sort((a, b) => {
@@ -223,7 +246,7 @@ export default function KelolaKelas() {
     return list.sort((a, b) => {
       const nameA = (a.nama || a.name || '').trim().toLowerCase();
       const nameB = (b.nama || b.name || '').trim().toLowerCase();
-      return nameA.localeCompare(nameB);
+      return nameA.localeCompare(nameB, 'id');
     });
   }, [students, selectedClassDetail, studentSearchInModal]);
 
@@ -231,9 +254,11 @@ export default function KelolaKelas() {
     if (!newStudentName.trim() || !selectedClassDetail) return;
     const targetClassName = selectedClassDetail.name || selectedClassDetail.nama_kelas;
     const genNis = newStudentNis.trim() || `NIS-${Date.now().toString().slice(-6)}`;
+    const formattedName = formatStudentName(newStudentName.trim());
 
     const newStudentObj = {
-      nama: newStudentName.trim(),
+      nama: formattedName,
+      name: formattedName,
       nisn: genNis,
       nama_kelas: targetClassName,
       nomor_absen: String(modalClassStudents.length + 1),
@@ -282,7 +307,8 @@ export default function KelolaKelas() {
         }
 
         const newParsed = data.map((row: any, idx: number) => {
-          const sName = row['Nama'] || row['nama'] || row['Nama Murid'] || row['Nama Siswa'] || `Murid ${idx + 1}`;
+          const rawName = row['Nama'] || row['nama'] || row['Nama Murid'] || row['Nama Siswa'] || `Murid ${idx + 1}`;
+          const sName = formatStudentName(rawName);
           const sNis = String(row['NIS'] || row['NISN'] || `NIS${Date.now()}${idx}`);
           return {
             id: sNis,
@@ -377,7 +403,7 @@ export default function KelolaKelas() {
                 : 'text-slate-500 hover:text-slate-900'
             }`}
           >
-            Semua ({classes.length})
+            Semua ({tingkatCounts.all})
           </button>
           <button
             onClick={() => setTingkatFilter('X')}
@@ -387,7 +413,7 @@ export default function KelolaKelas() {
                 : 'text-slate-500 hover:text-slate-900'
             }`}
           >
-            Kelas X ({classes.filter(c => (c.name || c.nama_kelas || '').startsWith('X-')).length})
+            Kelas X ({tingkatCounts.X})
           </button>
           <button
             onClick={() => setTingkatFilter('XI')}
@@ -397,7 +423,7 @@ export default function KelolaKelas() {
                 : 'text-slate-500 hover:text-slate-900'
             }`}
           >
-            Kelas XI ({classes.filter(c => (c.name || c.nama_kelas || '').startsWith('XI-')).length})
+            Kelas XI ({tingkatCounts.XI})
           </button>
           <button
             onClick={() => setTingkatFilter('XII')}
@@ -407,7 +433,7 @@ export default function KelolaKelas() {
                 : 'text-slate-500 hover:text-slate-900'
             }`}
           >
-            Kelas XII ({classes.filter(c => (c.name || c.nama_kelas || '').startsWith('XII-')).length})
+            Kelas XII ({tingkatCounts.XII})
           </button>
         </div>
 
@@ -425,66 +451,57 @@ export default function KelolaKelas() {
 
       {/* Class Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        <AnimatePresence>
-          {filteredClasses.map((cls) => {
-            const className = cls.name || cls.nama_kelas || 'Kelas';
-            const studentCount = students.filter(s => {
-              const sKelas = String(s.nama_kelas || s.classId || '').trim().toLowerCase();
-              return sKelas === className.trim().toLowerCase();
-            }).length;
-            const tingkat = cls.tingkat || (className.startsWith('X-') ? 'X' : (className.startsWith('XI-') ? 'XI' : (className.startsWith('XII-') ? 'XII' : 'Umum')));
+        {filteredClasses.map((cls) => {
+          const className = cls.name || cls.nama_kelas || 'Kelas';
+          const studentCount = studentCountMap[className.trim().toLowerCase()] || 0;
+          const tingkat = cls.tingkat || (className.startsWith('X-') ? 'X' : (className.startsWith('XI-') ? 'XI' : (className.startsWith('XII-') ? 'XII' : 'Umum')));
 
-            return (
-              <motion.div
-                layout 
-                key={cls.$id || cls.id || className} 
-                initial={{ opacity: 0, scale: 0.95 }} 
-                animate={{ opacity: 1, scale: 1 }} 
-                exit={{ opacity: 0, scale: 0.95 }}
-                onClick={() => {
-                  setSelectedClassDetail(cls);
-                  setStudentSearchInModal('');
-                }}
-                className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm hover:shadow-xl transition-all group relative overflow-hidden cursor-pointer hover:border-indigo-200"
-              >
-                <div className="absolute top-0 right-0 p-3 z-20">
-                  <button 
-                    onClick={(e) => { 
-                      e.stopPropagation(); 
-                      deleteClass(cls.$id || cls.id, className); 
-                    }}
-                    className="p-2 text-rose-500 bg-rose-50 rounded-xl hover:bg-rose-100 transition-all border border-rose-100 opacity-0 group-hover:opacity-100"
-                    title="Hapus Kelas"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
+          return (
+            <div
+              key={cls.$id || cls.id || className}
+              onClick={() => {
+                setSelectedClassDetail(cls);
+                setStudentSearchInModal('');
+              }}
+              className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm hover:shadow-xl transition-all group relative overflow-hidden cursor-pointer hover:border-indigo-200"
+            >
+              <div className="absolute top-0 right-0 p-3 z-20">
+                <button 
+                  onClick={(e) => { 
+                    e.stopPropagation(); 
+                    deleteClass(cls.$id || cls.id, className); 
+                  }}
+                  className="p-2 text-rose-500 bg-rose-50 rounded-xl hover:bg-rose-100 transition-all border border-rose-100 opacity-0 group-hover:opacity-100"
+                  title="Hapus Kelas"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
 
-                <div className="flex items-center gap-3.5 mb-4">
-                  <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-950 flex items-center justify-center font-black text-base group-hover:bg-indigo-950 group-hover:text-white transition-all duration-300">
-                    <LayoutGrid className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-black text-indigo-950 tracking-tight">{className}</h3>
-                    <p className="text-slate-400 text-[11px] font-bold">Tingkat {tingkat}</p>
-                  </div>
+              <div className="flex items-center gap-3.5 mb-4">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-950 flex items-center justify-center font-black text-base group-hover:bg-indigo-950 group-hover:text-white transition-all duration-300">
+                  <LayoutGrid className="w-5 h-5" />
                 </div>
+                <div>
+                  <h3 className="text-lg font-black text-indigo-950 tracking-tight">{className}</h3>
+                  <p className="text-slate-400 text-[11px] font-bold">Tingkat {tingkat}</p>
+                </div>
+              </div>
 
-                <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-slate-600">
-                    <Users className="w-4 h-4 text-indigo-600" />
-                    <span className="text-xs font-bold">
-                      {studentCount > 0 ? `${studentCount} Murid` : 'Belum Ada Murid'}
-                    </span>
-                  </div>
-                  <div className="bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider">
-                    Aktif
-                  </div>
+              <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+                <div className="flex items-center gap-2 text-slate-600">
+                  <Users className="w-4 h-4 text-indigo-600" />
+                  <span className="text-xs font-bold">
+                    {studentCount > 0 ? `${studentCount} Murid` : 'Belum Ada Murid'}
+                  </span>
                 </div>
-              </motion.div>
-            );
-          })}
-        </AnimatePresence>
+                <div className="bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider">
+                  Aktif
+                </div>
+              </div>
+            </div>
+          );
+        })}
 
         {filteredClasses.length === 0 && (
           <div className="col-span-full py-16 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-center">
@@ -576,14 +593,18 @@ export default function KelolaKelas() {
         {selectedClassDetail && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <motion.div 
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
               onClick={() => setSelectedClassDetail(null)}
               className="absolute inset-0 bg-black/70"
             />
             <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 20 }} 
+              initial={{ opacity: 0, scale: 0.96, y: 10 }} 
               animate={{ opacity: 1, scale: 1, y: 0 }} 
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              exit={{ opacity: 0, scale: 0.96, y: 10 }}
+              transition={{ duration: 0.15, ease: 'easeOut' }}
               className="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl relative z-10 flex flex-col max-h-[90vh] overflow-hidden border border-slate-100"
             >
               {/* Modal Header */}
@@ -698,7 +719,7 @@ export default function KelolaKelas() {
                           </div>
                           <div>
                             <span className="font-bold text-indigo-950 text-xs block">
-                              {s.nama || s.name}
+                              {formatStudentName(s.nama || s.name)}
                             </span>
                             <span className="text-[10px] text-slate-400 font-medium">
                               NIS: {s.nisn || s.code} {s.nomor_absen ? `• Absen: ${s.nomor_absen}` : ''}

@@ -598,17 +598,5 @@
     "password_pin": "guru19*",
     "is_active": true,
     "foto_url": "https://ijnrugyooonuvngfrnpx.supabase.co/storage/v1/object/public/profile-photos/96717fbd-61c9-472a-bb00-c482bac41715_1784956700007.jpg"
-  },
-  {
-    "id": "2214b622-21ad-4002-85c1-96c8750dd58a",
-    "email": "tiarasakinah@sman19.sch.id",
-    "nama": "Tiara Sakinah Salsabila",
-    "nip": "tiarasakinah",
-    "role": "guru",
-    "sekolah": "SMAN 19 Bandung",
-    "mata_pelajaran": "Bahasa Inggris",
-    "password_pin": "guru19*",
-    "is_active": true,
-    "foto_url": ""
   }
 ]

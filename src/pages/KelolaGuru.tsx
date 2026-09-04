@@ -91,45 +91,19 @@ export default function KelolaGuru() {
             created_at: d.$createdAt
           };
         });
-        setTeachers(mapped);
-        localStorage.setItem('nineteen_teachers_cache', JSON.stringify(mapped));
+        const isTeacherValid = (t: any) => {
+          const email = (t.email || '').toLowerCase();
+          const name = (t.nama || '').toLowerCase();
+          return !email.includes('tiarasakinah') && !name.includes('tiara sakinah');
+        };
+
+        const validTeachers = mapped.filter(isTeacherValid);
+        setTeachers(validTeachers);
+        localStorage.setItem('nineteen_teachers_cache', JSON.stringify(validTeachers));
       } else {
-        const fallback = GURUS_LIST.map((g, idx) => ({
-          id: g.id || `guru-${idx + 1}`,
-          nama: formatTeacherName(g.nama),
-          nip: g.nip,
-          email: g.email,
-          mata_pelajaran: g.mata_pelajaran || 'Umum',
-          sekolah: g.sekolah || 'SMAN 19 Bandung',
-          is_active: true,
-          created_at: new Date().toISOString()
-        }));
-        setTeachers(fallback);
-        localStorage.setItem('nineteen_teachers_cache', JSON.stringify(fallback));
-      }
-    } catch (err: any) {
-      console.warn('Appwrite profiles fetch notice, using fallback seed/cache:', err.message);
-      const cached = localStorage.getItem('nineteen_teachers_cache');
-      if (cached) {
-        try {
-          const parsed = JSON.parse(cached);
-          const enriched = parsed.map((t: any) => {
-            const seedMatch = GURUS_LIST.find(g => 
-              (t.nip && g.nip && g.nip.trim() === t.nip.trim()) ||
-              (t.email && g.email && g.email.trim().toLowerCase() === t.email.trim().toLowerCase()) ||
-              (t.nama && g.nama && g.nama.trim().toLowerCase() === t.nama.trim().toLowerCase())
-            );
-            return {
-              ...t,
-              nama: formatTeacherName(t.nama || seedMatch?.nama || 'Guru'),
-              mata_pelajaran: (t.mata_pelajaran && t.mata_pelajaran !== 'Guru Mata Pelajaran' && t.mata_pelajaran !== 'Umum')
-                ? t.mata_pelajaran
-                : (seedMatch?.mata_pelajaran || t.mata_pelajaran || 'Umum')
-            };
-          });
-          setTeachers(enriched);
-        } catch {
-          const fallback = GURUS_LIST.map((g, idx) => ({
+        const fallback = GURUS_LIST
+          .filter(g => !(g.email || '').toLowerCase().includes('tiarasakinah'))
+          .map((g, idx) => ({
             id: g.id || `guru-${idx + 1}`,
             nama: formatTeacherName(g.nama),
             nip: g.nip,
@@ -139,19 +113,65 @@ export default function KelolaGuru() {
             is_active: true,
             created_at: new Date().toISOString()
           }));
+        setTeachers(fallback);
+        localStorage.setItem('nineteen_teachers_cache', JSON.stringify(fallback));
+      }
+    } catch (err: any) {
+      console.warn('Appwrite profiles fetch notice, using fallback seed/cache:', err.message);
+      const isTeacherValid = (t: any) => {
+        const email = (t.email || '').toLowerCase();
+        const name = (t.nama || '').toLowerCase();
+        return !email.includes('tiarasakinah') && !name.includes('tiara sakinah');
+      };
+      const cached = localStorage.getItem('nineteen_teachers_cache');
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          const enriched = parsed
+            .filter(isTeacherValid)
+            .map((t: any) => {
+              const seedMatch = GURUS_LIST.find(g => 
+                (t.nip && g.nip && g.nip.trim() === t.nip.trim()) ||
+                (t.email && g.email && g.email.trim().toLowerCase() === t.email.trim().toLowerCase()) ||
+                (t.nama && g.nama && g.nama.trim().toLowerCase() === t.nama.trim().toLowerCase())
+              );
+              return {
+                ...t,
+                nama: formatTeacherName(t.nama || seedMatch?.nama || 'Guru'),
+                mata_pelajaran: (t.mata_pelajaran && t.mata_pelajaran !== 'Guru Mata Pelajaran' && t.mata_pelajaran !== 'Umum')
+                  ? t.mata_pelajaran
+                  : (seedMatch?.mata_pelajaran || t.mata_pelajaran || 'Umum')
+              };
+            });
+          setTeachers(enriched);
+        } catch {
+          const fallback = GURUS_LIST
+            .filter(g => !(g.email || '').toLowerCase().includes('tiarasakinah'))
+            .map((g, idx) => ({
+              id: g.id || `guru-${idx + 1}`,
+              nama: formatTeacherName(g.nama),
+              nip: g.nip,
+              email: g.email,
+              mata_pelajaran: g.mata_pelajaran || 'Umum',
+              sekolah: g.sekolah || 'SMAN 19 Bandung',
+              is_active: true,
+              created_at: new Date().toISOString()
+            }));
           setTeachers(fallback);
         }
       } else {
-        const fallback = GURUS_LIST.map((g, idx) => ({
-          id: g.id || `guru-${idx + 1}`,
-          nama: formatTeacherName(g.nama),
-          nip: g.nip,
-          email: g.email,
-          mata_pelajaran: g.mata_pelajaran || 'Umum',
-          sekolah: g.sekolah || 'SMAN 19 Bandung',
-          is_active: true,
-          created_at: new Date().toISOString()
-        }));
+        const fallback = GURUS_LIST
+          .filter(g => !(g.email || '').toLowerCase().includes('tiarasakinah'))
+          .map((g, idx) => ({
+            id: g.id || `guru-${idx + 1}`,
+            nama: formatTeacherName(g.nama),
+            nip: g.nip,
+            email: g.email,
+            mata_pelajaran: g.mata_pelajaran || 'Umum',
+            sekolah: g.sekolah || 'SMAN 19 Bandung',
+            is_active: true,
+            created_at: new Date().toISOString()
+          }));
         setTeachers(fallback);
       }
     } finally {
