@@ -583,12 +583,12 @@ export default function StudentExam() {
             <GraduationCap className="w-8 h-8" />
           </div>
           <h2 className="text-2xl font-black text-indigo-950">{exam?.title || 'Memuat Judul...'}</h2>
-          <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-2 px-6 py-2 bg-slate-50 rounded-xl inline-block">Siswa Silakan Masuk</p>
+          <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-2 px-6 py-2 bg-slate-50 rounded-xl inline-block">Murid Silakan Masuk</p>
         </div>
 
         <form onSubmit={handleJoin} className="space-y-6">
           <div className="space-y-2">
-            <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Kode Unik Siswa</label>
+            <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Kode Unik Murid / NISN</label>
             <div className="relative">
               <input 
                 type="text" required
@@ -679,7 +679,7 @@ export default function StudentExam() {
             </div>
             <div>
               <h1 className="font-black text-indigo-950 leading-none uppercase tracking-tight">{exam?.title}</h1>
-              <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase">Siswa: {studentData.nama} • {studentData.kelas}</p>
+              <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase">Murid: {studentData.nama} • {studentData.kelas}</p>
             </div>
           </div>
           <div className="flex items-center gap-6">

@@ -57,7 +57,7 @@ export default function Analisis() {
 
   // Chart Data
   const chartData = results.slice(-10).map((r, i) => ({
-    name: (r.student?.nama || r.student?.name)?.split(' ')[0] || `Siswa ${i+1}`,
+    name: (r.student?.nama || r.student?.name)?.split(' ')[0] || `Murid ${i+1}`,
     skor: r.score || 0
   }));
 
@@ -101,7 +101,7 @@ export default function Analisis() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-8">
             <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm">
-              <h3 className="text-lg font-bold text-indigo-950 mb-8">Tren Nilai Siswa (10 Terakhir)</h3>
+              <h3 className="text-lg font-bold text-indigo-950 mb-8">Tren Nilai Murid (10 Terakhir)</h3>
               <div className="h-[300px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={chartData}>
@@ -219,7 +219,7 @@ export default function Analisis() {
           </div>
           <h3 className="text-2xl font-bold text-indigo-950">Data Analisis Menunggu</h3>
           <p className="text-slate-400 mt-2 max-w-sm mx-auto font-medium text-sm">
-            Tabel dan grafik statistik akan muncul secara otomatis setelah ada siswa yang mengumpulkan jawaban via GAS.
+            Tabel dan grafik statistik akan muncul secara otomatis setelah ada murid yang mengumpulkan jawaban via GAS.
           </p>
         </div>
       )}

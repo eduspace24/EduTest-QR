@@ -309,7 +309,7 @@ export default function Profil() {
                     <div className="flex items-start gap-2 bg-indigo-950/5 p-3 rounded-xl border border-indigo-950/5">
                       <HelpCircle className="w-3.5 h-3.5 text-indigo-950 mt-0.5 shrink-0" />
                       <p className="text-[10px] text-indigo-950/70 font-medium leading-relaxed">
-                        Link ini diperlukan agar jawaban ujian siswa bisa terkirim langsung ke Google Drive Anda secara aman.
+                        Link ini diperlukan agar jawaban ujian murid bisa terkirim langsung ke Google Drive Anda secara aman.
                       </p>
                     </div>
                   </div>
@@ -558,7 +558,7 @@ function handleSubmission(e) {
       DriveApp.getRootFolder().removeFile(ssFile);
       
       var sheet = ss.getSheets()[0];
-      sheet.appendRow(["Timestamp", "Nama Siswa", "Kelas", "Judul Ujian", "Skor", "Waktu Mulai", "Waktu Selesai"]);
+      sheet.appendRow(["Timestamp", "Nama Murid", "Kelas", "Judul Ujian", "Skor", "Waktu Mulai", "Waktu Selesai"]);
       sheet.getRange("A1:G1").setFontWeight("bold").setBackground("#f3f3f3");
       sheet.setFrozenRows(1);
     }

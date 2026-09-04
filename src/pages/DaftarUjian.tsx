@@ -40,7 +40,7 @@ export default function DaftarUjian() {
     
     showAlert({
       title: 'Link Ujian',
-      message: `Link: ${link}\n\nLink telah disalin ke clipboard. Bagikan ke siswa Anda.`,
+      message: `Link: ${link}\n\nLink telah disalin ke clipboard. Bagikan ke murid Anda.`,
       type: 'success'
     });
   };

@@ -18,7 +18,10 @@ import {
   CheckCircle2, 
   RefreshCw,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import React from 'react';
@@ -42,6 +45,8 @@ function getPageNumbers(current: number, total: number): (number | string)[] {
   return [1, '...', current - 1, current, current + 1, '...', total];
 }
 
+export type SortOption = 'name_asc' | 'name_desc' | 'nis_asc' | 'nis_desc' | 'class_asc' | 'class_desc';
+
 export default function KelolaSiswa() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [students, setStudents] = useState<any[]>(MURIDS_LIST);
@@ -49,6 +54,7 @@ export default function KelolaSiswa() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClass, setSelectedClass] = useState('all');
+  const [sortBy, setSortBy] = useState<SortOption>('name_asc');
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 20;
   const [showAddModal, setShowAddModal] = useState(false);
@@ -257,7 +263,7 @@ export default function KelolaSiswa() {
   }, [searchTerm, selectedClass]);
 
   const filteredStudents = useMemo(() => {
-    return students.filter(s => {
+    const list = students.filter(s => {
       const nameStr = (s.nama || s.name || '').toLowerCase();
       const nisnStr = (s.nisn || s.code || '').toLowerCase();
       const classStr = String(s.nama_kelas || s.classId || '').trim();
@@ -272,7 +278,39 @@ export default function KelolaSiswa() {
 
       return matchSearch && matchClass;
     });
-  }, [students, searchTerm, selectedClass]);
+
+    return list.sort((a, b) => {
+      const nameA = (a.nama || a.name || '').trim().toLowerCase();
+      const nameB = (b.nama || b.name || '').trim().toLowerCase();
+      const nisA = String(a.nisn || a.code || '').trim();
+      const nisB = String(b.nisn || b.code || '').trim();
+      const classA = String(a.nama_kelas || a.classId || '').trim();
+      const classB = String(b.nama_kelas || b.classId || '').trim();
+
+      if (sortBy === 'name_asc') {
+        return nameA.localeCompare(nameB);
+      }
+      if (sortBy === 'name_desc') {
+        return nameB.localeCompare(nameA);
+      }
+      if (sortBy === 'nis_asc') {
+        return nisA.localeCompare(nisB, undefined, { numeric: true });
+      }
+      if (sortBy === 'nis_desc') {
+        return nisB.localeCompare(nisA, undefined, { numeric: true });
+      }
+      if (sortBy === 'class_asc' || sortBy === 'class_desc') {
+        const rank = (k: string) => k.startsWith('X-') ? 1 : (k.startsWith('XI-') ? 2 : (k.startsWith('XII-') ? 3 : 4));
+        const rA = rank(classA);
+        const rB = rank(classB);
+        if (rA !== rB) return sortBy === 'class_asc' ? rA - rB : rB - rA;
+        const clsComp = classA.localeCompare(classB);
+        if (clsComp !== 0) return sortBy === 'class_asc' ? clsComp : -clsComp;
+        return nameA.localeCompare(nameB);
+      }
+      return nameA.localeCompare(nameB);
+    });
+  }, [students, searchTerm, selectedClass, sortBy]);
 
   const totalItems = filteredStudents.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / ITEMS_PER_PAGE));
@@ -342,8 +380,8 @@ export default function KelolaSiswa() {
         </div>
       </div>
 
-      {/* Filter and Search */}
-      <div className="flex flex-col sm:flex-row gap-4">
+      {/* Filter, Sort, and Search */}
+      <div className="flex flex-col md:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
@@ -355,16 +393,34 @@ export default function KelolaSiswa() {
           />
         </div>
 
-        <select
-          value={selectedClass}
-          onChange={(e) => setSelectedClass(e.target.value)}
-          className="px-4 py-3.5 bg-white rounded-2xl border border-slate-200 outline-none text-slate-700 font-bold text-sm focus:border-indigo-950 transition-all"
-        >
-          <option value="all">Semua Kelas ({students.length} Murid)</option>
-          {distinctClassNames.map(cn => (
-            <option key={cn} value={cn}>Kelas {cn}</option>
-          ))}
-        </select>
+        <div className="flex flex-wrap sm:flex-nowrap items-center gap-3">
+          <select
+            value={selectedClass}
+            onChange={(e) => setSelectedClass(e.target.value)}
+            className="flex-1 sm:flex-none px-4 py-3.5 bg-white rounded-2xl border border-slate-200 outline-none text-slate-700 font-bold text-sm focus:border-indigo-950 transition-all"
+          >
+            <option value="all">Semua Kelas ({students.length} Murid)</option>
+            {distinctClassNames.map(cn => (
+              <option key={cn} value={cn}>Kelas {cn}</option>
+            ))}
+          </select>
+
+          <div className="flex items-center gap-2 px-4 py-3.5 bg-white rounded-2xl border border-slate-200">
+            <ArrowUpDown className="w-4 h-4 text-slate-400 shrink-0" />
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as SortOption)}
+              className="bg-transparent outline-none text-slate-700 font-bold text-sm cursor-pointer"
+            >
+              <option value="name_asc">Abjad (A - Z)</option>
+              <option value="name_desc">Abjad (Z - A)</option>
+              <option value="nis_asc">NIS (0 - 9)</option>
+              <option value="nis_desc">NIS (9 - 0)</option>
+              <option value="class_asc">Kelas (X - XII)</option>
+              <option value="class_desc">Kelas (XII - X)</option>
+            </select>
+          </div>
+        </div>
       </div>
 
       {/* Table Card */}
@@ -389,9 +445,36 @@ export default function KelolaSiswa() {
             <table className="w-full">
               <thead>
                 <tr className="bg-slate-50/80 border-b border-slate-100">
-                  <th className="px-6 py-4 text-left text-[11px] font-black text-slate-400 uppercase tracking-wider">Nama & No Absen</th>
-                  <th className="px-6 py-4 text-left text-[11px] font-black text-slate-400 uppercase tracking-wider">NIS (Username)</th>
-                  <th className="px-6 py-4 text-left text-[11px] font-black text-slate-400 uppercase tracking-wider">Kelas</th>
+                  <th 
+                    onClick={() => setSortBy(prev => prev === 'name_asc' ? 'name_desc' : 'name_asc')}
+                    className="px-6 py-4 text-left text-[11px] font-black text-slate-500 uppercase tracking-wider cursor-pointer select-none hover:text-indigo-950 transition-colors"
+                    title="Klik untuk mengubah urutan nama"
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span>Nama & No Absen</span>
+                      {sortBy === 'name_asc' ? <ArrowUp className="w-3.5 h-3.5 text-indigo-600" /> : sortBy === 'name_desc' ? <ArrowDown className="w-3.5 h-3.5 text-indigo-600" /> : <ArrowUpDown className="w-3 h-3 text-slate-300" />}
+                    </div>
+                  </th>
+                  <th 
+                    onClick={() => setSortBy(prev => prev === 'nis_asc' ? 'nis_desc' : 'nis_asc')}
+                    className="px-6 py-4 text-left text-[11px] font-black text-slate-500 uppercase tracking-wider cursor-pointer select-none hover:text-indigo-950 transition-colors"
+                    title="Klik untuk mengubah urutan NIS"
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span>NIS (Username)</span>
+                      {sortBy === 'nis_asc' ? <ArrowUp className="w-3.5 h-3.5 text-indigo-600" /> : sortBy === 'nis_desc' ? <ArrowDown className="w-3.5 h-3.5 text-indigo-600" /> : <ArrowUpDown className="w-3 h-3 text-slate-300" />}
+                    </div>
+                  </th>
+                  <th 
+                    onClick={() => setSortBy(prev => prev === 'class_asc' ? 'class_desc' : 'class_asc')}
+                    className="px-6 py-4 text-left text-[11px] font-black text-slate-500 uppercase tracking-wider cursor-pointer select-none hover:text-indigo-950 transition-colors"
+                    title="Klik untuk mengubah urutan Kelas"
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span>Kelas</span>
+                      {sortBy === 'class_asc' ? <ArrowUp className="w-3.5 h-3.5 text-indigo-600" /> : sortBy === 'class_desc' ? <ArrowDown className="w-3.5 h-3.5 text-indigo-600" /> : <ArrowUpDown className="w-3 h-3 text-slate-300" />}
+                    </div>
+                  </th>
                   <th className="px-6 py-4 text-center text-[11px] font-black text-slate-400 uppercase tracking-wider">Password Login</th>
                   <th className="px-6 py-4 text-right text-[11px] font-black text-slate-400 uppercase tracking-wider">Aksi & Kartu</th>
                 </tr>

@@ -73,7 +73,7 @@ export default function HasilUjian({ isEmbedded = false }: { isEmbedded?: boolea
 
   const exportToExcel = () => {
     const dataToExport = filteredResults.map(res => ({
-      Siswa: res.student?.nama,
+      Murid: res.student?.nama,
       Kelas: res.student?.kelas,
       Ujian: res.examTitle,
       Waktu: new Date(res.timestamp).toLocaleString(),
@@ -100,7 +100,7 @@ export default function HasilUjian({ isEmbedded = false }: { isEmbedded?: boolea
 
     autoTable(doc, {
       startY: 25,
-      head: [['Siswa', 'Kelas', 'Ujian', 'Waktu', 'Skor']],
+      head: [['Murid', 'Kelas', 'Ujian', 'Waktu', 'Skor']],
       body: tableData,
     });
 
@@ -125,7 +125,7 @@ export default function HasilUjian({ isEmbedded = false }: { isEmbedded?: boolea
     <div className="flex flex-col items-center justify-center py-20 bg-slate-50 rounded-[2.5rem] border-2 border-dashed border-slate-200">
       <RefreshCw className="w-12 h-12 text-slate-300 mb-4 animate-spin-slow" />
       <h3 className="text-xl font-black text-indigo-950">Belum ada hasil ujian</h3>
-      <p className="text-slate-400 text-sm max-w-sm text-center mt-2">Sinkronkan data dengan tombol "Tarik Data Terbaru" atau tunggu hingga siswa selesai mengerjakan ujian.</p>
+      <p className="text-slate-400 text-sm max-w-sm text-center mt-2">Sinkronkan data dengan tombol "Tarik Data Terbaru" atau tunggu hingga murid selesai mengerjakan ujian.</p>
       <button 
         onClick={handleRefresh}
         className="mt-6 bg-indigo-950 text-white px-8 py-3 rounded-2xl font-black text-xs shadow-xl shadow-indigo-950/20 active:scale-95 transition-all"
@@ -141,7 +141,7 @@ export default function HasilUjian({ isEmbedded = false }: { isEmbedded?: boolea
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div>
             <h2 className="tracking-tight">Hasil Ujian</h2>
-            <p className="text-slate-500 text-sm font-medium">Laporan lengkap performa siswa pada setiap sesi ujian.</p>
+            <p className="text-slate-500 text-sm font-medium">Laporan lengkap performa murid pada setiap sesi ujian.</p>
           </div>
           <div className="flex flex-col sm:flex-row gap-3">
             <button 
@@ -174,7 +174,7 @@ export default function HasilUjian({ isEmbedded = false }: { isEmbedded?: boolea
         <div className="relative flex-1 group">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
           <input 
-            type="text" placeholder="Cari nama siswa atau judul ujian..."
+            type="text" placeholder="Cari nama murid atau judul ujian..."
             className="w-full pl-12 pr-4 py-4 rounded-2xl border border-slate-200 bg-white outline-none focus:ring-4 focus:ring-indigo-950/5 transition-all font-medium"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -187,7 +187,7 @@ export default function HasilUjian({ isEmbedded = false }: { isEmbedded?: boolea
           <table className="w-full">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-100">
-                <th className="px-8 py-5 text-left text-[11px] font-black text-slate-400 uppercase tracking-widest">Siswa</th>
+                <th className="px-8 py-5 text-left text-[11px] font-black text-slate-400 uppercase tracking-widest">Murid</th>
                 <th className="px-8 py-5 text-left text-[11px] font-black text-slate-400 uppercase tracking-widest">Ujian</th>
                 <th className="px-8 py-5 text-left text-[11px] font-black text-slate-400 uppercase tracking-widest">Waktu Kerjain</th>
                 <th className="px-8 py-5 text-left text-[11px] font-black text-slate-400 uppercase tracking-widest">Status</th>
@@ -229,7 +229,7 @@ export default function HasilUjian({ isEmbedded = false }: { isEmbedded?: boolea
               </div>
               <h3 className="text-xl font-bold text-indigo-950">Belum Ada Hasil</h3>
               <p className="text-slate-400 mt-2 max-w-xs mx-auto font-medium">
-                Hasil pengerjaan siswa akan muncul di sini setelah sinkronisasi Drive berhasil.
+                Hasil pengerjaan murid akan muncul di sini setelah sinkronisasi Drive berhasil.
               </p>
             </div>
           )}

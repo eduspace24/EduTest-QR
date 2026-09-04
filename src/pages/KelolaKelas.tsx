@@ -153,7 +153,7 @@ export default function KelolaKelas() {
   const deleteClass = (id: string, name: string) => {
     showAlert({
       title: 'Hapus Kelas?',
-      message: `Apakah Anda yakin ingin menghapus kelas ${name}? Data siswa yang berada di kelas ini tidak akan terhapus, namun tidak lagi memiliki kelas.`,
+      message: `Apakah Anda yakin ingin menghapus kelas ${name}? Data murid yang berada di kelas ini tidak akan terhapus, namun tidak lagi memiliki kelas.`,
       type: 'confirm',
       confirmText: 'Ya, Hapus',
       onConfirm: async () => {
@@ -204,13 +204,13 @@ export default function KelolaKelas() {
     });
   }, [sortedClasses, searchFilter, tingkatFilter]);
 
-  // Students in selected modal class
+  // Students in selected modal class - SORTED ALPHABETICALLY BY NAME (A-Z)
   const modalClassStudents = useMemo(() => {
     if (!selectedClassDetail) return [];
     const targetName = (selectedClassDetail.name || selectedClassDetail.nama_kelas || '').trim().toLowerCase();
     if (!targetName) return [];
 
-    return students.filter(s => {
+    const list = students.filter(s => {
       const sKelas = String(s.nama_kelas || s.classId || '').trim().toLowerCase();
       if (sKelas !== targetName) return false;
 
@@ -218,6 +218,12 @@ export default function KelolaKelas() {
       const sName = (s.nama || s.name || '').toLowerCase();
       const sNis = (s.nisn || s.code || '').toLowerCase();
       return sName.includes(studentSearchInModal.toLowerCase()) || sNis.includes(studentSearchInModal.toLowerCase());
+    });
+
+    return list.sort((a, b) => {
+      const nameA = (a.nama || a.name || '').trim().toLowerCase();
+      const nameB = (b.nama || b.name || '').trim().toLowerCase();
+      return nameA.localeCompare(nameB);
     });
   }, [students, selectedClassDetail, studentSearchInModal]);
 
@@ -276,7 +282,7 @@ export default function KelolaKelas() {
         }
 
         const newParsed = data.map((row: any, idx: number) => {
-          const sName = row['Nama'] || row['nama'] || row['Nama Siswa'] || `Siswa ${idx + 1}`;
+          const sName = row['Nama'] || row['nama'] || row['Nama Murid'] || row['Nama Siswa'] || `Murid ${idx + 1}`;
           const sNis = String(row['NIS'] || row['NISN'] || `NIS${Date.now()}${idx}`);
           return {
             id: sNis,
@@ -297,7 +303,7 @@ export default function KelolaKelas() {
 
         showAlert({ 
           title: 'Berhasil Impor', 
-          message: `${newParsed.length} siswa berhasil diimpor ke kelas ${targetClassName}.`, 
+          message: `${newParsed.length} murid berhasil diimpor ke kelas ${targetClassName}.`, 
           type: 'success' 
         });
       } catch (err) {
@@ -316,15 +322,15 @@ export default function KelolaKelas() {
     ];
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Template Siswa');
-    XLSX.writeFile(wb, 'Template_Impor_Siswa_Kelas.xlsx');
+    XLSX.utils.book_append_sheet(wb, ws, 'Template Murid');
+    XLSX.writeFile(wb, 'Template_Impor_Murid_Kelas.xlsx');
   };
 
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] gap-3">
         <Loader2 className="w-10 h-10 text-indigo-950 animate-spin" />
-        <p className="text-slate-400 text-sm font-bold">Memuat data kelas & siswa...</p>
+        <p className="text-slate-400 text-sm font-bold">Memuat data kelas & murid...</p>
       </div>
     );
   }
@@ -346,7 +352,7 @@ export default function KelolaKelas() {
             </span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-black text-indigo-950 mt-1">Kelola Kelas</h1>
-          <p className="text-slate-500 text-sm font-medium">Daftar kelas aktif, rombongan belajar, dan rincian siswa per kelas.</p>
+          <p className="text-slate-500 text-sm font-medium">Daftar kelas aktif, rombongan belajar, dan rincian murid per kelas.</p>
         </div>
         
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
@@ -468,7 +474,7 @@ export default function KelolaKelas() {
                   <div className="flex items-center gap-2 text-slate-600">
                     <Users className="w-4 h-4 text-indigo-600" />
                     <span className="text-xs font-bold">
-                      {studentCount > 0 ? `${studentCount} Siswa` : 'Belum Ada Siswa'}
+                      {studentCount > 0 ? `${studentCount} Murid` : 'Belum Ada Murid'}
                     </span>
                   </div>
                   <div className="bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider">
@@ -565,7 +571,7 @@ export default function KelolaKelas() {
         )}
       </AnimatePresence>
 
-      {/* Modal Detail & Siswa dalam Kelas */}
+      {/* Modal Detail & Murid dalam Kelas */}
       <AnimatePresence>
         {selectedClassDetail && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -591,7 +597,7 @@ export default function KelolaKelas() {
                       Kelas {selectedClassDetail.name || selectedClassDetail.nama_kelas}
                     </h3>
                     <p className="text-slate-400 text-xs font-bold">
-                      {modalClassStudents.length} Siswa Terdaftar di Kelas Ini
+                      {modalClassStudents.length} Murid Terdaftar di Kelas Ini
                     </p>
                   </div>
                 </div>
@@ -605,11 +611,11 @@ export default function KelolaKelas() {
 
               {/* Modal Body */}
               <div className="flex-1 overflow-y-auto p-6 sm:p-8 space-y-6">
-                {/* Form Tambah Siswa Cepat ke Kelas Ini */}
+                {/* Form Tambah Murid Cepat ke Kelas Ini */}
                 <div className="bg-slate-50 p-5 rounded-3xl border border-slate-100 space-y-3">
                   <div className="flex items-center justify-between">
                     <p className="text-[10px] font-black text-indigo-950 uppercase tracking-widest flex items-center gap-1.5">
-                      <Plus className="w-3.5 h-3.5 text-indigo-600" /> Tambah Siswa ke Kelas Ini
+                      <Plus className="w-3.5 h-3.5 text-indigo-600" /> Tambah Murid ke Kelas Ini
                     </p>
                     <div className="flex items-center gap-2">
                       <button 
@@ -637,7 +643,7 @@ export default function KelolaKelas() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     <input 
                       type="text" 
-                      placeholder="Nama Lengkap Siswa..."
+                      placeholder="Nama Lengkap Murid..."
                       className="px-4 py-2.5 rounded-xl border border-slate-200 bg-white font-bold text-xs outline-none focus:border-indigo-950 transition-all"
                       value={newStudentName} 
                       onChange={(e) => setNewStudentName(e.target.value)}
@@ -661,17 +667,17 @@ export default function KelolaKelas() {
                   </div>
                 </div>
 
-                {/* Filter Search Siswa dalam Modal */}
+                {/* Filter Search Murid dalam Modal */}
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-                      <Users className="w-3.5 h-3.5" /> Daftar Siswa ({modalClassStudents.length})
+                      <Users className="w-3.5 h-3.5" /> Daftar Murid ({modalClassStudents.length})
                     </p>
                     <div className="relative w-48">
                       <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                       <input 
                         type="text"
-                        placeholder="Cari siswa..."
+                        placeholder="Cari murid..."
                         value={studentSearchInModal}
                         onChange={(e) => setStudentSearchInModal(e.target.value)}
                         className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-indigo-950"
@@ -679,7 +685,7 @@ export default function KelolaKelas() {
                     </div>
                   </div>
 
-                  {/* List Siswa */}
+                  {/* List Murid */}
                   <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
                     {modalClassStudents.map((s, idx) => (
                       <div 
@@ -711,7 +717,7 @@ export default function KelolaKelas() {
 
                     {modalClassStudents.length === 0 && (
                       <div className="py-10 text-center text-slate-400 font-bold text-xs bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
-                        Belum ada siswa yang terdaftar di kelas ini.
+                        Belum ada murid yang terdaftar di kelas ini.
                       </div>
                     )}
                   </div>

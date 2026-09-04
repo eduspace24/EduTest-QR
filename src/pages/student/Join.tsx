@@ -55,7 +55,7 @@ export default function StudentJoin() {
           <div className="bg-indigo-950 w-16 h-16 rounded-2xl flex items-center justify-center text-white mb-4 shadow-lg">
             <GraduationCap className="w-8 h-8" />
           </div>
-          <h1 className="text-3xl font-black text-indigo-950 tracking-tight">Edu<span className="text-blue-600">Test</span> <span className="text-blue-400 text-xl">Siswa</span></h1>
+          <h1 className="text-3xl font-black text-indigo-950 tracking-tight">Edu<span className="text-blue-600">Test</span> <span className="text-blue-400 text-xl">Murid</span></h1>
           <p className="text-slate-500 text-sm font-medium mt-1">Lengkapi identitas untuk memulai ujian.</p>
         </div>
 

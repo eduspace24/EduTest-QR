@@ -1455,7 +1455,7 @@ export default function BankSoal() {
                     <label className="text-sm font-bold text-slate-700">Urutan yang Benar (Dari Atas ke Bawah)</label>
                     <span className="text-[10px] text-blue-600 font-bold bg-blue-50 px-2 py-0.5 rounded-md">Urutan Tahap 1 s.d Akhir</span>
                   </div>
-                  <p className="text-[11px] text-slate-400">Tuliskan tahapan dalam urutan kronologi yang benar. Siswa akan menerima kartu-kartu ini dalam urutan teracak dan diminta mengurutkannya.</p>
+                  <p className="text-[11px] text-slate-400">Tuliskan tahapan dalam urutan kronologi yang benar. Murid akan menerima kartu-kartu ini dalam urutan teracak dan diminta mengurutkannya.</p>
                   {[
                     { key: 'option_a', label: 'Tahap 1' },
                     { key: 'option_b', label: 'Tahap 2' },
@@ -1480,7 +1480,7 @@ export default function BankSoal() {
               {newQuestion.type === 'Essay' && (
                 <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl">
                   <p className="text-xs font-bold text-slate-500 italic">
-                    📝 Soal bertipe <b>Essay (Uraian)</b> tidak memerlukan kunci opsi pilihan ganda. Siswa akan diberikan kotak pengetikan jawaban terbuka.
+                    📝 Soal bertipe <b>Essay (Uraian)</b> tidak memerlukan kunci opsi pilihan ganda. Murid akan diberikan kotak pengetikan jawaban terbuka.
                   </p>
                 </div>
               )}

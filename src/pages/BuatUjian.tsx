@@ -574,7 +574,7 @@ export default function BuatUjian() {
                     <KeyRound className="text-emerald-600 w-4 h-4 shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="text-[10px] font-bold text-emerald-700">Kode Unlock</p>
-                      <p className="text-[8px] text-emerald-500 leading-tight">Berikan kode ini ke siswa yang terblokir agar bisa melanjutkan.</p>
+                      <p className="text-[8px] text-emerald-500 leading-tight">Berikan kode ini ke murid yang terblokir agar bisa melanjutkan.</p>
                     </div>
                     <span className="px-3 py-1.5 bg-white rounded-lg border border-emerald-200 text-xs font-black text-emerald-700 font-mono tracking-widest select-all">
                       {formData.unlock_code || '-'}
@@ -843,7 +843,7 @@ export default function BuatUjian() {
                         onChange={(e) => updateQuestion(q.id, 'correct_answer', e.target.value)}
                       />
                       <p className="text-[10px] text-slate-400 italic">
-                        💡 Siswa akan mengetik jawaban di kotak isian langsung. Gunakan tanda <code className="bg-slate-100 px-1 font-bold">|</code> untuk beberapa variasi jawaban benar.
+                        💡 Murid akan mengetik jawaban di kotak isian langsung. Gunakan tanda <code className="bg-slate-100 px-1 font-bold">|</code> untuk beberapa variasi jawaban benar.
                       </p>
                     </div>
                   )}
@@ -979,7 +979,7 @@ export default function BuatUjian() {
             </div>
             <div>
               <h3 className="text-xl font-bold text-indigo-950 tracking-tight">Ujian Berhasil Diterbitkan!</h3>
-              <p className="text-slate-500 text-sm mt-1">Salin link di bawah ini dan bagikan ke siswa Anda.</p>
+              <p className="text-slate-500 text-sm mt-1">Salin link di bawah ini dan bagikan ke murid Anda.</p>
             </div>
             <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex items-center gap-3">
               <div className="bg-indigo-950 p-1.5 rounded-lg shrink-0">
