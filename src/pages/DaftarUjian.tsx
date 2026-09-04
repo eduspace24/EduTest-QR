@@ -19,18 +19,16 @@ import {
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { getOrCreateRootFolder, saveJsonToDrive, readJsonFromDrive, deleteFileFromDrive } from '../lib/googleDrive';
 import { useAlert } from '../context/AlertContext';
-import { useGoogleDrive } from '../context/GoogleDriveContext';
 import { TableSkeleton } from '../components/Skeleton';
-import { getCollection, getCollectionData, saveCollection } from '../lib/db';
+import { getCollectionData, saveCollection } from '../lib/db';
+import { supabase } from '../lib/supabase';
 
 export default function DaftarUjian() {
   const navigate = useNavigate();
   const [exams, setExams] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const { isInitialized, rootFolderId, isSyncing } = useGoogleDrive();
   const { showAlert } = useAlert();
 
   const showShareLink = (exam: any) => {
@@ -48,60 +46,38 @@ export default function DaftarUjian() {
   };
 
   useEffect(() => {
-    if (!isInitialized) return;
-
     const fetchExams = async () => {
-      // Load from IndexedDB first
-      const localExams = await getCollectionData('exams_list');
-      if (localExams.length > 0) {
-        const enriched = await Promise.all(localExams.map(async (exam: any) => {
-          if (!exam.unlock_code && exam.driveFileId) {
-            try {
-              const full = await getCollection('exam_' + exam.driveFileId);
-              if (full?.data?.anti_cheat) {
-                exam.anti_cheat = full.data.anti_cheat;
-                exam.unlock_code = full.data.unlock_code;
-                exam.cheat_tolerance = full.data.cheat_tolerance;
-              }
-            } catch {}
-          }
-          return exam;
-        }));
-        setExams(enriched);
-      }
-
+      setLoading(true);
       try {
-        const folderId = rootFolderId || await getOrCreateRootFolder();
-        const driveData = await readJsonFromDrive(folderId, 'exams_list.json');
-        
-        if (driveData && driveData.data) {
-          const examsData = Array.isArray(driveData.data) ? driveData.data : [];
-          // Enrich exams with missing fields from full exam data
-          const enriched = await Promise.all(examsData.map(async (exam: any) => {
-            if (!exam.unlock_code && exam.driveFileId) {
-              try {
-                const full = await getCollection('exam_' + exam.driveFileId);
-                if (full?.data?.anti_cheat) {
-                  exam.anti_cheat = full.data.anti_cheat;
-                  exam.unlock_code = full.data.unlock_code;
-                  exam.cheat_tolerance = full.data.cheat_tolerance;
-                }
-              } catch {}
-            }
-            return exam;
+        const { databases, COLLECTIONS, APPWRITE_DATABASE_ID, Query } = await import('../lib/appwrite');
+        const res = await databases.listDocuments(
+          APPWRITE_DATABASE_ID,
+          COLLECTIONS.EXAMS,
+          [Query.orderDesc('$createdAt'), Query.limit(100)]
+        );
+
+        if (res && res.documents && res.documents.length > 0) {
+          const mapped = res.documents.map(d => ({
+            ...d,
+            id: d.$id,
+            created_at: d.$createdAt
           }));
-          setExams(enriched);
-          await saveCollection('exams_list', enriched);
+          setExams(mapped);
+          await saveCollection('exams_list', mapped);
+        } else {
+          const localExams = await getCollectionData('exams_list');
+          setExams(localExams || []);
         }
-      } catch (err) {
-        console.warn('Sync failed:', err);
+      } catch {
+        const localExams = await getCollectionData('exams_list');
+        setExams(localExams || []);
       } finally {
         setLoading(false);
       }
     };
 
     fetchExams();
-  }, [isInitialized, rootFolderId]);
+  }, []);
 
   const deleteExam = (id: string, title: string) => {
     showAlert({
@@ -110,19 +86,13 @@ export default function DaftarUjian() {
       type: 'confirm',
       confirmText: 'Ya, Hapus',
       onConfirm: async () => {
+        try {
+          await supabase.from('exams').delete().eq('id', id);
+        } catch {}
+
         const updated = exams.filter(e => e.id !== id);
         setExams(updated);
         await saveCollection('exams_list', updated);
-        
-        const folderId = rootFolderId || await getOrCreateRootFolder();
-        await saveJsonToDrive(folderId, 'exams_list.json', updated);
-        
-        // Also delete the specific exam package file from Drive
-        const examToDelete = exams.find(e => e.id === id);
-        if (examToDelete && examToDelete.driveFileId) {
-          await deleteFileFromDrive(examToDelete.driveFileId);
-        }
-        
         showAlert({ title: 'Terhapus', message: 'Ujian berhasil dihapus.', type: 'success' });
       }
     });
@@ -160,7 +130,7 @@ export default function DaftarUjian() {
         </div>
       </div>
 
-      {(loading || isSyncing) && exams.length === 0 ? (
+      {loading && exams.length === 0 ? (
         <TableSkeleton rows={3} />
       ) : (
         <div className="grid gap-4">

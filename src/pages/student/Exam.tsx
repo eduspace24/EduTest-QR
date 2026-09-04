@@ -24,9 +24,9 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import { cn } from '../../lib/utils';
-import { fetchExamFromUrl } from '../../lib/googleDrive';
 import { addToPendingSubmissions, getCollectionData } from '../../lib/db';
 import { packResult } from '../../lib/hash';
+import { supabase } from '../../lib/supabase';
 
 export default function StudentExam() {
   const { teacherId, examId } = useParams();
@@ -103,7 +103,27 @@ export default function StudentExam() {
         }, 300);
 
         setDownloadStage('Mengunduh soal ujian...');
-        const data = await fetchExamFromUrl(examId!);
+        let data: any = null;
+        try {
+          const { data: supaExam, error: sErr } = await supabase.from('exams').select('*').eq('id', examId).single();
+          if (!sErr && supaExam) {
+            data = supaExam;
+          }
+        } catch {}
+
+        if (!data) {
+          const localExams = await getCollectionData('exams_list');
+          data = localExams?.find((e: any) => e.id === examId || e.driveFileId === examId);
+        }
+
+        if (!data) {
+          const rawExams = await getCollectionData('exams');
+          data = rawExams?.find((e: any) => e.id === examId || e.driveFileId === examId);
+        }
+
+        if (!data) {
+          throw new Error('Soal ujian tidak ditemukan atau telah ditutup oleh guru.');
+        }
 
         // Advance progress after data received
         if (progressRef.current) clearInterval(progressRef.current);

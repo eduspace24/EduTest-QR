@@ -16,9 +16,9 @@ import React, { useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { cn } from '../lib/utils';
 import { useAlert } from '../context/AlertContext';
-import { getOrCreateRootFolder, saveJsonToDrive } from '../lib/googleDrive';
 import { getCollectionData, saveCollection } from '../lib/db';
 import { useSchool } from '../context/SchoolContext';
+import { supabase } from '../lib/supabase';
 
 import SchoolSwitcher from '../components/SchoolSwitcher';
 
@@ -70,13 +70,28 @@ export default function KelolaKelas() {
   }, [activeSchool?.id]);
 
   const syncToDrive = async (updatedClasses: any[]) => {
-    const filename = 'classes.json';
     await saveCollection('classes', updatedClasses);
     try {
-      const folderId = await getOrCreateRootFolder();
-      await saveJsonToDrive(folderId, filename, updatedClasses);
+      const { databases, COLLECTIONS, APPWRITE_DATABASE_ID, ID } = await import('../lib/appwrite');
+      for (const c of updatedClasses) {
+        const docId = String(c.name || c.nama_kelas).replace(/[^a-zA-Z0-9_]/g, '_').substring(0, 36) || ID.unique();
+        try {
+          await databases.createDocument(
+            APPWRITE_DATABASE_ID,
+            COLLECTIONS.CLASSES,
+            docId,
+            {
+              nama_kelas: c.name || c.nama_kelas,
+              tingkat: c.tingkat || 'Umum',
+              jurusan: c.subject || c.jurusan || 'Umum'
+            }
+          );
+        } catch {
+          // Document may already exist
+        }
+      }
     } catch (err) {
-      console.error('Failed to sync classes:', err);
+      console.warn('Classes sync note:', err);
     }
   };
 
@@ -152,8 +167,6 @@ export default function KelolaKelas() {
         const updated = [...students, ...newStudents];
         setStudents(updated);
         await saveCollection('students', updated);
-        const fId = await getOrCreateRootFolder();
-        await saveJsonToDrive(fId, 'students.json', updated);
 
         showAlert({ 
           title: 'Berhasil', 
@@ -373,8 +386,6 @@ export default function KelolaKelas() {
                           const updated = [...students, ns];
                           setStudents(updated);
                           await saveCollection('students', updated);
-                          const fId = await getOrCreateRootFolder();
-                          await saveJsonToDrive(fId, 'students.json', updated);
                           setNewStudentName('');
                           showAlert({ title: 'Berhasil', message: `${ns.name} ditambahkan.`, type: 'success' });
                         }}

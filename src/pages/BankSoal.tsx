@@ -23,13 +23,6 @@ import React from 'react';
 import * as XLSX from 'xlsx';
 import { cn } from '../lib/utils';
 import { useAlert } from '../context/AlertContext';
-import { 
-  getOrCreateRootFolder, 
-  saveJsonToDrive, 
-  uploadFileToDrive, 
-  getFileUrl 
-} from '../lib/googleDrive';
-import { useGoogleDrive } from '../context/GoogleDriveContext';
 import { getCollectionData, saveCollection } from '../lib/db';
 import { useRef } from 'react';
 import { uploadQuestionImage } from '../lib/cloudinary';
@@ -40,7 +33,6 @@ import mammoth from 'mammoth';
 export default function BankSoal() {
   const [questions, setQuestions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const { isInitialized, rootFolderId } = useGoogleDrive();
   const [searchTerm, setSearchTerm] = useState('');
   const { showAlert } = useAlert();
 
@@ -96,12 +88,6 @@ export default function BankSoal() {
 
   const syncToDrive = async (updatedQuestions: any[]) => {
     await saveCollection('bank_soal', updatedQuestions);
-    try {
-      const folderId = await getOrCreateRootFolder();
-      await saveJsonToDrive(folderId, 'bank_soal.json', updatedQuestions);
-    } catch (err) {
-      console.warn('Drive sync note:', err);
-    }
   };
 
   const handleUploadImage = async (e: React.ChangeEvent<HTMLInputElement>) => {

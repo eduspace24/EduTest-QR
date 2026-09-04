@@ -26,8 +26,8 @@ import React from 'react';
 import { cn } from '../lib/utils';
 import { useSchool } from '../context/SchoolContext';
 import { useAlert } from '../context/AlertContext';
-import { getOrCreateRootFolder, saveJsonToDrive } from '../lib/googleDrive';
 import { saveCollection } from '../lib/db';
+import { supabase } from '../lib/supabase';
 
 export default function Profil() {
   const navigate = useNavigate();
@@ -91,12 +91,39 @@ export default function Profil() {
         console.error('Failed to save profile to IndexedDB:', e);
       }
 
-      // Sync to Google Drive
       try {
-        const folderId = await getOrCreateRootFolder();
-        await saveJsonToDrive(folderId, 'profile.json', updatedSession.user);
-      } catch (driveErr) {
-        console.error('Drive sync failed:', driveErr);
+        const { databases, COLLECTIONS, APPWRITE_DATABASE_ID } = await import('../lib/appwrite');
+        const docId = (updatedSession.user.nip || updatedSession.user.email || updatedSession.user.id).replace(/[^a-zA-Z0-9_]/g, '_').substring(0, 36);
+        try {
+          await databases.updateDocument(
+            APPWRITE_DATABASE_ID,
+            COLLECTIONS.PROFILES,
+            docId,
+            {
+              nama: updatedSession.user.name || updatedSession.user.nama,
+              nip: updatedSession.user.nip || '',
+              sekolah: updatedSession.user.schools?.[0] || 'SMAN 19 Bandung',
+              role: updatedSession.user.role || 'guru'
+            }
+          );
+        } catch {
+          // Document may not exist by custom docId, attempt create
+          await databases.createDocument(
+            APPWRITE_DATABASE_ID,
+            COLLECTIONS.PROFILES,
+            docId,
+            {
+              nama: updatedSession.user.name || updatedSession.user.nama,
+              email: updatedSession.user.email,
+              nip: updatedSession.user.nip || '',
+              sekolah: updatedSession.user.schools?.[0] || 'SMAN 19 Bandung',
+              role: updatedSession.user.role || 'guru',
+              is_active: true
+            }
+          );
+        }
+      } catch (err) {
+        console.warn('Appwrite profile sync notice:', err);
       }
 
       await refreshSchools();

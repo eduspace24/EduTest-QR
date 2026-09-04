@@ -2,13 +2,11 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { useEffect, useState, Suspense, lazy } from 'react';
 import ErrorBoundary from './components/ErrorBoundary';
 import { Loader2 } from 'lucide-react';
-import { useGoogleDrive } from './context/GoogleDriveContext';
 
 // Eagerly loaded core components
 import Layout from './components/Layout';
-import SyncWorker from './components/SyncWorker';
 
-// Lazy loaded pages (all pages are lazy to keep initial bundle small)
+// Lazy loaded pages
 const Login = lazy(() => import('./pages/Login'));
 const ProfileSetup = lazy(() => import('./pages/ProfileSetup'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -24,7 +22,6 @@ const StudentResult = lazy(() => import('./pages/student/Result'));
 const KelolaKelas = lazy(() => import('./pages/KelolaKelas'));
 const KelolaSiswa = lazy(() => import('./pages/KelolaSiswa'));
 const ScanQR = lazy(() => import('./pages/ScanQR'));
-
 const KelolaGuru = lazy(() => import('./pages/KelolaGuru'));
 
 export default function App() {
@@ -32,46 +29,24 @@ export default function App() {
     const saved = localStorage.getItem('edu_session');
     return saved ? JSON.parse(saved) : null;
   });
-  const { isInitialized } = useGoogleDrive();
 
   useEffect(() => {
     const savedSession = localStorage.getItem('edu_session');
-    const savedProfile = localStorage.getItem('edu_profile');
-    
-    let parsedSession = savedSession ? JSON.parse(savedSession) : null;
-    
-    if (parsedSession?.user && !parsedSession.user.profileCompleted && savedProfile) {
-      const driveProfile = JSON.parse(savedProfile);
-      parsedSession.user = { ...parsedSession.user, ...driveProfile, profileCompleted: true };
-      localStorage.setItem('edu_session', JSON.stringify(parsedSession));
+    if (savedSession) {
+      try {
+        setSession(JSON.parse(savedSession));
+      } catch {}
     }
-    
-    if (JSON.stringify(parsedSession) !== JSON.stringify(session)) {
-      setSession(parsedSession);
-    }
-  }, [isInitialized]);
+  }, []);
 
   const userRole = session?.user?.role || 'guru';
-  // Super Admin never needs profile setup wizard
   const isSuperAdmin = userRole === 'superadmin';
-  const profileCompleted = isSuperAdmin || !!session?.user?.profileCompleted || !!localStorage.getItem('edu_profile');
-
-  if (!isInitialized) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-slate-50">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="animate-spin h-10 w-10 text-indigo-950" />
-          <p className="text-slate-500 font-bold animate-pulse text-sm">Menyiapkan Nineteen Exam...</p>
-        </div>
-      </div>
-    );
-  }
-
-  const isStaff = userRole === 'guru' || userRole === 'superadmin';
+  const isMurid = userRole === 'murid' || userRole === 'siswa';
+  const isStaff = userRole === 'guru' || isSuperAdmin;
+  const profileCompleted = isSuperAdmin || isMurid || !!session?.user?.profileCompleted || !!localStorage.getItem('edu_profile');
 
   return (
     <Router>
-      {isStaff && <SyncWorker />}
       <ErrorBoundary>
         <Suspense fallback={
           <div className="flex items-center justify-center min-h-screen bg-slate-50">
@@ -80,9 +55,20 @@ export default function App() {
         }>
           <Routes>
             {/* Auth & Setup */}
-            <Route path="/login" element={!session ? <Login /> : <Navigate to={profileCompleted ? "/dashboard" : "/profil-guru"} />} />
-            <Route path="/profil-guru" element={session ? (isSuperAdmin ? <Navigate to="/dashboard" /> : <ProfileSetup />) : <Navigate to="/login" />} />
+            <Route path="/login" element={!session ? <Login /> : <Navigate to={isMurid ? "/student/dashboard" : (profileCompleted ? "/dashboard" : "/profil-guru")} />} />
+            <Route path="/profil-guru" element={session ? (isSuperAdmin || isMurid ? <Navigate to="/dashboard" /> : <ProfileSetup />) : <Navigate to="/login" />} />
             
+            {/* Student Dedicated Portal */}
+            <Route path="/student/dashboard" element={
+              session ? (
+                <Layout session={session} />
+              ) : (
+                <Navigate to="/login" replace />
+              )
+            }>
+              <Route index element={<StudentDashboard />} />
+            </Route>
+
             {/* Protected Routes with Layout */}
             <Route element={
               session ? (
@@ -95,7 +81,7 @@ export default function App() {
                 <Navigate to="/login" replace />
               )
             }>
-              <Route path="/dashboard" element={isStaff ? <Dashboard /> : <StudentDashboard />} />
+              <Route path="/dashboard" element={isMurid ? <Navigate to="/student/dashboard" replace /> : <Dashboard />} />
               <Route path="/kelola-guru" element={isSuperAdmin ? <KelolaGuru /> : <Navigate to="/dashboard" />} />
               <Route path="/buat-ujian" element={isStaff ? <BuatUjian /> : <Navigate to="/dashboard" />} />
               <Route path="/bank-soal" element={isStaff ? <BankSoal /> : <Navigate to="/dashboard" />} />
@@ -112,9 +98,9 @@ export default function App() {
             <Route path="/test/:teacherId/:examId" element={<StudentExam />} />
             <Route path="/exam/result/:participantId" element={<StudentResult />} />
 
-            {/* Fallback */}
+            {/* Fallbacks */}
             <Route path="/exam" element={<Navigate to="/login" />} />
-            <Route path="/" element={<Navigate to={session ? (profileCompleted ? "/dashboard" : "/profil-guru") : "/login"} replace />} />
+            <Route path="/" element={<Navigate to={session ? (isMurid ? "/student/dashboard" : (profileCompleted ? "/dashboard" : "/profil-guru")) : "/login"} replace />} />
           </Routes>
         </Suspense>
       </ErrorBoundary>

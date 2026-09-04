@@ -51,12 +51,13 @@ export default function Dashboard() {
           ? Math.round(results.reduce((acc: number, curr: any) => acc + (curr.score || 0), 0) / results.length)
           : 0;
 
-        // Check Supabase count if available
+        // Check Appwrite count if available
         let studentCount = students.length > 0 ? students.length : MURIDS_LIST.length;
         try {
-          const { count, error } = await supabase.from('students').select('*', { count: 'exact', head: true });
-          if (!error && count && count > 0) {
-            studentCount = count;
+          const { databases, COLLECTIONS, APPWRITE_DATABASE_ID, Query } = await import('../lib/appwrite');
+          const countRes = await databases.listDocuments(APPWRITE_DATABASE_ID, COLLECTIONS.STUDENTS, [Query.limit(1)]);
+          if (countRes && countRes.total > 0) {
+            studentCount = countRes.total;
           }
         } catch {}
 

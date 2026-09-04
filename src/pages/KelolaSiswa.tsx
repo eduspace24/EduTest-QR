@@ -52,15 +52,16 @@ export default function KelolaSiswa() {
   const fetchStudentsAndClasses = async () => {
     setLoading(true);
     try {
-      // 1. Fetch from Supabase
+      // 1. Fetch from Appwrite
+      const { databases, COLLECTIONS, APPWRITE_DATABASE_ID, Query } = await import('../lib/appwrite');
       const [studentsRes, classesRes] = await Promise.all([
-        supabase.from('students').select('*').order('nama_kelas', { ascending: true }),
-        supabase.from('classes').select('*').order('nama_kelas', { ascending: true })
+        databases.listDocuments(APPWRITE_DATABASE_ID, COLLECTIONS.STUDENTS, [Query.limit(100)]),
+        databases.listDocuments(APPWRITE_DATABASE_ID, COLLECTIONS.CLASSES, [Query.limit(100)])
       ]);
 
-      if (!studentsRes.error && studentsRes.data && studentsRes.data.length > 0) {
-        setStudents(studentsRes.data);
-        saveCollection('students', studentsRes.data);
+      if (studentsRes && studentsRes.documents && studentsRes.documents.length > 0) {
+        setStudents(studentsRes.documents as any[]);
+        saveCollection('students', studentsRes.documents);
       } else {
         const local = await getCollectionData('students');
         if (local && local.length > 0) {
@@ -71,15 +72,15 @@ export default function KelolaSiswa() {
         }
       }
 
-      if (!classesRes.error && classesRes.data) {
-        setClasses(classesRes.data);
-        saveCollection('classes', classesRes.data);
+      if (classesRes && classesRes.documents && classesRes.documents.length > 0) {
+        setClasses(classesRes.documents as any[]);
+        saveCollection('classes', classesRes.documents);
       } else {
         const localClasses = await getCollectionData('classes');
         setClasses(localClasses || []);
       }
     } catch (err) {
-      console.warn('Supabase fetch error, using local fallback:', err);
+      console.warn('Appwrite fetch notice, using local fallback:', err);
       const [localStudents, localClasses] = await Promise.all([
         getCollectionData('students'),
         getCollectionData('classes')
@@ -107,27 +108,27 @@ export default function KelolaSiswa() {
     const generatedNisn = formData.nisn || `NIS-${Date.now().toString().slice(-6)}`;
 
     const newStudent = {
-      id: crypto.randomUUID(),
       nama: formData.name,
-      name: formData.name,
       nisn: generatedNisn,
-      code: generatedNisn,
       nama_kelas: className,
-      classId: formData.classId,
       nomor_absen: formData.noAbsen || '1',
-      password_pin: formData.passwordPin || 'murid19*',
-      role: 'murid',
-      created_at: new Date().toISOString()
+      password_pin: formData.passwordPin || 'murid19*'
     };
 
-    // Save to Supabase
+    // Save to Appwrite
     try {
-      await supabase.from('students').insert([newStudent]);
+      const { databases, COLLECTIONS, APPWRITE_DATABASE_ID, ID } = await import('../lib/appwrite');
+      await databases.createDocument(
+        APPWRITE_DATABASE_ID,
+        COLLECTIONS.STUDENTS,
+        ID.unique(),
+        newStudent
+      );
     } catch (e) {
-      console.warn(e);
+      console.warn('Appwrite create student notice:', e);
     }
 
-    const updated = [newStudent, ...students];
+    const updated = [{ ...newStudent, id: generatedNisn, name: newStudent.nama }, ...students];
     setStudents(updated);
     saveCollection('students', updated);
 
@@ -144,10 +145,13 @@ export default function KelolaSiswa() {
       confirmText: 'Ya, Hapus',
       onConfirm: async () => {
         try {
-          await supabase.from('students').delete().eq('id', id);
-        } catch (e) {}
+          const { databases, COLLECTIONS, APPWRITE_DATABASE_ID } = await import('../lib/appwrite');
+          await databases.deleteDocument(APPWRITE_DATABASE_ID, COLLECTIONS.STUDENTS, id);
+        } catch (e) {
+          console.warn('Appwrite delete student notice:', e);
+        }
 
-        const updated = students.filter(s => s.id !== id);
+        const updated = students.filter(s => (s.$id || s.id) !== id);
         setStudents(updated);
         saveCollection('students', updated);
       }

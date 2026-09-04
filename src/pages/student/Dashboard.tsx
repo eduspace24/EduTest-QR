@@ -37,17 +37,23 @@ export default function StudentDashboard() {
     };
     setSessionUser(user);
 
-    // Fetch Exams from Supabase & Local Cache
+    // Fetch Exams from Appwrite & Local Cache
     const fetchExams = async () => {
       try {
-        const { data, error } = await supabase
-          .from('exams')
-          .select('*')
-          .eq('status', 'active')
-          .order('created_at', { ascending: false });
+        const { databases, COLLECTIONS, APPWRITE_DATABASE_ID, Query } = await import('../../lib/appwrite');
+        const res = await databases.listDocuments(
+          APPWRITE_DATABASE_ID,
+          COLLECTIONS.EXAMS,
+          [Query.equal('status', 'active'), Query.orderDesc('$createdAt'), Query.limit(100)]
+        );
 
-        if (!error && data && data.length > 0) {
-          setActiveExams(data);
+        if (res && res.documents && res.documents.length > 0) {
+          const mapped = res.documents.map(d => ({
+            ...d,
+            id: d.$id,
+            created_at: d.$createdAt
+          }));
+          setActiveExams(mapped);
         } else {
           const localExams = await getCollectionData('exams');
           setActiveExams(localExams || []);

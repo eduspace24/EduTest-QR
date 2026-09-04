@@ -4,8 +4,8 @@ import { User, Building2, BookOpen, ChevronRight, Loader2, Sparkles, X, Plus, Ch
 import { motion, AnimatePresence } from 'framer-motion';
 import React from 'react';
 import { cn } from '../lib/utils';
-import { getOrCreateRootFolder, saveJsonToDrive } from '../lib/googleDrive';
 import { saveCollection } from '../lib/db';
+import { supabase } from '../lib/supabase';
 
 const PRESET_SUBJECTS = [
   'Matematika', 'Bahasa Indonesia', 'Bahasa Inggris', 'IPA', 'IPS', 'Fisika', 'Kimia', 'Biologi', 'Ekonomi', 'Sejarah', 'Geografi', 'Sosiologi', 'Agama Islam', 'Agama Kristen', 'Agama Katolik', 'PJOK', 'Seni Budaya', 'TIK'
@@ -67,7 +67,6 @@ export default function ProfileSetup() {
         name: name || session.user.name,
         schools: schools,
         subjects: subjects,
-        // For backward compatibility or single display
         schoolName: schools[0],
         subject: subjects[0]
       };
@@ -75,24 +74,42 @@ export default function ProfileSetup() {
       localStorage.setItem('edu_session', JSON.stringify({ ...session, user: updatedUser }));
       localStorage.setItem('edu_profile', JSON.stringify(updatedUser));
       
-      // Sync to IndexedDB (so sync can track it)
       try {
         await saveCollection('profile', updatedUser);
+        const { databases, COLLECTIONS, APPWRITE_DATABASE_ID } = await import('../lib/appwrite');
+        const docId = (updatedUser.nip || updatedUser.email || updatedUser.id).replace(/[^a-zA-Z0-9_]/g, '_').substring(0, 36);
+        try {
+          await databases.updateDocument(
+            APPWRITE_DATABASE_ID,
+            COLLECTIONS.PROFILES,
+            docId,
+            {
+              nama: updatedUser.name || updatedUser.nama,
+              nip: updatedUser.nip || '',
+              sekolah: updatedUser.schoolName || 'SMAN 19 Bandung',
+              role: updatedUser.role || 'guru'
+            }
+          );
+        } catch {
+          await databases.createDocument(
+            APPWRITE_DATABASE_ID,
+            COLLECTIONS.PROFILES,
+            docId,
+            {
+              nama: updatedUser.name || updatedUser.nama,
+              email: updatedUser.email,
+              nip: updatedUser.nip || '',
+              sekolah: updatedUser.schoolName || 'SMAN 19 Bandung',
+              role: updatedUser.role || 'guru',
+              is_active: true
+            }
+          );
+        }
       } catch (e) {
-        console.error('Failed to save profile to IndexedDB:', e);
-      }
-
-      // Sync to Google Drive
-      try {
-        const folderId = await getOrCreateRootFolder();
-        await saveJsonToDrive(folderId, 'profile.json', updatedUser);
-        console.log('Profile synced to Drive');
-      } catch (driveErr) {
-        console.error('Failed to sync profile to Drive:', driveErr);
-        // We continue anyway since it's saved locally
+        console.warn('Appwrite profile sync notice:', e);
       }
       
-      await new Promise(r => setTimeout(r, 1500));
+      await new Promise(r => setTimeout(r, 500));
       window.location.href = '/dashboard';
     } catch (error) {
       console.error(error);

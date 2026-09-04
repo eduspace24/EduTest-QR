@@ -16,32 +16,58 @@ import { motion } from 'framer-motion';
 import React from 'react';
 import { cn } from '../lib/utils';
 import { getCollectionData } from '../lib/db';
-import { useGoogleDrive } from '../context/GoogleDriveContext';
+import { supabase } from '../lib/supabase';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { RefreshCw } from 'lucide-react';
 
 export default function HasilUjian({ isEmbedded = false }: { isEmbedded?: boolean }) {
-  const { syncNow, isSyncing } = useGoogleDrive();
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const data = await getCollectionData('results');
-    setResults(data);
-    setLoading(false);
+    try {
+      const { databases, COLLECTIONS, APPWRITE_DATABASE_ID, Query } = await import('../lib/appwrite');
+      const res = await databases.listDocuments(
+        APPWRITE_DATABASE_ID,
+        COLLECTIONS.EXAM_RESULTS,
+        [Query.orderDesc('$createdAt'), Query.limit(100)]
+      );
+
+      if (res && res.documents && res.documents.length > 0) {
+        const mapped = res.documents.map(d => ({
+          ...d,
+          id: d.$id,
+          created_at: d.$createdAt
+        }));
+        setResults(mapped);
+      } else {
+        const localData = await getCollectionData('results');
+        setResults(localData || []);
+      }
+    } catch {
+      const localData = await getCollectionData('results');
+      setResults(localData || []);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  const syncNow = async () => {
+    setIsSyncing(true);
+    await fetchData();
+    setIsSyncing(false);
+  };
 
   useEffect(() => {
     fetchData();
-    syncNow(true, 'results').then(fetchData).catch(fetchData);
   }, []);
 
   const handleRefresh = async () => {
-    await syncNow(true, 'results');
     await fetchData();
   };
 

@@ -25,17 +25,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import React, { useRef } from 'react';
 import { useAlert } from '../context/AlertContext';
 import { generateExamCode, cn } from '../lib/utils';
-import { useGoogleDrive } from '../context/GoogleDriveContext';
-import { 
-  saveJsonToDrive, 
-  getOrCreateRootFolder, 
-  setAccessToken, 
-  makeFilePublic,
-  uploadFileToDrive,
-  getFileUrl
-} from '../lib/googleDrive';
 import { getCollectionData, saveCollection } from '../lib/db';
 import { useSchool } from '../context/SchoolContext';
+import { supabase } from '../lib/supabase';
+import { uploadQuestionImage } from '../lib/cloudinary';
 
 export default function BuatUjian() {
   const navigate = useNavigate();
@@ -275,15 +268,12 @@ export default function BuatUjian() {
 
     try {
       setUploadingQuestionId(questionId);
-      const folderId = await getOrCreateRootFolder();
-      const fileId = await uploadFileToDrive(file, folderId) as string;
-      const url = getFileUrl(fileId);
-      
+      const { url } = await uploadQuestionImage(file);
       updateQuestion(questionId, 'image_url', url);
       showAlert({ title: 'Berhasil', message: 'Gambar berhasil diupload.', type: 'success' });
     } catch (err) {
       console.error('Upload error:', err);
-      showAlert({ title: 'Gagal', message: 'Gagal mengupload gambar ke Drive.', type: 'error' });
+      showAlert({ title: 'Gagal', message: 'Gagal mengupload gambar.', type: 'error' });
     } finally {
       setUploadingQuestionId(null);
       if (fileInputRefs.current[questionId]) fileInputRefs.current[questionId]!.value = '';
@@ -311,25 +301,6 @@ export default function BuatUjian() {
 
     try {
       const examId = generateExamCode();
-      
-      // Use folder from context OR get/create new one if null
-      let folderId: string | null = null;
-      if (!folderId) {
-        const session = JSON.parse(localStorage.getItem('edu_session') || '{}');
-        const eduToken = localStorage.getItem('edu_token');
-        const token = eduToken || session.user?.token;
-        
-        if (token) {
-          setAccessToken(token);
-          folderId = await getOrCreateRootFolder();
-        }
-      }
-      
-      if (!folderId) {
-        showAlert({ title: 'Error', message: 'Gagal mengakses Google Drive. Silakan login ulang.', type: 'error' });
-        setLoading(false);
-        return;
-      }
 
       // Fetch allowed students for this exam based on targetClasses
       const [allStudents, allClasses] = await Promise.all([
@@ -344,54 +315,48 @@ export default function BuatUjian() {
           className: allClasses.find((c: any) => c.id === s.classId)?.name || 'Umum'
         }));
 
-      console.log('Sync Check:', { allCount: allStudents.length, target: formData.targetClasses, allowed: allowedStudents.length });
-
-      if (allowedStudents.length === 0 && formData.targetClasses.length > 0) {
-        const proceed = window.confirm('Peringatan: Tidak ada siswa ditemukan untuk kelas yang dipilih. Kode unik tidak akan berfungsi. Lanjutkan tetap terbitkan?');
-        if (!proceed) {
-          setLoading(false);
-          return;
-        }
-      }
-
-      // Strip correct_answer from questions for student-visible payload
+      // Safe questions for students
       const safeQuestions = questions.map(q => ({
         ...q,
         correct_answer: undefined
       }));
 
-      const teacherProfile = JSON.parse(localStorage.getItem('edu_profile') || '{}');
       const examPayload = {
         ...formData,
-        serverUrl: teacherProfile.serverUrl,
         id: examId,
+        driveFileId: examId,
         questions: safeQuestions,
         _answer_key: questions.map(q => ({ id: q.id, answer: q.correct_answer })),
         allowedStudents,
-        folderId: folderId,
         created_at: new Date().toISOString()
       };
 
-      const fileName = `soal_${examId}.json`;
-      const result = await saveJsonToDrive(folderId, fileName, examPayload);
-      console.log('Exam saved:', result);
+      // Save locally
+      await saveCollection('exam_' + examId, examPayload);
 
-      // Auto-Public: Set permission so anyone with link can read
-      if (result.id) {
-        await makeFilePublic(result.id);
-        console.log('Exam file is now public');
-        await saveCollection('exam_' + result.id, examPayload);
+      // Save to Supabase
+      try {
+        await supabase.from('exams').upsert([{
+          id: examId,
+          title: formData.title,
+          duration: formData.duration,
+          total_questions: questions.length,
+          status: 'active',
+          questions: examPayload,
+          created_at: new Date().toISOString()
+        }]);
+      } catch (sErr) {
+        console.warn('Supabase exam sync note:', sErr);
       }
 
       // Update global exams list via IndexedDB
       const savedExams = await getCollectionData('exams_list');
       const newExamMeta = {
         id: examId,
-        driveFileId: result.id,
+        driveFileId: examId,
         title: formData.title,
         duration: formData.duration,
         totalQuestions: questions.length,
-        folderId: folderId,
         createdAt: new Date().toISOString(),
         randomized: formData.randomized,
         randomize_options: formData.randomize_options,
@@ -404,28 +369,16 @@ export default function BuatUjian() {
       
       const updatedExams = [newExamMeta, ...savedExams];
       await saveCollection('exams_list', updatedExams);
-      await saveJsonToDrive(folderId, 'exams_list.json', updatedExams);
       
-      // result.id is the Google Drive File ID
       const sessionData = JSON.parse(localStorage.getItem('edu_session') || '{}');
-      const teacherId = sessionData.user?.id || 'anonymous';
+      const teacherId = sessionData.user?.id || 'guru';
       
-      const shareUrl = `${window.location.origin}/test/${teacherId}/${result.id}`;
+      const shareUrl = `${window.location.origin}/test/${teacherId}/${examId}`;
       setGeneratedLink(shareUrl);
       setStep(3);
-
-      showAlert({
-        title: 'Berhasil!',
-        message: `Ujian berhasil disimpan ke Google Drive.`,
-        type: 'success'
-      });
-    } catch (error) {
-      console.error(error);
-      showAlert({
-        title: 'Gagal',
-        message: 'Gagal menyimpan ke Google Drive.',
-        type: 'error'
-      });
+    } catch (err: any) {
+      console.error(err);
+      showAlert({ title: 'Gagal', message: err.message || 'Terjadi kesalahan saat membuat ujian.', type: 'error' });
     } finally {
       setLoading(false);
     }

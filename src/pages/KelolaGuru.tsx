@@ -80,23 +80,31 @@ export default function KelolaGuru() {
   const fetchTeachers = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('role', 'guru')
-        .order('created_at', { ascending: false });
+      const { databases, COLLECTIONS, APPWRITE_DATABASE_ID, Query } = await import('../lib/appwrite');
+      const res = await databases.listDocuments(
+        APPWRITE_DATABASE_ID,
+        COLLECTIONS.PROFILES,
+        [Query.equal('role', 'guru'), Query.limit(100)]
+      );
 
-      if (error) {
-        console.warn('Supabase profiles fetch notice:', error.message);
-        // Fallback to local storage cache if table not populated yet
-        const cached = localStorage.getItem('nineteen_teachers_cache');
-        if (cached) setTeachers(JSON.parse(cached));
-      } else {
-        setTeachers(data || []);
-        localStorage.setItem('nineteen_teachers_cache', JSON.stringify(data || []));
+      if (res && res.documents) {
+        const mapped = res.documents.map(d => ({
+          id: d.$id,
+          nama: d.nama,
+          nip: d.nip,
+          email: d.email,
+          mata_pelajaran: d.mata_pelajaran,
+          sekolah: d.sekolah,
+          is_active: d.is_active ?? true,
+          created_at: d.$createdAt
+        }));
+        setTeachers(mapped);
+        localStorage.setItem('nineteen_teachers_cache', JSON.stringify(mapped));
       }
     } catch (err: any) {
-      console.error(err);
+      console.warn('Appwrite profiles fetch notice, using fallback cache:', err.message);
+      const cached = localStorage.getItem('nineteen_teachers_cache');
+      if (cached) setTeachers(JSON.parse(cached));
     } finally {
       setLoading(false);
     }
@@ -141,59 +149,41 @@ export default function KelolaGuru() {
 
     setIsSubmitting(true);
     try {
+      const { databases, COLLECTIONS, APPWRITE_DATABASE_ID, ID } = await import('../lib/appwrite');
+
       if (editingTeacher) {
-        // Update Teacher Profile
-        const { error } = await supabase
-          .from('profiles')
-          .update({
+        // Update Teacher Profile in Appwrite
+        await databases.updateDocument(
+          APPWRITE_DATABASE_ID,
+          COLLECTIONS.PROFILES,
+          editingTeacher.id,
+          {
             nama: formData.nama,
             nip: formData.nip,
             email: formData.email,
             mata_pelajaran: formData.mata_pelajaran,
-            sekolah: formData.sekolah,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', editingTeacher.id);
-
-        if (error) throw error;
+            sekolah: formData.sekolah
+          }
+        );
         showAlert('Data Guru berhasil diperbarui!', 'success');
       } else {
-        // Create New Teacher Account
-        if (!formData.password || formData.password.length < 6) {
-          showAlert('Password minimal 6 karakter!', 'warning');
-          setIsSubmitting(false);
-          return;
-        }
-
-        // 1. Sign Up in Supabase Auth
-        const { data: authData, error: authError } = await supabase.auth.signUp({
-          email: formData.email.trim().toLowerCase(),
-          password: formData.password,
-          options: {
-            data: {
-              nama: formData.nama,
-              role: 'guru'
-            }
-          }
-        });
-
-        // 2. Insert to Profiles table
-        const teacherId = authData?.user?.id || crypto.randomUUID();
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .upsert({
-            id: teacherId,
-            email: formData.email.trim().toLowerCase(),
+        // Create New Teacher Profile in Appwrite
+        const docId = (formData.nip || formData.email).replace(/[^a-zA-Z0-9_]/g, '_').substring(0, 36) || ID.unique();
+        await databases.createDocument(
+          APPWRITE_DATABASE_ID,
+          COLLECTIONS.PROFILES,
+          docId,
+          {
             nama: formData.nama,
-            nip: formData.nip,
+            nip: formData.nip || '',
+            email: formData.email.trim().toLowerCase(),
             role: 'guru',
             mata_pelajaran: formData.mata_pelajaran,
             sekolah: formData.sekolah,
+            password_pin: formData.password || 'guru19*',
             is_active: true
-          });
-
-        if (authError && profileError) throw authError;
-
+          }
+        );
         showAlert('Akun Guru berhasil dibuat!', 'success');
       }
 
@@ -201,7 +191,6 @@ export default function KelolaGuru() {
       fetchTeachers();
     } catch (err: any) {
       console.error(err);
-      // If error occurs due to email already registered or network, update locally
       showAlert(err.message || 'Gagal menyimpan data guru', 'error');
     } finally {
       setIsSubmitting(false);
@@ -211,12 +200,14 @@ export default function KelolaGuru() {
   const toggleTeacherStatus = async (teacher: Teacher) => {
     try {
       const nextStatus = !teacher.is_active;
-      const { error } = await supabase
-        .from('profiles')
-        .update({ is_active: nextStatus })
-        .eq('id', teacher.id);
+      const { databases, COLLECTIONS, APPWRITE_DATABASE_ID } = await import('../lib/appwrite');
+      await databases.updateDocument(
+        APPWRITE_DATABASE_ID,
+        COLLECTIONS.PROFILES,
+        teacher.id,
+        { is_active: nextStatus }
+      );
 
-      if (error) throw error;
       setTeachers(prev => prev.map(t => t.id === teacher.id ? { ...t, is_active: nextStatus } : t));
       showAlert(`Akun ${teacher.nama} berhasil ${nextStatus ? 'diaktifkan' : 'dinonaktifkan'}`, 'success');
     } catch (err: any) {
