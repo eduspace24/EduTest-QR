@@ -57,6 +57,17 @@ export const ALL_SCHOOL_SUBJECTS = [
   'Bimbingan Konseling'
 ];
 
+export const normalizeJenjang = (val: any): string => {
+  if (!val) return 'X';
+  let str = String(val).toUpperCase().trim();
+  str = str.replace(/^(KELAS|TINGKAT)\s*/i, '').trim();
+  if (str === '10') return 'X';
+  if (str === '11') return 'XI';
+  if (str === '12') return 'XII';
+  if (['X', 'XI', 'XII'].includes(str)) return str;
+  return 'X';
+};
+
 export default function BankSoal() {
   const session = JSON.parse(localStorage.getItem('edu_session') || '{}');
   const userRole = session?.user?.role || 'guru';
@@ -131,7 +142,8 @@ export default function BankSoal() {
         if (res && res.documents && res.documents.length > 0) {
           const mapped = res.documents.map(d => ({
             ...d,
-            id: d.$id
+            id: d.$id,
+            jenjang: normalizeJenjang(d.jenjang || d.tingkat || d.kelas)
           }));
           setQuestions(mapped);
           await saveCollection('bank_soal', mapped);
@@ -145,15 +157,24 @@ export default function BankSoal() {
       // Fallback 1: Local IndexedDB / LocalStorage
       const local = await getCollectionData('bank_soal');
       if (local && local.length > 0) {
-        setQuestions(local);
+        const mapped = local.map((d: any) => ({
+          ...d,
+          jenjang: normalizeJenjang(d.jenjang || d.tingkat || d.kelas)
+        }));
+        setQuestions(mapped);
+        await saveCollection('bank_soal', mapped);
       } else {
         // Fallback 2: Default seed questions from /seed_bank_soal.json
         try {
           const res = await fetch('/seed_bank_soal.json');
           if (res.ok) {
             const seed = await res.json();
-            setQuestions(seed);
-            await saveCollection('bank_soal', seed);
+            const mapped = seed.map((d: any) => ({
+              ...d,
+              jenjang: normalizeJenjang(d.jenjang || d.tingkat || d.kelas)
+            }));
+            setQuestions(mapped);
+            await saveCollection('bank_soal', mapped);
           }
         } catch {
           setQuestions([]);
@@ -168,15 +189,20 @@ export default function BankSoal() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const syncToDrive = async (updatedQuestions: any[]) => {
-    await saveCollection('bank_soal', updatedQuestions);
+    const normalized = updatedQuestions.map(q => ({
+      ...q,
+      jenjang: normalizeJenjang(q.jenjang)
+    }));
+    await saveCollection('bank_soal', normalized);
     try {
       const { databases, APPWRITE_DATABASE_ID, ID } = await import('../lib/appwrite');
-      for (const q of updatedQuestions) {
+      for (const q of normalized) {
         const docId = q.id ? String(q.id).replace(/[^a-zA-Z0-9_]/g, '_').substring(0, 36) : ID.unique();
-        const payload = {
+        const payload: any = {
           text: (q.text || '').substring(0, 1990),
           type: q.type || 'Pilihan Ganda',
           category: q.category || 'Informatika',
+          jenjang: normalizeJenjang(q.jenjang),
           option_a: (q.option_a || '').substring(0, 490),
           option_b: (q.option_b || '').substring(0, 490),
           option_c: (q.option_c || '').substring(0, 490),
@@ -191,7 +217,12 @@ export default function BankSoal() {
         } catch {
           try {
             await databases.createDocument(APPWRITE_DATABASE_ID, 'bank_soal', docId, payload);
-          } catch {}
+          } catch {
+            try {
+              const { jenjang, ...rest } = payload;
+              await databases.updateDocument(APPWRITE_DATABASE_ID, 'bank_soal', docId, rest);
+            } catch {}
+          }
         }
       }
     } catch (err) {
@@ -973,7 +1004,7 @@ export default function BankSoal() {
   const jenjangFilteredQuestions = useMemo(() => {
     if (selectedJenjangFilter === 'ALL') return subjectFilteredQuestions;
     return subjectFilteredQuestions.filter(q => {
-      const j = (q.jenjang || '').toUpperCase().trim();
+      const j = normalizeJenjang(q.jenjang || q.tingkat || q.kelas);
       if (j === selectedJenjangFilter) return true;
       const textLower = (q.text || '').toLowerCase();
       if (selectedJenjangFilter === 'X' && (textLower.includes('kelas x') || textLower.includes('kelas 10'))) return true;
@@ -1092,7 +1123,12 @@ export default function BankSoal() {
           ].map(tab => (
             <button
               key={tab.id}
-              onClick={() => setSelectedJenjangFilter(tab.id)}
+              onClick={() => {
+                setSelectedJenjangFilter(tab.id);
+                if (tab.id !== 'ALL') {
+                  setActiveFolder(null);
+                }
+              }}
               className={cn(
                 "px-3.5 py-1.5 rounded-lg text-xs font-black whitespace-nowrap transition-all",
                 selectedJenjangFilter === tab.id
@@ -1310,7 +1346,7 @@ export default function BankSoal() {
                           />
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="bg-indigo-100/70 text-indigo-900 px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider">
-                              Kelas {q.jenjang || 'X'}
+                              Kelas {normalizeJenjang(q.jenjang)}
                             </span>
                             <div className="bg-blue-50 text-blue-600 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest border border-blue-100">
                               {q.category || 'Umum'}

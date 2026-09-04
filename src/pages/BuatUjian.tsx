@@ -107,15 +107,28 @@ export default function BuatUjian() {
   const openBankModal = async () => {
     setLoadingBank(true);
     setShowBankModal(true);
-    const data = await getCollectionData('bank_soal');
+    let data = await getCollectionData('bank_soal');
+    if (!data || data.length === 0) {
+      try {
+        const res = await fetch('/seed_bank_soal.json');
+        if (res.ok) {
+          data = await res.json();
+          await saveCollection('bank_soal', data);
+        }
+      } catch {}
+    }
+    const normalized = (data || []).map((q: any) => ({
+      ...q,
+      jenjang: q.jenjang || 'X'
+    }));
     if (!isSuperAdmin && teacherSubjects.length > 0) {
-      const filtered = (data || []).filter((q: any) => {
+      const filtered = normalized.filter((q: any) => {
         const cat = (q.category || '').toLowerCase().trim();
         return teacherSubjects.some(ts => cat.includes(ts.toLowerCase()) || ts.toLowerCase().includes(cat));
       });
       setBankSoal(filtered);
     } else {
-      setBankSoal(data || []);
+      setBankSoal(normalized);
     }
     setLoadingBank(false);
   };
@@ -1175,7 +1188,7 @@ export default function BuatUjian() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-bold text-indigo-950 text-xs line-clamp-1">{q.text}</p>
-                        <p className="text-[10px] text-slate-400 mt-0.5">{q.category || 'Umum'} &bull; {q.type}</p>
+                        <p className="text-[10px] text-slate-400 mt-0.5">Kelas {q.jenjang || 'X'} &bull; {q.category || 'Umum'} &bull; {q.type}</p>
                       </div>
                     </div>
                   ))
