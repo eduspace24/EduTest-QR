@@ -15,7 +15,8 @@ import {
   AlertCircle,
   Link as LinkIcon,
   Copy,
-  KeyRound
+  KeyRound,
+  BookOpen
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
@@ -148,11 +149,30 @@ export default function DaftarUjian() {
                 </div>
                 
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3 mb-1">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <h3 className="text-base sm:text-lg font-bold text-indigo-950 truncate">{exam.title}</h3>
+                    {exam.exam_type === 'semester' ? (
+                      <span className="bg-indigo-100 text-indigo-900 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider shrink-0 border border-indigo-200">
+                        Ujian Semester
+                      </span>
+                    ) : (
+                      <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider shrink-0 border border-blue-200">
+                        Ulangan Harian
+                      </span>
+                    )}
                     <span className="bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest shrink-0">Aktif</span>
                   </div>
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] sm:text-xs text-slate-400 font-bold">
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] sm:text-xs text-slate-400 font-bold items-center">
+                    {exam.subject && (
+                      <div className="flex items-center gap-1.5 text-indigo-950 font-black">
+                        <BookOpen className="w-3.5 h-3.5 text-indigo-600" /> {exam.subject}
+                      </div>
+                    )}
+                    {exam.session_name && (
+                      <div className="flex items-center gap-1.5 text-slate-600 font-bold">
+                        <Calendar className="w-3.5 h-3.5 text-indigo-600" /> {exam.session_name} ({exam.start_time || '07:30'} - {exam.end_time || '09:30'})
+                      </div>
+                    )}
                     <div className="flex items-center gap-1.5">
                       <Clock className="w-3.5 h-3.5" /> {exam.duration} Menit
                     </div>
@@ -161,9 +181,6 @@ export default function DaftarUjian() {
                     </div>
                     <div className="flex items-center gap-1.5">
                       <Shuffle className="w-3.5 h-3.5 text-indigo-950/40" /> {exam.randomized ? 'Acak' : 'Urut'}
-                    </div>
-                    <div className="flex items-center gap-1.5 text-indigo-950/40">
-                      <Shuffle className="w-3.5 h-3.5" /> {exam.randomize_options ? 'Opsi Acak' : 'Opsi Urut'}
                     </div>
                     <div className="flex items-center gap-1.5">
                       <Shield className="w-3.5 h-3.5" /> {exam.anti_cheat ? 'Anti Curang' : 'Reguler'}

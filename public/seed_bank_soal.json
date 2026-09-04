@@ -11,7 +11,8 @@
     "option_e": "Pencarian",
     "jawaban_benar": "b",
     "pembahasan": "Rani mengamati dan mengelompokkan karakteristik berat serta diameter dari banyak sampel untuk menemukan pola yang dapat digunakan dalam penyortiran.",
-    "image_url": ""
+    "image_url": "",
+    "jenjang": "X"
   },
   {
     "id": "soal_inf_2",
@@ -25,7 +26,8 @@
     "option_e": "Pencarian",
     "jawaban_benar": "c",
     "pembahasan": "Abstraksi berarti fokus pada informasi atau fitur yang penting dan mengabaikan detail yang belum relevan.",
-    "image_url": ""
+    "image_url": "",
+    "jenjang": "X"
   },
   {
     "id": "soal_inf_3",
@@ -39,7 +41,8 @@
     "option_e": "Table (Tabel)",
     "jawaban_benar": "b",
     "pembahasan": "Queue menggunakan prinsip FIFO: elemen yang masuk lebih dahulu akan keluar lebih dahulu.",
-    "image_url": ""
+    "image_url": "",
+    "jenjang": "X"
   },
   {
     "id": "soal_inf_4",
@@ -53,7 +56,8 @@
     "option_e": "Algoritma - Dekomposisi - Pengenalan Pola – Abstraksi",
     "jawaban_benar": "b",
     "pembahasan": "Urutan umum berpikir komputasional adalah memecah masalah, mencari pola, mengambil inti yang penting, lalu menyusun langkah penyelesaian.",
-    "image_url": ""
+    "image_url": "",
+    "jenjang": "X"
   },
   {
     "id": "soal_inf_5",
@@ -67,7 +71,8 @@
     "option_e": "B, A, C dengan struktur Stack",
     "jawaban_benar": "b",
     "pembahasan": "Stack menggunakan prinsip LIFO (Last In, First Out). Karena C masuk terakhir, C keluar lebih dahulu.",
-    "image_url": ""
+    "image_url": "",
+    "jenjang": "X"
   },
   {
     "id": "soal_inf_6",
@@ -81,7 +86,8 @@
     "option_e": "Pengenalan Pola",
     "jawaban_benar": "c",
     "pembahasan": "Dekomposisi adalah proses membagi masalah besar menjadi bagian-bagian kecil agar lebih mudah dianalisis.",
-    "image_url": ""
+    "image_url": "",
+    "jenjang": "X"
   },
   {
     "id": "soal_inf_7",
@@ -95,7 +101,8 @@
     "option_e": "6",
     "jawaban_benar": "a",
     "pembahasan": "Dengan ilustrasi pembagian sederhana, pencarian pertama memeriksa bagian tengah sekitar urutan ke-50, lalu pencarian berikutnya dapat mengarah ke urutan ke-25 sehingga ditemukan dalam 2 perbandingan.",
-    "image_url": ""
+    "image_url": "",
+    "jenjang": "X"
   },
   {
     "id": "soal_inf_8",
@@ -109,7 +116,8 @@
     "option_e": "Linier Search",
     "jawaban_benar": "e",
     "pembahasan": "Karena data tidak terurut, Binary Search tidak dapat digunakan. Linear Search memeriksa data satu per satu.",
-    "image_url": ""
+    "image_url": "",
+    "jenjang": "X"
   },
   {
     "id": "soal_inf_9",
@@ -123,7 +131,8 @@
     "option_e": "Motherboard",
     "jawaban_benar": "d",
     "pembahasan": "Processor atau CPU merupakan unit pemroses utama yang mengeksekusi instruksi dan mengolah data.",
-    "image_url": ""
+    "image_url": "",
+    "jenjang": "X"
   },
   {
     "id": "soal_inf_10",
@@ -137,7 +146,8 @@
     "option_e": "Perangkat Penyuntingan (Editing Device)",
     "jawaban_benar": "c",
     "pembahasan": "Keyboard dan mouse digunakan untuk memasukkan data atau perintah ke komputer.",
-    "image_url": ""
+    "image_url": "",
+    "jenjang": "X"
   },
   {
     "id": "soal_inf_11",
@@ -151,7 +161,8 @@
     "option_e": "Essential Software",
     "jawaban_benar": "c",
     "pembahasan": "Device driver menjadi penghubung antara sistem operasi/perangkat lunak dengan perangkat keras tertentu, seperti printer.",
-    "image_url": ""
+    "image_url": "",
+    "jenjang": "X"
   },
   {
     "id": "soal_inf_12",
@@ -165,7 +176,8 @@
     "option_e": "Perangkat Fisik",
     "jawaban_benar": "a",
     "pembahasan": "Gambar menunjukkan scanner. Scanner memasukkan informasi dari dokumen atau gambar fisik ke dalam bentuk data digital.",
-    "image_url": ""
+    "image_url": "",
+    "jenjang": "X"
   },
   {
     "id": "soal_inf_13",
@@ -179,7 +191,8 @@
     "option_e": "Ransomware",
     "jawaban_benar": "b",
     "pembahasan": "Software adalah kumpulan program atau perangkat lunak yang tidak memiliki bentuk fisik.",
-    "image_url": ""
+    "image_url": "",
+    "jenjang": "X"
   },
   {
     "id": "soal_inf_14",
@@ -193,7 +206,8 @@
     "option_e": "C.",
     "jawaban_benar": "c",
     "pembahasan": "RAM berbentuk modul memori memanjang yang dipasang pada slot RAM di motherboard. Pada pilihan gambar, bentuk tersebut berada pada opsi C.",
-    "image_url": ""
+    "image_url": "",
+    "jenjang": "X"
   },
   {
     "id": "soal_inf_15",
@@ -207,7 +221,8 @@
     "option_e": "C.",
     "jawaban_benar": "d",
     "pembahasan": "VGA atau Graphic Card ditandai dengan kartu ekspansi yang memiliki sistem pendingin/kipas. Pada gambar, perangkat tersebut berada pada opsi D.",
-    "image_url": ""
+    "image_url": "",
+    "jenjang": "X"
   },
   {
     "id": "soal_inf_16",
@@ -221,7 +236,8 @@
     "option_e": "Perangkat Audio + Visual",
     "jawaban_benar": "d",
     "pembahasan": "Gambar menunjukkan proyektor. Proyektor menampilkan informasi secara visual ke layar atau bidang proyeksi.",
-    "image_url": ""
+    "image_url": "",
+    "jenjang": "X"
   },
   {
     "id": "soal_inf_17",
@@ -235,7 +251,8 @@
     "option_e": "Presentation Processor",
     "jawaban_benar": "a",
     "pembahasan": "Sistem operasi mengelola perangkat keras dan menyediakan lingkungan agar aplikasi dapat berjalan.",
-    "image_url": ""
+    "image_url": "",
+    "jenjang": "X"
   },
   {
     "id": "soal_inf_18",
@@ -249,7 +266,8 @@
     "option_e": "Corel Draw",
     "jawaban_benar": "b",
     "pembahasan": "Google Slides dirancang untuk membuat presentasi dan mendukung penyimpanan cloud serta kolaborasi real-time.",
-    "image_url": ""
+    "image_url": "",
+    "jenjang": "X"
   },
   {
     "id": "soal_inf_19",
@@ -263,7 +281,8 @@
     "option_e": "Jejak digital tidak akan terekam jika kita mengakses internet menggunakan HP milik orang lain",
     "jawaban_benar": "b",
     "pembahasan": "Konten yang sudah dipublikasikan dapat disalin, di-screenshot, dan disebarkan kembali sehingga jejaknya sulit dihapus sepenuhnya.",
-    "image_url": ""
+    "image_url": "",
+    "jenjang": "X"
   },
   {
     "id": "soal_inf_20",
@@ -277,7 +296,8 @@
     "option_e": "Menyimpan email tersebut ke folder 'Penting' agar bisa dibaca lagi nanti malam",
     "jawaban_benar": "d",
     "pembahasan": "Ciri-ciri tersebut mengarah pada phishing. Jangan mengklik tautan atau memberikan username, password, maupun data pribadi.",
-    "image_url": ""
+    "image_url": "",
+    "jenjang": "X"
   },
   {
     "id": "soal_inf_21",
@@ -291,7 +311,8 @@
     "option_e": "Privasi Data (Data Privacy)",
     "jawaban_benar": "a",
     "pembahasan": "Lagu merupakan karya yang dilindungi hak cipta. Penggunaan tanpa izin atau lisensi dapat menyebabkan pembatasan konten.",
-    "image_url": ""
+    "image_url": "",
+    "jenjang": "X"
   },
   {
     "id": "soal_inf_22",
@@ -305,7 +326,8 @@
     "option_e": "Menyebarkan ujaran kebencian (hate speech) di lingkungan sekolah",
     "jawaban_benar": "b",
     "pembahasan": "Mengumpulkan karya yang bukan hasil pemahaman atau kerja sendiri tanpa transparansi yang sesuai merupakan pelanggaran integritas akademik.",
-    "image_url": ""
+    "image_url": "",
+    "jenjang": "X"
   },
   {
     "id": "soal_inf_23",
@@ -319,7 +341,8 @@
     "option_e": "UU Perlindungan Konsumen",
     "jawaban_benar": "c",
     "pembahasan": "UU ITE secara khusus berkaitan dengan informasi dan transaksi elektronik serta berbagai aspek aktivitas di ruang digital.",
-    "image_url": ""
+    "image_url": "",
+    "jenjang": "X"
   },
   {
     "id": "soal_inf_24",
@@ -333,7 +356,8 @@
     "option_e": "Artificial General Intelligence (AGI)",
     "jawaban_benar": "d",
     "pembahasan": "AI hallucination adalah kondisi ketika AI menghasilkan informasi yang keliru atau tidak berdasar tetapi disampaikan seolah-olah benar.",
-    "image_url": ""
+    "image_url": "",
+    "jenjang": "X"
   },
   {
     "id": "soal_inf_25",
@@ -347,6 +371,7 @@
     "option_e": "Data Mining (Penggalian Data)",
     "jawaban_benar": "c",
     "pembahasan": "Generative AI dapat membuat konten baru, termasuk gambar, berdasarkan instruksi atau prompt dari pengguna.",
-    "image_url": ""
+    "image_url": "",
+    "jenjang": "X"
   }
 ]

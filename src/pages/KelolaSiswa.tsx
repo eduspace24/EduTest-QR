@@ -757,18 +757,34 @@ export default function KelolaSiswa() {
               </div>
 
               {/* Detail Murid */}
-              <div className="space-y-1.5 text-left bg-slate-50/50 p-4 rounded-2xl text-xs">
+              <div className="space-y-2 text-left bg-slate-50/70 p-4 rounded-2xl text-xs border border-slate-100">
                 <div className="flex justify-between">
-                  <span className="text-slate-400 font-medium">Nama Murid:</span>
-                  <span className="font-bold text-indigo-950">{activeStudentForCard.nama || activeStudentForCard.name}</span>
+                  <span className="text-slate-400 font-medium">No. Peserta:</span>
+                  <span className="font-mono font-bold text-indigo-950">
+                    2627-{activeStudentForCard.nama_kelas || activeStudentForCard.classId || 'X'}-{String(activeStudentForCard.noAbsen || activeStudentForCard.nomor_absen || '1').padStart(2, '0')}
+                  </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400 font-medium">Kelas:</span>
+                  <span className="text-slate-400 font-medium">Nama Murid:</span>
+                  <span className="font-bold text-indigo-950 truncate max-w-[180px]">{activeStudentForCard.nama || activeStudentForCard.name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-medium">Kelas / Rombel:</span>
                   <span className="font-bold text-indigo-950">{activeStudentForCard.nama_kelas || activeStudentForCard.classId}</span>
                 </div>
                 <div className="flex justify-between">
+                  <span className="text-slate-400 font-medium">Ruang Ujian:</span>
+                  <span className="font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
+                    Ruang {String(Math.ceil((parseInt(activeStudentForCard.noAbsen || activeStudentForCard.nomor_absen || '1') || 1) / 20) || 1).padStart(2, '0')}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-medium">Sesi Ujian:</span>
+                  <span className="font-bold text-indigo-950">Sesi 1 (07.30 - 09.30)</span>
+                </div>
+                <div className="flex justify-between pt-1 border-t border-slate-200/60">
                   <span className="text-slate-400 font-medium">Password Login:</span>
-                  <span className="font-mono font-bold text-indigo-950">{activeStudentForCard.password_pin || 'murid19*'}</span>
+                  <span className="font-mono font-black text-indigo-950">{activeStudentForCard.password_pin || 'murid19*'}</span>
                 </div>
               </div>
 

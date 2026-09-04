@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Search, 
   Trash2, 
@@ -16,7 +16,9 @@ import {
   ArrowLeft,
   Edit3,
   MoreVertical,
-  FolderOpen
+  FolderOpen,
+  Layers,
+  GraduationCap
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import React from 'react';
@@ -24,16 +26,58 @@ import * as XLSX from 'xlsx';
 import { cn } from '../lib/utils';
 import { useAlert } from '../context/AlertContext';
 import { getCollectionData, saveCollection } from '../lib/db';
-import { useRef } from 'react';
 import { uploadQuestionImage } from '../lib/cloudinary';
 // @ts-ignore
 import mammoth from 'mammoth';
 
+export const ALL_SCHOOL_SUBJECTS = [
+  'Informatika',
+  'Matematika',
+  'Matematika TL',
+  'Bahasa Indonesia',
+  'Bahasa Inggris',
+  'Bahasa Sunda',
+  'Bahasa Jerman',
+  'Fisika',
+  'Kimia',
+  'Biologi',
+  'Geografi',
+  'Sosiologi',
+  'Ekonomi',
+  'Sejarah',
+  'Sejarah TL',
+  'Pendidikan Pancasila',
+  'PAIBP',
+  'PAKBP',
+  'PJOK',
+  'PKWU',
+  'Seni Rupa',
+  'Seni Musik',
+  'Seni Tari',
+  'Bimbingan Konseling'
+];
+
 export default function BankSoal() {
+  const session = JSON.parse(localStorage.getItem('edu_session') || '{}');
+  const userRole = session?.user?.role || 'guru';
+  const isSuperAdmin = userRole === 'superadmin';
+  const rawMataPelajaran: string = session?.user?.mata_pelajaran || '';
+  const teacherSubjects: string[] = rawMataPelajaran
+    ? rawMataPelajaran.split(',').map((s: string) => s.trim()).filter(Boolean)
+    : [];
+
   const [questions, setQuestions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const { showAlert } = useAlert();
+
+  // Subject & Grade Filter States
+  const [selectedSubjectFilter, setSelectedSubjectFilter] = useState<string>(() => {
+    if (isSuperAdmin) return 'ALL';
+    if (teacherSubjects.length === 1) return teacherSubjects[0];
+    return 'ALL';
+  });
+  const [selectedJenjangFilter, setSelectedJenjangFilter] = useState<string>('ALL'); // 'ALL' | 'X' | 'XI' | 'XII'
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
@@ -63,7 +107,8 @@ export default function BankSoal() {
   const [newQuestion, setNewQuestion] = useState({
     text: '',
     type: 'Pilihan Ganda',
-    category: '',
+    category: teacherSubjects[0] || (isSuperAdmin ? 'Informatika' : 'Umum'),
+    jenjang: 'X',
     option_a: '',
     option_b: '',
     option_c: '',
@@ -422,7 +467,7 @@ export default function BankSoal() {
             jawaban_benar = 'auto';
           }
 
-          // Determine category based on autoDetectCategory
+          // Determine category based on autoDetectCategory & teacher subjects
           let finalCategory = '';
           if (autoDetectCategory) {
             finalCategory = row['Kategori'] || row['category'] || '';
@@ -430,12 +475,24 @@ export default function BankSoal() {
             // Import to active folder
             finalCategory = (activeFolder === 'Umum' ? '' : activeFolder) || '';
           }
+          if (!isSuperAdmin && teacherSubjects.length > 0) {
+            const matchedSubject = teacherSubjects.find(ts => finalCategory.toLowerCase().includes(ts.toLowerCase()));
+            finalCategory = matchedSubject || (selectedSubjectFilter !== 'ALL' ? selectedSubjectFilter : teacherSubjects[0]);
+          } else if (!finalCategory) {
+            finalCategory = selectedSubjectFilter !== 'ALL' ? selectedSubjectFilter : 'Informatika';
+          }
+
+          let jenjang = String(row['Jenjang'] || row['jenjang'] || row['Tingkat'] || row['tingkat'] || '').toUpperCase().trim();
+          if (!['X', 'XI', 'XII'].includes(jenjang)) {
+            jenjang = selectedJenjangFilter !== 'ALL' ? selectedJenjangFilter : 'X';
+          }
 
           return {
             id: `${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 4)}`,
             text: row['Pertanyaan'] || row['text'] || '',
             type,
             category: finalCategory,
+            jenjang,
             option_a,
             option_b,
             option_c,
@@ -619,13 +676,30 @@ export default function BankSoal() {
             option_e = 'Pernyataan dan alasan keduanya salah';
           }
 
-          // Determine category based on autoDetectCategory
+          // Determine category based on autoDetectCategory & teacher subjects
           let finalCategory = '';
           if (autoDetectCategory) {
             finalCategory = q.category || '';
           } else {
             // Import to active folder
             finalCategory = (activeFolder === 'Umum' ? '' : activeFolder) || '';
+          }
+          if (!isSuperAdmin && teacherSubjects.length > 0) {
+            const matchedSubject = teacherSubjects.find(ts => finalCategory.toLowerCase().includes(ts.toLowerCase()));
+            finalCategory = matchedSubject || (selectedSubjectFilter !== 'ALL' ? selectedSubjectFilter : teacherSubjects[0]);
+          } else if (!finalCategory) {
+            finalCategory = selectedSubjectFilter !== 'ALL' ? selectedSubjectFilter : 'Informatika';
+          }
+
+          let detectedJenjang = selectedJenjangFilter !== 'ALL' ? selectedJenjangFilter : 'X';
+          const fileLower = (file.name || '').toLowerCase();
+          const qTextLower = (q.text || '').toLowerCase();
+          if (fileLower.includes('kelas_xii') || fileLower.includes('kelas xii') || fileLower.includes('kelas 12') || qTextLower.includes('kelas xii')) {
+            detectedJenjang = 'XII';
+          } else if (fileLower.includes('kelas_xi') || fileLower.includes('kelas xi') || fileLower.includes('kelas 11') || qTextLower.includes('kelas xi')) {
+            detectedJenjang = 'XI';
+          } else if (fileLower.includes('kelas_x') || fileLower.includes('kelas x') || fileLower.includes('kelas 10') || qTextLower.includes('kelas x')) {
+            detectedJenjang = 'X';
           }
 
           let jawaban_benar = q.jawaban_benar || (normalizedType === 'Menjodohkan' ? 'auto' : 'a');
@@ -635,6 +709,7 @@ export default function BankSoal() {
             text: q.text.trim(),
             type: normalizedType,
             category: finalCategory,
+            jenjang: detectedJenjang,
             option_a,
             option_b,
             option_c,
@@ -703,7 +778,8 @@ export default function BankSoal() {
     setNewQuestion({
       text: '',
       type: 'Pilihan Ganda',
-      category: '',
+      category: teacherSubjects[0] || (isSuperAdmin ? 'Informatika' : 'Umum'),
+      jenjang: selectedJenjangFilter !== 'ALL' ? selectedJenjangFilter : 'X',
       option_a: '',
       option_b: '',
       option_c: '',
@@ -720,7 +796,8 @@ export default function BankSoal() {
     setNewQuestion({
       text: q.text,
       type: q.type,
-      category: q.category,
+      category: q.category || teacherSubjects[0] || 'Informatika',
+      jenjang: q.jenjang || 'X',
       option_a: q.option_a,
       option_b: q.option_b,
       option_c: q.option_c,
@@ -873,13 +950,45 @@ export default function BankSoal() {
     showAlert({ title: 'Berhasil', message: `Berhasil memindahkan ${selectedQuestions.length} soal ke folder "${targetFolder}".`, type: 'success' });
   };
 
-  // Get all unique categories from questions (map empty/trimmed categories to 'Umum')
-  const uniqueCategories = Array.from(new Set(questions.map(q => {
+  // 1. Filter questions by teacher's subject access
+  const teacherAuthorizedQuestions = useMemo(() => {
+    if (isSuperAdmin) return questions;
+    if (teacherSubjects.length === 0) return questions;
+    return questions.filter(q => {
+      const cat = (q.category || '').toLowerCase().trim();
+      return teacherSubjects.some(ts => cat.includes(ts.toLowerCase()) || ts.toLowerCase().includes(cat));
+    });
+  }, [questions, isSuperAdmin, teacherSubjects]);
+
+  // 2. Filter by selected subject filter
+  const subjectFilteredQuestions = useMemo(() => {
+    if (selectedSubjectFilter === 'ALL') return teacherAuthorizedQuestions;
+    return teacherAuthorizedQuestions.filter(q => {
+      const cat = (q.category || '').toLowerCase().trim();
+      return cat.includes(selectedSubjectFilter.toLowerCase()) || selectedSubjectFilter.toLowerCase().includes(cat);
+    });
+  }, [teacherAuthorizedQuestions, selectedSubjectFilter]);
+
+  // 3. Filter by selected jenjang (X, XI, XII)
+  const jenjangFilteredQuestions = useMemo(() => {
+    if (selectedJenjangFilter === 'ALL') return subjectFilteredQuestions;
+    return subjectFilteredQuestions.filter(q => {
+      const j = (q.jenjang || '').toUpperCase().trim();
+      if (j === selectedJenjangFilter) return true;
+      const textLower = (q.text || '').toLowerCase();
+      if (selectedJenjangFilter === 'X' && (textLower.includes('kelas x') || textLower.includes('kelas 10'))) return true;
+      if (selectedJenjangFilter === 'XI' && (textLower.includes('kelas xi') || textLower.includes('kelas 11'))) return true;
+      if (selectedJenjangFilter === 'XII' && (textLower.includes('kelas xii') || textLower.includes('kelas 12'))) return true;
+      return false;
+    });
+  }, [subjectFilteredQuestions, selectedJenjangFilter]);
+
+  // Get unique categories from teacher-authorized questions
+  const uniqueCategories = Array.from(new Set(teacherAuthorizedQuestions.map(q => {
     const cat = (q.category || '').trim();
     return cat === '' ? 'Umum' : cat;
   })));
   
-  // Combine custom folders and unique categories (excluding 'Umum' which is always present)
   const combinedFoldersList = Array.from(new Set([
     ...uniqueCategories,
     ...customFolders
@@ -888,20 +997,18 @@ export default function BankSoal() {
   const foldersList = ['Umum', ...combinedFoldersList];
 
   const isSearching = searchTerm.trim().length > 0;
+  const isDirectQuestionView = activeFolder !== null || isSearching || selectedSubjectFilter !== 'ALL' || selectedJenjangFilter !== 'ALL';
 
-  const filteredQuestions = questions.filter(q => {
+  const filteredQuestions = jenjangFilteredQuestions.filter(q => {
     const matchesSearch = q.text?.toLowerCase().includes(searchTerm.toLowerCase());
     if (!matchesSearch) return false;
 
-    if (activeFolder === null) {
-      // At root level, show questions only if globally searching
-      return isSearching;
+    if (activeFolder !== null) {
+      const cat = (q.category || '').trim();
+      const normalizedCat = cat === '' ? 'Umum' : cat;
+      return normalizedCat === activeFolder;
     }
-    
-    // Inside a folder: filter by activeFolder name
-    const cat = (q.category || '').trim();
-    const normalizedCat = cat === '' ? 'Umum' : cat;
-    return normalizedCat === activeFolder;
+    return true;
   });
 
   if (loading) return (
@@ -974,6 +1081,83 @@ export default function BankSoal() {
         </div>
       </div>
 
+      {/* Grade Level (Jenjang Kelas X, XI, XII) Tabs & Mapel Pills */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-white p-3 sm:p-4 rounded-2xl border border-slate-100 shadow-sm">
+        <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl overflow-x-auto shrink-0">
+          {[
+            { id: 'ALL', label: 'Semua Jenjang' },
+            { id: 'X', label: 'Kelas X' },
+            { id: 'XI', label: 'Kelas XI' },
+            { id: 'XII', label: 'Kelas XII' }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setSelectedJenjangFilter(tab.id)}
+              className={cn(
+                "px-3.5 py-1.5 rounded-lg text-xs font-black whitespace-nowrap transition-all",
+                selectedJenjangFilter === tab.id
+                  ? "bg-indigo-950 text-white shadow-sm"
+                  : "text-slate-600 hover:text-indigo-950 hover:bg-white/60"
+              )}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Mapel Filter Pills / Badge */}
+        {isSuperAdmin ? (
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider shrink-0">Filter Mapel:</span>
+            <select
+              value={selectedSubjectFilter}
+              onChange={(e) => setSelectedSubjectFilter(e.target.value)}
+              className="bg-slate-50 border border-slate-200 text-indigo-950 font-black text-xs px-3.5 py-2 rounded-xl outline-none cursor-pointer"
+            >
+              <option value="ALL">🌟 Semua Mapel Sekolah</option>
+              {ALL_SCHOOL_SUBJECTS.map(s => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+          </div>
+        ) : teacherSubjects.length > 1 ? (
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1">Pilih Mapel:</span>
+            <button
+              onClick={() => setSelectedSubjectFilter('ALL')}
+              className={cn(
+                "px-3 py-1.5 rounded-xl text-xs font-black transition-all border",
+                selectedSubjectFilter === 'ALL'
+                  ? "bg-blue-600 text-white border-blue-600 shadow-sm"
+                  : "bg-white text-slate-600 border-slate-200 hover:border-blue-300"
+              )}
+            >
+              Semua Mapel Saya ({teacherSubjects.length})
+            </button>
+            {teacherSubjects.map(subj => (
+              <button
+                key={subj}
+                onClick={() => setSelectedSubjectFilter(subj)}
+                className={cn(
+                  "px-3 py-1.5 rounded-xl text-xs font-black transition-all border",
+                  selectedSubjectFilter === subj
+                    ? "bg-blue-600 text-white border-blue-600 shadow-sm"
+                    : "bg-white text-slate-600 border-slate-200 hover:border-blue-300"
+                )}
+              >
+                {subj}
+              </button>
+            ))}
+          </div>
+        ) : teacherSubjects.length === 1 ? (
+          <div className="inline-flex items-center gap-2 bg-blue-50 border border-blue-100 px-3.5 py-1.5 rounded-xl">
+            <BookOpen className="w-3.5 h-3.5 text-blue-700" />
+            <span className="text-xs font-bold text-slate-600">Mata Pelajaran:</span>
+            <span className="text-xs font-black text-blue-700">{teacherSubjects[0]}</span>
+          </div>
+        ) : null}
+      </div>
+
       <div className="bg-white p-3 sm:p-4 rounded-xl border border-slate-100 flex items-center gap-3 shadow-sm group focus-within:ring-4 focus-within:ring-indigo-950/5 transition-all">
         <Search className="text-slate-400 w-4 h-4 group-focus-within:text-blue-500 transition-colors" />
         <input 
@@ -985,7 +1169,7 @@ export default function BankSoal() {
         />
       </div>
 
-      {activeFolder === null && !isSearching ? (
+      {!isDirectQuestionView ? (
         /* Folder Directory Grid View */
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
           {foldersList.map(folder => {
@@ -1058,8 +1242,22 @@ export default function BankSoal() {
               </label>
               {activeFolder !== null ? (
                 <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Folder: {activeFolder}</span>
-              ) : (
+              ) : isSearching ? (
                 <span className="text-[10px] text-blue-600 font-bold uppercase tracking-wider">Hasil Pencarian Global</span>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-indigo-700 font-black uppercase tracking-wider bg-indigo-50 px-2 py-0.5 rounded-md">
+                    {selectedSubjectFilter !== 'ALL' ? selectedSubjectFilter : 'Semua Mapel'} • {selectedJenjangFilter !== 'ALL' ? `Kelas ${selectedJenjangFilter}` : 'Semua Jenjang'}
+                  </span>
+                  {(selectedSubjectFilter !== 'ALL' || selectedJenjangFilter !== 'ALL') && (
+                    <button
+                      onClick={() => { setSelectedSubjectFilter('ALL'); setSelectedJenjangFilter('ALL'); }}
+                      className="text-[10px] text-slate-400 hover:text-indigo-950 font-bold underline bg-transparent border-none cursor-pointer"
+                    >
+                      (Reset)
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           )}
@@ -1073,7 +1271,9 @@ export default function BankSoal() {
               <p className="text-slate-400 mt-2 max-w-sm mx-auto text-sm font-medium">
                 {isSearching 
                   ? 'Tidak ada soal yang cocok dengan pencarian Anda.' 
-                  : 'Folder ini kosong. Tambahkan soal baru atau impor soal untuk mengisi folder ini.'}
+                  : (selectedSubjectFilter !== 'ALL' || selectedJenjangFilter !== 'ALL')
+                    ? `Belum ada soal untuk mapel ${selectedSubjectFilter !== 'ALL' ? selectedSubjectFilter : ''} ${selectedJenjangFilter !== 'ALL' ? `jenjang Kelas ${selectedJenjangFilter}` : ''}. Silakan buat soal baru atau impor soal.`
+                    : 'Folder ini kosong. Tambahkan soal baru atau impor soal untuk mengisi folder ini.'}
               </p>
               {activeFolder !== null && !isSearching && (
                 <button 
@@ -1108,8 +1308,13 @@ export default function BankSoal() {
                             onChange={() => toggleSelectQuestion(q.id)}
                             className="w-4 h-4 accent-indigo-950 cursor-pointer rounded border-slate-200"
                           />
-                          <div className="bg-blue-50 text-blue-600 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest">
-                            {q.category || 'Umum'}
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="bg-indigo-100/70 text-indigo-900 px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider">
+                              Kelas {q.jenjang || 'X'}
+                            </span>
+                            <div className="bg-blue-50 text-blue-600 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest border border-blue-100">
+                              {q.category || 'Umum'}
+                            </div>
                           </div>
                         </div>
                         <button onClick={() => deleteQuestion(q.id)} className="p-1.5 text-slate-300 hover:text-rose-500 transition-colors">
@@ -1257,7 +1462,7 @@ export default function BankSoal() {
                   </div>
                 )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-slate-700">Tipe Soal</label>
                   <select
@@ -1282,14 +1487,49 @@ export default function BankSoal() {
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-slate-700">Kategori/Mapel</label>
-                  <input
-                    type="text"
-                    placeholder="Contoh: Matematika"
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 outline-none font-bold text-xs text-indigo-950"
-                    value={newQuestion.category}
-                    onChange={(e) => setNewQuestion({ ...newQuestion, category: e.target.value })}
-                  />
+                  <label className="text-sm font-bold text-slate-700">Jenjang Kelas</label>
+                  <select
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 outline-none font-bold text-xs text-indigo-950 cursor-pointer"
+                    value={newQuestion.jenjang || 'X'}
+                    onChange={(e) => setNewQuestion({ ...newQuestion, jenjang: e.target.value })}
+                  >
+                    <option value="X">Kelas X</option>
+                    <option value="XI">Kelas XI</option>
+                    <option value="XII">Kelas XII</option>
+                    <option value="Umum">Umum / Semua</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-slate-700">Mata Pelajaran</label>
+                  {isSuperAdmin ? (
+                    <select
+                      className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 outline-none font-bold text-xs text-indigo-950 cursor-pointer"
+                      value={newQuestion.category}
+                      onChange={(e) => setNewQuestion({ ...newQuestion, category: e.target.value })}
+                    >
+                      {ALL_SCHOOL_SUBJECTS.map(s => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                      <option value="Umum">Umum</option>
+                    </select>
+                  ) : teacherSubjects.length > 1 ? (
+                    <select
+                      className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 outline-none font-bold text-xs text-indigo-950 cursor-pointer"
+                      value={newQuestion.category}
+                      onChange={(e) => setNewQuestion({ ...newQuestion, category: e.target.value })}
+                    >
+                      {teacherSubjects.map(s => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      readOnly
+                      className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-100 outline-none font-black text-xs text-indigo-950 cursor-not-allowed"
+                      value={newQuestion.category || teacherSubjects[0] || 'Informatika'}
+                    />
+                  )}
                 </div>
               </div>
 

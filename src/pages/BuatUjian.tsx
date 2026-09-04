@@ -19,7 +19,11 @@ import {
   Upload,
   Shuffle,
   ShieldAlert,
-  KeyRound
+  KeyRound,
+  GraduationCap,
+  FileText,
+  Calendar,
+  Building2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import React, { useRef } from 'react';
@@ -37,8 +41,23 @@ export default function BuatUjian() {
   const [loading, setLoading] = useState(false);
   const [generatedLink, setGeneratedLink] = useState('');
 
+  const session = JSON.parse(localStorage.getItem('edu_session') || '{}');
+  const userRole = session?.user?.role || 'guru';
+  const isSuperAdmin = userRole === 'superadmin';
+  const rawMataPelajaran: string = session?.user?.mata_pelajaran || '';
+  const teacherSubjects: string[] = rawMataPelajaran
+    ? rawMataPelajaran.split(',').map((s: string) => s.trim()).filter(Boolean)
+    : [];
+
   const [formData, setFormData] = useState({
     title: '',
+    subject: teacherSubjects[0] || '',
+    exam_type: (isSuperAdmin ? 'semester' : 'harian') as 'semester' | 'harian',
+    targetGrade: 'ALL',
+    session_name: 'Sesi 1',
+    start_time: '07:30',
+    end_time: '09:30',
+    room_capacity: 20,
     duration: 60,
     randomized: true,
     randomize_options: false,
@@ -89,7 +108,15 @@ export default function BuatUjian() {
     setLoadingBank(true);
     setShowBankModal(true);
     const data = await getCollectionData('bank_soal');
-    setBankSoal(data);
+    if (!isSuperAdmin && teacherSubjects.length > 0) {
+      const filtered = (data || []).filter((q: any) => {
+        const cat = (q.category || '').toLowerCase().trim();
+        return teacherSubjects.some(ts => cat.includes(ts.toLowerCase()) || ts.toLowerCase().includes(cat));
+      });
+      setBankSoal(filtered);
+    } else {
+      setBankSoal(data || []);
+    }
     setLoadingBank(false);
   };
 
@@ -307,11 +334,19 @@ export default function BuatUjian() {
         getCollectionData('classes')
       ]);
       
+      const targetClassNames = allClasses
+        .filter((c: any) => formData.targetClasses.includes(c.id))
+        .map((c: any) => (c.name || '').toLowerCase().trim());
+
       const allowedStudents = allStudents
-        .filter((s: any) => formData.targetClasses.includes(s.classId))
+        .filter((s: any) => {
+          if (formData.targetClasses.includes(s.classId)) return true;
+          const sClass = (s.nama_kelas || s.kelas || '').toLowerCase().trim();
+          return sClass && targetClassNames.includes(sClass);
+        })
         .map((s: any) => ({
           ...s,
-          className: allClasses.find((c: any) => c.id === s.classId)?.name || 'Umum'
+          className: allClasses.find((c: any) => c.id === s.classId)?.name || s.nama_kelas || s.kelas || 'Umum'
         }));
 
       // Safe questions for students
@@ -322,6 +357,7 @@ export default function BuatUjian() {
 
       const examPayload = {
         ...formData,
+        subject: formData.subject || teacherSubjects[0] || 'Umum',
         id: examId,
         driveFileId: examId,
         questions: safeQuestions,
@@ -342,7 +378,7 @@ export default function BuatUjian() {
           examId,
           {
             title: formData.title,
-            subject: formData.subject || 'Umum',
+            subject: formData.subject || teacherSubjects[0] || 'Umum',
             duration: Number(formData.duration) || 60,
             status: 'active',
             driveFileId: examId,
@@ -361,6 +397,13 @@ export default function BuatUjian() {
         id: examId,
         driveFileId: examId,
         title: formData.title,
+        subject: formData.subject || teacherSubjects[0] || 'Umum',
+        exam_type: formData.exam_type || 'semester',
+        session_name: formData.session_name || 'Sesi 1',
+        start_time: formData.start_time || '07:30',
+        end_time: formData.end_time || '09:30',
+        room_capacity: formData.room_capacity || 20,
+        targetGrade: formData.targetGrade || 'ALL',
         duration: formData.duration,
         totalQuestions: questions.length,
         createdAt: new Date().toISOString(),
@@ -441,25 +484,207 @@ export default function BuatUjian() {
             key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
             className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-100 shadow-sm space-y-6"
           >
+            {/* Pilihan 2 Tipe Ujian */}
             <div className="space-y-3">
-              <label className="text-xs font-bold text-slate-700">Judul Ujian</label>
-              <input 
-                type="text" placeholder="Contoh: UTS Matematika Kelas XII"
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-600 font-bold text-indigo-950 text-sm"
-                value={formData.title}
-                onChange={(e) => setFormData({...formData, title: e.target.value})}
-              />
+              <label className="text-xs font-bold text-slate-700">Tipe Pelaksanaan Ujian</label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div
+                  onClick={() => setFormData({ ...formData, exam_type: 'semester' })}
+                  className={cn(
+                    "p-4 rounded-2xl border-2 cursor-pointer transition-all flex items-start gap-3.5",
+                    formData.exam_type === 'semester'
+                      ? "border-indigo-950 bg-indigo-50/30 shadow-md"
+                      : "border-slate-100 hover:border-slate-200 bg-white"
+                  )}
+                >
+                  <div className={cn(
+                    "p-2.5 rounded-xl shrink-0 transition-colors",
+                    formData.exam_type === 'semester' ? "bg-indigo-950 text-white" : "bg-slate-100 text-slate-400"
+                  )}>
+                    <GraduationCap className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-sm font-black text-indigo-950">Ujian Serentak / Semester</h4>
+                      <span className="text-[9px] font-black uppercase tracking-wider bg-indigo-100 text-indigo-950 px-2 py-0.5 rounded-md">Sumatif</span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 font-medium mt-1 leading-relaxed">
+                      Diikuti serentak seluruh murid/tingkat dengan jadwal sesi ujian, pembagian nomor ruang, dan cetak kartu peserta resmi.
+                    </p>
+                  </div>
+                </div>
+
+                <div
+                  onClick={() => setFormData({ ...formData, exam_type: 'harian' })}
+                  className={cn(
+                    "p-4 rounded-2xl border-2 cursor-pointer transition-all flex items-start gap-3.5",
+                    formData.exam_type === 'harian'
+                      ? "border-blue-600 bg-blue-50/30 shadow-md"
+                      : "border-slate-100 hover:border-slate-200 bg-white"
+                  )}
+                >
+                  <div className={cn(
+                    "p-2.5 rounded-xl shrink-0 transition-colors",
+                    formData.exam_type === 'harian' ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-400"
+                  )}>
+                    <FileText className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-sm font-black text-indigo-950">Ulangan Harian Kelas</h4>
+                      <span className="text-[9px] font-black uppercase tracking-wider bg-blue-100 text-blue-700 px-2 py-0.5 rounded-md">Formatif</span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 font-medium mt-1 leading-relaxed">
+                      Ujian mandiri oleh guru mata pelajaran untuk rombel kelas tertentu tanpa memerlukan administrasi ruang dan sesi formal.
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="md:col-span-2 space-y-2">
+                <label className="text-xs font-bold text-slate-700">Judul Ujian</label>
+                <input 
+                  type="text" 
+                  placeholder={formData.exam_type === 'semester' ? "Contoh: ASAT Informatika Kelas X TP 2026/2027" : "Contoh: Ulangan Harian 1 Algoritma Kelas X-A"}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-600 font-bold text-indigo-950 text-sm"
+                  value={formData.title}
+                  onChange={(e) => setFormData({...formData, title: e.target.value})}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-700">Mata Pelajaran</label>
+                {isSuperAdmin ? (
+                  <select
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 outline-none font-bold text-indigo-950 text-sm cursor-pointer"
+                    value={formData.subject}
+                    onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+                  >
+                    <option value="">Pilih Mapel...</option>
+                    {ALL_SCHOOL_SUBJECTS.map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                ) : teacherSubjects.length > 1 ? (
+                  <select
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 outline-none font-bold text-indigo-950 text-sm cursor-pointer"
+                    value={formData.subject}
+                    onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+                  >
+                    {teacherSubjects.map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    readOnly
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-100 font-bold text-indigo-950 text-sm cursor-not-allowed"
+                    value={formData.subject || teacherSubjects[0] || 'Umum'}
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* Pengaturan Tambahan Khusus Ujian Serentak / Semester */}
+            {formData.exam_type === 'semester' && (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-indigo-50/40 p-4 rounded-2xl border border-indigo-100">
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-indigo-950 flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-indigo-600" /> Sesi Ujian
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Contoh: Sesi 1 (Pagi)"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white font-bold text-xs text-indigo-950 outline-none"
+                    value={formData.session_name}
+                    onChange={(e) => setFormData({ ...formData, session_name: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-indigo-950 flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-indigo-600" /> Jam Pelaksanaan
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="time"
+                      className="w-full px-2.5 py-2 rounded-xl border border-slate-200 bg-white font-bold text-xs text-indigo-950 outline-none"
+                      value={formData.start_time}
+                      onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
+                    />
+                    <span className="text-xs font-bold text-slate-400">s/d</span>
+                    <input
+                      type="time"
+                      className="w-full px-2.5 py-2 rounded-xl border border-slate-200 bg-white font-bold text-xs text-indigo-950 outline-none"
+                      value={formData.end_time}
+                      onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-indigo-950 flex items-center gap-1.5">
+                    <Building2 className="w-3.5 h-3.5 text-indigo-600" /> Kapasitas per Ruang
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={1}
+                      max={50}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white font-bold text-xs text-indigo-950 outline-none"
+                      value={formData.room_capacity}
+                      onChange={(e) => setFormData({ ...formData, room_capacity: parseInt(e.target.value) || 20 })}
+                    />
+                    <span className="text-xs font-medium text-slate-400 shrink-0">murid</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-bold text-slate-700">Target Kelas</label>
-                <button 
-                  type="button" onClick={toggleAllClasses}
-                  className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:text-blue-700"
-                >
-                  {formData.targetClasses.length === classes.length ? 'Hapus Semua' : 'Pilih Semua'}
-                </button>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <label className="text-xs font-bold text-slate-700">Target Kelas Peserta</label>
+                
+                {formData.exam_type === 'semester' ? (
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {[
+                      { id: 'ALL', label: 'Semua Angkatan' },
+                      { id: 'X', label: 'Kelas X' },
+                      { id: 'XI', label: 'Kelas XI' },
+                      { id: 'XII', label: 'Kelas XII' }
+                    ].map(grade => (
+                      <button
+                        key={grade.id}
+                        type="button"
+                        onClick={() => {
+                          setFormData(prev => {
+                            if (grade.id === 'ALL') {
+                              return { ...prev, targetGrade: 'ALL', targetClasses: classes.map(c => c.id) };
+                            } else {
+                              const matched = classes.filter(c => (c.name || '').toLowerCase().startsWith(grade.id.toLowerCase()));
+                              return { ...prev, targetGrade: grade.id, targetClasses: matched.map(c => c.id) };
+                            }
+                          });
+                        }}
+                        className={cn(
+                          "px-2.5 py-1 rounded-md text-[10px] font-black border transition-all",
+                          formData.targetGrade === grade.id
+                            ? "bg-indigo-950 text-white border-indigo-950 shadow-sm"
+                            : "bg-white text-slate-600 border-slate-200 hover:border-indigo-950"
+                        )}
+                      >
+                        {grade.label}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <button 
+                    type="button" onClick={toggleAllClasses}
+                    className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:text-blue-700"
+                  >
+                    {formData.targetClasses.length === classes.length ? 'Hapus Semua' : 'Pilih Semua'}
+                  </button>
+                )}
               </div>
               <div className="flex flex-wrap gap-2">
                 {classes.map(c => (
@@ -478,7 +703,7 @@ export default function BuatUjian() {
                 ))}
                 {classes.length === 0 && (
                   <p className="text-[10px] text-amber-600 font-bold bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-100 italic">
-                    Belum ada kelas. Silakan buat di menu Kelola Kelas.
+                    Belum ada kelas. Silakan hubungi Super Admin untuk membuat kelas di menu Kelola Kelas.
                   </p>
                 )}
               </div>
