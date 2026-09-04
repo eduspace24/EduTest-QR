@@ -207,11 +207,13 @@ export default function KelolaKelas() {
   // Students in selected modal class
   const modalClassStudents = useMemo(() => {
     if (!selectedClassDetail) return [];
-    const targetName = selectedClassDetail.name || selectedClassDetail.nama_kelas;
+    const targetName = (selectedClassDetail.name || selectedClassDetail.nama_kelas || '').trim().toLowerCase();
+    if (!targetName) return [];
+
     return students.filter(s => {
-      const sKelas = s.nama_kelas || s.classId;
-      const matchesClass = sKelas === targetName || s.classId === selectedClassDetail.id;
-      if (!matchesClass) return false;
+      const sKelas = String(s.nama_kelas || s.classId || '').trim().toLowerCase();
+      if (sKelas !== targetName) return false;
+
       if (!studentSearchInModal.trim()) return true;
       const sName = (s.nama || s.name || '').toLowerCase();
       const sNis = (s.nisn || s.code || '').toLowerCase();
@@ -420,7 +422,10 @@ export default function KelolaKelas() {
         <AnimatePresence>
           {filteredClasses.map((cls) => {
             const className = cls.name || cls.nama_kelas || 'Kelas';
-            const studentCount = students.filter(s => (s.nama_kelas || s.classId) === className).length;
+            const studentCount = students.filter(s => {
+              const sKelas = String(s.nama_kelas || s.classId || '').trim().toLowerCase();
+              return sKelas === className.trim().toLowerCase();
+            }).length;
             const tingkat = cls.tingkat || (className.startsWith('X-') ? 'X' : (className.startsWith('XI-') ? 'XI' : (className.startsWith('XII-') ? 'XII' : 'Umum')));
 
             return (
