@@ -220,11 +220,15 @@ export default function Dashboard() {
         <div className="bg-white rounded-[2rem] border border-slate-100 p-6">
           <h3 className="text-base font-black text-indigo-950 mb-6">Pintasan Cepat</h3>
           <div className="space-y-2">
-            {[
+            {(isSuperAdmin ? [
+              { label: 'Kelola Akun Guru', desc: 'Atur akun pendidik', icon: Users, color: 'text-indigo-600', to: '/kelola-guru' },
+              { label: 'Kelola Kelas', desc: 'Atur grup murid', icon: GraduationCap, color: 'text-purple-600', to: '/kelola-kelas' },
+              { label: 'Kelola Akun Murid', desc: 'Cetak kartu ujian', icon: FileText, color: 'text-amber-600', to: '/kelola-siswa' },
+            ] : [
               { label: 'Bank Soal', desc: 'Kelola pertanyaan', icon: BookOpen, color: 'text-blue-600', to: '/bank-soal' },
-              { label: isSuperAdmin ? 'Kelola Akun Guru' : 'Kelola Kelas', desc: isSuperAdmin ? 'Atur akun pendidik' : 'Atur grup murid', icon: isSuperAdmin ? Users : GraduationCap, color: 'text-purple-600', to: isSuperAdmin ? '/kelola-guru' : '/kelola-kelas' },
-              { label: isSuperAdmin ? 'Kelola Akun Murid' : 'Daftar Ujian', desc: isSuperAdmin ? 'Cetak kartu ujian' : 'Laporan aktif', icon: FileText, color: 'text-amber-600', to: isSuperAdmin ? '/kelola-siswa' : '/daftar-ujian' },
-            ].map((item, idx) => {
+              { label: 'Buat Ujian Baru', desc: 'Rancang ujian baru', icon: Plus, color: 'text-purple-600', to: '/buat-ujian' },
+              { label: 'Daftar Ujian', desc: 'Laporan & status aktif', icon: FileText, color: 'text-amber-600', to: '/daftar-ujian' },
+            ]).map((item, idx) => {
               const Icon = item.icon;
               return (
                 <Link key={idx} to={item.to} className="flex items-center gap-4 p-3 rounded-xl hover:bg-slate-50 transition-colors group border border-transparent hover:border-slate-100">

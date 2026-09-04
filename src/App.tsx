@@ -88,8 +88,8 @@ export default function App() {
               <Route path="/daftar-ujian" element={<DaftarUjian />} />
               <Route path="/hasil-ujian" element={isStaff ? <HasilUjian /> : <Navigate to="/dashboard" />} />
               <Route path="/analisis" element={isStaff ? <Analisis /> : <Navigate to="/dashboard" />} />
-              <Route path="/kelola-kelas" element={isStaff ? <KelolaKelas /> : <Navigate to="/dashboard" />} />
-              <Route path="/kelola-siswa" element={isStaff ? <KelolaSiswa /> : <Navigate to="/dashboard" />} />
+              <Route path="/kelola-kelas" element={isSuperAdmin ? <KelolaKelas /> : <Navigate to="/dashboard" />} />
+              <Route path="/kelola-siswa" element={isSuperAdmin ? <KelolaSiswa /> : <Navigate to="/dashboard" />} />
               <Route path="/profil" element={<Profil />} />
             </Route>
 
