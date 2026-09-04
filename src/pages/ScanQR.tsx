@@ -292,6 +292,19 @@ export default function ScanQR() {
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
+          <button
+            onClick={() => {
+              if (window.history.length > 1) {
+                navigate(-1);
+              } else {
+                navigate('/dashboard');
+              }
+            }}
+            className="group mb-3 inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-indigo-950 transition-colors bg-white border border-slate-200 hover:border-slate-300 px-3.5 py-2 rounded-xl shadow-xs"
+          >
+            <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-1 transition-transform" />
+            Kembali
+          </button>
           <div className="flex items-center gap-2">
             <span className="bg-emerald-100 text-emerald-950 text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
