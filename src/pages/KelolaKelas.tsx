@@ -276,7 +276,7 @@ export default function KelolaKelas() {
             <motion.div 
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => setIsModalOpen(false)}
-              className="absolute inset-0 bg-indigo-950/40 backdrop-blur-sm"
+              className="absolute inset-0 bg-black/70"
             />
             <motion.div 
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -344,7 +344,7 @@ export default function KelolaKelas() {
             <motion.div 
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => setSelectedClassDetail(null)}
-              className="absolute inset-0 bg-indigo-950/40 backdrop-blur-sm"
+              className="absolute inset-0 bg-black/70"
             />
             <motion.div 
               initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }}

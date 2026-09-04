@@ -151,7 +151,7 @@ export function AlertProvider({ children }: { children: ReactNode }) {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={hideAlert}
-              className="absolute inset-0 bg-indigo-950/40 backdrop-blur-md"
+              className="absolute inset-0 bg-black/70"
             />
             <motion.div
               initial={{ opacity: 0, y: 10 }}

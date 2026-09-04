@@ -692,7 +692,7 @@ export default function BuatUjian() {
                         <img src={q.image_url} alt="Preview" className="w-full h-full object-contain" />
                         <button 
                           onClick={() => updateQuestion(q.id, 'image_url', '')}
-                          className="absolute top-2 right-2 bg-white/80 backdrop-blur p-1.5 rounded-lg shadow-sm border border-slate-200"
+                          className="absolute top-2 right-2 bg-white p-1.5 rounded-lg shadow-md border border-slate-200"
                         >
                           <X className="w-3 h-3 text-red-500" />
                         </button>
@@ -900,9 +900,8 @@ export default function BuatUjian() {
         )}
 
         {showBankModal && (
-          <motion.div 
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          <div 
+            className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 animate-in fade-in duration-150"
           >
             <motion.div 
               initial={{ scale: 0.95 }} animate={{ scale: 1 }}
@@ -967,7 +966,7 @@ export default function BuatUjian() {
                 </button>
               </div>
             </motion.div>
-          </motion.div>
+          </div>
         )}
 
         {step === 3 && (

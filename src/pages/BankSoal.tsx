@@ -1093,8 +1093,7 @@ export default function BankSoal() {
                 {filteredQuestions.map((q) => {
                   const isSelected = selectedQuestions.includes(q.id);
                   return (
-                    <motion.div 
-                      layout initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+                    <div 
                       key={q.id} 
                       className={cn(
                         "bg-white p-4 sm:p-5 rounded-2xl border transition-all flex flex-col hover:shadow-xl relative",
@@ -1140,7 +1139,7 @@ export default function BankSoal() {
                           Edit Detail <ChevronRight className="w-3 h-3" />
                         </button>
                       </div>
-                    </motion.div>
+                    </div>
                   );
                 })}
               </AnimatePresence>
@@ -1151,7 +1150,7 @@ export default function BankSoal() {
 
       {selectedQuestions.length > 0 && (
         /* Floating selection action bar */
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-indigo-950/95 backdrop-blur text-white px-5 py-3.5 rounded-2xl flex items-center gap-5 shadow-2xl z-40 border border-white/10 shrink-0 max-w-[90vw] animate-in fade-in slide-in-from-bottom-4 duration-300">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-indigo-950 text-white px-5 py-3.5 rounded-2xl flex items-center gap-5 shadow-2xl z-40 border border-white/10 shrink-0 max-w-[90vw] animate-in fade-in slide-in-from-bottom-4 duration-300">
           <span className="text-xs font-bold shrink-0">{selectedQuestions.length} soal terpilih</span>
           <div className="w-px h-5 bg-white/20 shrink-0" />
           <div className="flex gap-2 shrink-0">
@@ -1178,9 +1177,8 @@ export default function BankSoal() {
       )}
 
       {showAddModal && (
-        <motion.div 
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        <div 
+          className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 animate-in fade-in duration-150"
         >
           <motion.div 
             initial={{ scale: 0.95 }} animate={{ scale: 1 }}
@@ -1252,7 +1250,7 @@ export default function BankSoal() {
                     <img src={newQuestion.image_url} alt="Preview" className="w-full h-full object-contain" />
                     <button 
                       onClick={() => setNewQuestion({ ...newQuestion, image_url: '' })}
-                      className="absolute top-2 right-2 bg-white/80 backdrop-blur p-1.5 rounded-lg shadow-sm"
+                      className="absolute top-2 right-2 bg-white p-1.5 rounded-lg shadow-md border border-slate-200"
                     >
                       <X className="w-4 h-4 text-red-500" />
                     </button>
@@ -1497,13 +1495,12 @@ export default function BankSoal() {
               </button>
             </div>
           </motion.div>
-        </motion.div>
+        </div>
       )}
 
       {showTemplateModal && (
-        <motion.div 
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        <div 
+          className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 animate-in fade-in duration-150"
         >
           <motion.div 
             initial={{ scale: 0.95, y: 10 }} animate={{ scale: 1, y: 0 }}
@@ -1545,13 +1542,12 @@ export default function BankSoal() {
               </a>
             </div>
           </motion.div>
-        </motion.div>
+        </div>
       )}
 
       {showImportModal && (
-        <motion.div 
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        <div 
+          className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 animate-in fade-in duration-150"
         >
           <motion.div 
             initial={{ scale: 0.95, y: 10 }} animate={{ scale: 1, y: 0 }}
@@ -1619,13 +1615,12 @@ export default function BankSoal() {
               </button>
             </div>
           </motion.div>
-        </motion.div>
+        </div>
       )}
 
       {showCreateFolderModal && (
-        <motion.div 
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        <div 
+          className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 animate-in fade-in duration-150"
         >
           <motion.div 
             initial={{ scale: 0.95, y: 10 }} animate={{ scale: 1, y: 0 }}
@@ -1662,13 +1657,12 @@ export default function BankSoal() {
               </button>
             </div>
           </motion.div>
-        </motion.div>
+        </div>
       )}
 
       {showRenameFolderModal && (
-        <motion.div 
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        <div 
+          className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 animate-in fade-in duration-150"
         >
           <motion.div 
             initial={{ scale: 0.95, y: 10 }} animate={{ scale: 1, y: 0 }}
@@ -1705,13 +1699,12 @@ export default function BankSoal() {
               </button>
             </div>
           </motion.div>
-        </motion.div>
+        </div>
       )}
 
       {showBatchMoveModal && (
-        <motion.div 
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        <div 
+          className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 animate-in fade-in duration-150"
         >
           <motion.div 
             initial={{ scale: 0.95, y: 10 }} animate={{ scale: 1, y: 0 }}
@@ -1749,7 +1742,7 @@ export default function BankSoal() {
               </button>
             </div>
           </motion.div>
-        </motion.div>
+        </div>
       )}
     </div>
   );
