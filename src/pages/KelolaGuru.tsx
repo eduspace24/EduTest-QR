@@ -1,4 +1,4 @@
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, useMemo, FormEvent } from 'react';
 import React from 'react';
 import { 
   Users, 
@@ -13,7 +13,7 @@ import {
   GraduationCap, 
   BookOpen, 
   Mail, 
-  ShieldCheck,
+  ShieldCheck, 
   RefreshCw,
   Eye,
   EyeOff
@@ -22,6 +22,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../lib/supabase';
 import { cn } from '../lib/utils';
 import { useAlert } from '../context/AlertContext';
+import { GURUS_LIST } from '../lib/seedAccounts';
 
 interface Teacher {
   id: string;
@@ -55,27 +56,8 @@ export default function KelolaGuru() {
     email: '',
     password: '',
     mata_pelajaran: 'Matematika',
-    sekolah: 'SMA / SMK Negeri 19'
+    sekolah: 'SMAN 19 Bandung'
   });
-
-  const subjectsList = [
-    'Matematika',
-    'Bahasa Indonesia',
-    'Bahasa Inggris',
-    'Fisika',
-    'Kimia',
-    'Biologi',
-    'Ekonomi',
-    'Sosiologi',
-    'Geografi',
-    'Sejarah',
-    'Pendidikan Agama',
-    'PJOK',
-    'Informatika / TIK',
-    'Seni Budaya',
-    'PPKn',
-    'Lainnya'
-  ];
 
   const fetchTeachers = async () => {
     setLoading(true);
@@ -87,24 +69,90 @@ export default function KelolaGuru() {
         [Query.equal('role', 'guru'), Query.limit(100)]
       );
 
-      if (res && res.documents) {
-        const mapped = res.documents.map(d => ({
-          id: d.$id,
-          nama: d.nama,
-          nip: d.nip,
-          email: d.email,
-          mata_pelajaran: d.mata_pelajaran,
-          sekolah: d.sekolah,
-          is_active: d.is_active ?? true,
-          created_at: d.$createdAt
-        }));
+      if (res && res.documents && res.documents.length > 0) {
+        const mapped = res.documents.map(d => {
+          const seedMatch = GURUS_LIST.find(g => 
+            (d.nip && g.nip && g.nip.trim() === d.nip.trim()) ||
+            (d.email && g.email && g.email.trim().toLowerCase() === d.email.trim().toLowerCase()) ||
+            (d.nama && g.nama && g.nama.trim().toLowerCase() === d.nama.trim().toLowerCase())
+          );
+          const finalMapel = (d.mata_pelajaran && d.mata_pelajaran !== 'Guru Mata Pelajaran' && d.mata_pelajaran !== 'Umum')
+            ? d.mata_pelajaran
+            : (seedMatch?.mata_pelajaran || d.mata_pelajaran || 'Umum');
+
+          return {
+            id: d.$id,
+            nama: d.nama || seedMatch?.nama || 'Guru',
+            nip: d.nip || seedMatch?.nip || '',
+            email: d.email || seedMatch?.email || '',
+            mata_pelajaran: finalMapel,
+            sekolah: d.sekolah || seedMatch?.sekolah || 'SMAN 19 Bandung',
+            is_active: d.is_active ?? true,
+            created_at: d.$createdAt
+          };
+        });
         setTeachers(mapped);
         localStorage.setItem('nineteen_teachers_cache', JSON.stringify(mapped));
+      } else {
+        const fallback = GURUS_LIST.map((g, idx) => ({
+          id: g.id || `guru-${idx + 1}`,
+          nama: g.nama,
+          nip: g.nip,
+          email: g.email,
+          mata_pelajaran: g.mata_pelajaran || 'Umum',
+          sekolah: g.sekolah || 'SMAN 19 Bandung',
+          is_active: true,
+          created_at: new Date().toISOString()
+        }));
+        setTeachers(fallback);
+        localStorage.setItem('nineteen_teachers_cache', JSON.stringify(fallback));
       }
     } catch (err: any) {
-      console.warn('Appwrite profiles fetch notice, using fallback cache:', err.message);
+      console.warn('Appwrite profiles fetch notice, using fallback seed/cache:', err.message);
       const cached = localStorage.getItem('nineteen_teachers_cache');
-      if (cached) setTeachers(JSON.parse(cached));
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          const enriched = parsed.map((t: any) => {
+            const seedMatch = GURUS_LIST.find(g => 
+              (t.nip && g.nip && g.nip.trim() === t.nip.trim()) ||
+              (t.email && g.email && g.email.trim().toLowerCase() === t.email.trim().toLowerCase()) ||
+              (t.nama && g.nama && g.nama.trim().toLowerCase() === t.nama.trim().toLowerCase())
+            );
+            return {
+              ...t,
+              mata_pelajaran: (t.mata_pelajaran && t.mata_pelajaran !== 'Guru Mata Pelajaran' && t.mata_pelajaran !== 'Umum')
+                ? t.mata_pelajaran
+                : (seedMatch?.mata_pelajaran || t.mata_pelajaran || 'Umum')
+            };
+          });
+          setTeachers(enriched);
+        } catch {
+          const fallback = GURUS_LIST.map((g, idx) => ({
+            id: g.id || `guru-${idx + 1}`,
+            nama: g.nama,
+            nip: g.nip,
+            email: g.email,
+            mata_pelajaran: g.mata_pelajaran || 'Umum',
+            sekolah: g.sekolah || 'SMAN 19 Bandung',
+            is_active: true,
+            created_at: new Date().toISOString()
+          }));
+          setTeachers(fallback);
+        }
+      } else {
+        const fallback = GURUS_LIST.map((g, idx) => ({
+          id: g.id || `guru-${idx + 1}`,
+          nama: g.nama,
+          nip: g.nip,
+          email: g.email,
+          mata_pelajaran: g.mata_pelajaran || 'Umum',
+          sekolah: g.sekolah || 'SMAN 19 Bandung',
+          is_active: true,
+          created_at: new Date().toISOString()
+        }));
+        setTeachers(fallback);
+      }
     } finally {
       setLoading(false);
     }
@@ -215,11 +263,29 @@ export default function KelolaGuru() {
     }
   };
 
+  const availableSubjects = useMemo(() => {
+    const set = new Set<string>();
+    teachers.forEach(t => {
+      if (t.mata_pelajaran) {
+        t.mata_pelajaran.split(',').forEach(s => {
+          const trimmed = s.trim();
+          if (trimmed && trimmed !== 'Guru Mata Pelajaran' && trimmed !== 'Umum') {
+            set.add(trimmed);
+          }
+        });
+      }
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'id'));
+  }, [teachers]);
+
   const filteredTeachers = teachers.filter(t => {
     const matchSearch = t.nama.toLowerCase().includes(searchTerm.toLowerCase()) || 
       t.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (t.nip && t.nip.includes(searchTerm));
-    const matchSubject = selectedSubject ? t.mata_pelajaran === selectedSubject : true;
+      (t.nip && t.nip.includes(searchTerm)) ||
+      (t.mata_pelajaran && t.mata_pelajaran.toLowerCase().includes(searchTerm.toLowerCase()));
+    const matchSubject = selectedSubject 
+      ? (t.mata_pelajaran && t.mata_pelajaran.toLowerCase().includes(selectedSubject.toLowerCase())) 
+      : true;
     return matchSearch && matchSubject;
   });
 
@@ -288,7 +354,7 @@ export default function KelolaGuru() {
           <div>
             <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Mata Pelajaran</p>
             <h3 className="text-2xl font-black text-purple-950 mt-0.5">
-              {new Set(teachers.map(t => t.mata_pelajaran).filter(Boolean)).size} Mapel
+              {availableSubjects.length} Mapel
             </h3>
           </div>
         </div>
@@ -300,7 +366,7 @@ export default function KelolaGuru() {
           <Search className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
-            placeholder="Cari nama guru, email, atau NIP..."
+            placeholder="Cari nama guru, email, NIP, atau mata pelajaran..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-12 pr-4 py-3.5 bg-white rounded-2xl border border-slate-200 outline-none text-indigo-950 font-bold text-sm focus:border-indigo-950 transition-all"
@@ -310,10 +376,10 @@ export default function KelolaGuru() {
         <select
           value={selectedSubject}
           onChange={(e) => setSelectedSubject(e.target.value)}
-          className="px-4 py-3.5 bg-white rounded-2xl border border-slate-200 outline-none text-slate-700 font-bold text-sm focus:border-indigo-950 transition-all"
+          className="px-4 py-3.5 bg-white rounded-2xl border border-slate-200 outline-none text-slate-700 font-bold text-sm focus:border-indigo-950 transition-all max-w-xs"
         >
-          <option value="">Semua Mata Pelajaran</option>
-          {subjectsList.map(s => (
+          <option value="">Semua Mata Pelajaran ({availableSubjects.length})</option>
+          {availableSubjects.map(s => (
             <option key={s} value={s}>{s}</option>
           ))}
         </select>
@@ -371,9 +437,20 @@ export default function KelolaGuru() {
                     </td>
 
                     <td className="px-6 py-4">
-                      <span className="bg-purple-50 text-purple-900 border border-purple-100 text-xs font-bold px-3 py-1.5 rounded-xl">
-                        {teacher.mata_pelajaran || 'Umum'}
-                      </span>
+                      <div className="flex flex-wrap gap-1.5 max-w-sm">
+                        {(teacher.mata_pelajaran || 'Umum')
+                          .split(',')
+                          .map(s => s.trim())
+                          .filter(Boolean)
+                          .map((subj, idx) => (
+                            <span
+                              key={idx}
+                              className="bg-purple-50 text-purple-900 border border-purple-200/80 text-xs font-bold px-2.5 py-1 rounded-xl shadow-xs"
+                            >
+                              {subj}
+                            </span>
+                          ))}
+                      </div>
                     </td>
 
                     <td className="px-6 py-4 text-center">
@@ -466,17 +543,22 @@ export default function KelolaGuru() {
 
                   <div>
                     <label className="text-xs font-black text-slate-500 uppercase tracking-wider mb-1.5 block">
-                      Mata Pelajaran *
+                      Mata Pelajaran * (Bisa &gt;1, pisahkan koma)
                     </label>
-                    <select
+                    <input
+                      type="text"
+                      required
+                      placeholder="Contoh: Seni Rupa, PKWU, Informatika"
                       value={formData.mata_pelajaran}
                       onChange={(e) => setFormData({ ...formData, mata_pelajaran: e.target.value })}
+                      list="teacher-subjects-datalist"
                       className="w-full px-4 py-3 bg-slate-50 rounded-2xl border border-slate-200 outline-none text-indigo-950 font-bold text-sm focus:bg-white focus:border-indigo-950 transition-all"
-                    >
-                      {subjectsList.map(s => (
-                        <option key={s} value={s}>{s}</option>
+                    />
+                    <datalist id="teacher-subjects-datalist">
+                      {availableSubjects.map(s => (
+                        <option key={s} value={s} />
                       ))}
-                    </select>
+                    </datalist>
                   </div>
                 </div>
 
