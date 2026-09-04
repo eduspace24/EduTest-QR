@@ -26,7 +26,6 @@ import { useAlert } from '../context/AlertContext';
 import { getCollectionData, saveCollection } from '../lib/db';
 import { useRef } from 'react';
 import { uploadQuestionImage } from '../lib/cloudinary';
-import { supabase } from '../lib/supabase';
 // @ts-ignore
 import mammoth from 'mammoth';
 
@@ -76,8 +75,45 @@ export default function BankSoal() {
 
   useEffect(() => {
     const fetchQuestions = async () => {
-      const data = await getCollectionData('bank_soal');
-      setQuestions(data);
+      try {
+        const { databases, COLLECTIONS, APPWRITE_DATABASE_ID, Query } = await import('../lib/appwrite');
+        const res = await databases.listDocuments(
+          APPWRITE_DATABASE_ID,
+          'bank_soal',
+          [Query.limit(100)]
+        );
+
+        if (res && res.documents && res.documents.length > 0) {
+          const mapped = res.documents.map(d => ({
+            ...d,
+            id: d.$id
+          }));
+          setQuestions(mapped);
+          await saveCollection('bank_soal', mapped);
+          setLoading(false);
+          return;
+        }
+      } catch (err) {
+        console.warn('Appwrite bank_soal fetch notice:', err);
+      }
+
+      // Fallback 1: Local IndexedDB / LocalStorage
+      const local = await getCollectionData('bank_soal');
+      if (local && local.length > 0) {
+        setQuestions(local);
+      } else {
+        // Fallback 2: Default seed questions from /seed_bank_soal.json
+        try {
+          const res = await fetch('/seed_bank_soal.json');
+          if (res.ok) {
+            const seed = await res.json();
+            setQuestions(seed);
+            await saveCollection('bank_soal', seed);
+          }
+        } catch {
+          setQuestions([]);
+        }
+      }
       setLoading(false);
     };
     fetchQuestions();
@@ -88,6 +124,34 @@ export default function BankSoal() {
 
   const syncToDrive = async (updatedQuestions: any[]) => {
     await saveCollection('bank_soal', updatedQuestions);
+    try {
+      const { databases, APPWRITE_DATABASE_ID, ID } = await import('../lib/appwrite');
+      for (const q of updatedQuestions) {
+        const docId = q.id ? String(q.id).replace(/[^a-zA-Z0-9_]/g, '_').substring(0, 36) : ID.unique();
+        const payload = {
+          text: (q.text || '').substring(0, 1990),
+          type: q.type || 'Pilihan Ganda',
+          category: q.category || 'Informatika',
+          option_a: (q.option_a || '').substring(0, 490),
+          option_b: (q.option_b || '').substring(0, 490),
+          option_c: (q.option_c || '').substring(0, 490),
+          option_d: (q.option_d || '').substring(0, 490),
+          option_e: (q.option_e || '').substring(0, 490),
+          jawaban_benar: q.jawaban_benar || 'a',
+          pembahasan: (q.pembahasan || '').substring(0, 1490),
+          image_url: q.image_url || ''
+        };
+        try {
+          await databases.updateDocument(APPWRITE_DATABASE_ID, 'bank_soal', docId, payload);
+        } catch {
+          try {
+            await databases.createDocument(APPWRITE_DATABASE_ID, 'bank_soal', docId, payload);
+          } catch {}
+        }
+      }
+    } catch (err) {
+      console.warn('Appwrite bank_soal sync note:', err);
+    }
   };
 
   const handleUploadImage = async (e: React.ChangeEvent<HTMLInputElement>) => {

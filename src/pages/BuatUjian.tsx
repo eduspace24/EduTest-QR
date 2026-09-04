@@ -27,7 +27,6 @@ import { useAlert } from '../context/AlertContext';
 import { generateExamCode, cn } from '../lib/utils';
 import { getCollectionData, saveCollection } from '../lib/db';
 import { useSchool } from '../context/SchoolContext';
-import { supabase } from '../lib/supabase';
 import { uploadQuestionImage } from '../lib/cloudinary';
 
 export default function BuatUjian() {
@@ -334,19 +333,26 @@ export default function BuatUjian() {
       // Save locally
       await saveCollection('exam_' + examId, examPayload);
 
-      // Save to Supabase
+      // Save to Appwrite
       try {
-        await supabase.from('exams').upsert([{
-          id: examId,
-          title: formData.title,
-          duration: formData.duration,
-          total_questions: questions.length,
-          status: 'active',
-          questions: examPayload,
-          created_at: new Date().toISOString()
-        }]);
+        const { databases, COLLECTIONS, APPWRITE_DATABASE_ID } = await import('../lib/appwrite');
+        await databases.createDocument(
+          APPWRITE_DATABASE_ID,
+          COLLECTIONS.EXAMS,
+          examId,
+          {
+            title: formData.title,
+            subject: formData.subject || 'Umum',
+            duration: Number(formData.duration) || 60,
+            status: 'active',
+            driveFileId: examId,
+            questions: JSON.stringify(examPayload).substring(0, 65000),
+            unlock_code: formData.unlock_code || '',
+            cheat_tolerance: Number(formData.cheat_tolerance) || 3
+          }
+        );
       } catch (sErr) {
-        console.warn('Supabase exam sync note:', sErr);
+        console.warn('Appwrite exam sync note:', sErr);
       }
 
       // Update global exams list via IndexedDB
