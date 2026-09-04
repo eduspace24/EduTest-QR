@@ -1,5 +1,6 @@
 import gurusData from '../../public/seed_gurus.json';
 import muridsData from '../../public/seed_murids.json';
+import classesData from '../../public/seed_classes.json';
 
 export interface TeacherAccount {
   id: string;
@@ -23,8 +24,20 @@ export interface StudentAccount {
   role: string;
 }
 
+export interface ClassItem {
+  id: string;
+  name: string;
+  nama_kelas: string;
+  tingkat: string;
+  jurusan: string;
+  subject?: string;
+  schoolId?: string;
+  createdAt?: string;
+}
+
 export const GURUS_LIST: TeacherAccount[] = gurusData as TeacherAccount[];
 export const MURIDS_LIST: StudentAccount[] = muridsData as StudentAccount[];
+export const CLASSES_LIST: ClassItem[] = classesData as ClassItem[];
 
 export const SUPER_ADMIN_ACCOUNT = {
   id: '00000000-0000-0000-0000-000000000001',

@@ -1,0 +1,302 @@
+[
+  {
+    "id": "cls_x_a",
+    "name": "X-A",
+    "nama_kelas": "X-A",
+    "tingkat": "X",
+    "jurusan": "Umum",
+    "subject": "Semua Mapel",
+    "schoolId": "1",
+    "createdAt": "2026-09-04T09:42:51.848Z"
+  },
+  {
+    "id": "cls_x_b",
+    "name": "X-B",
+    "nama_kelas": "X-B",
+    "tingkat": "X",
+    "jurusan": "Umum",
+    "subject": "Semua Mapel",
+    "schoolId": "1",
+    "createdAt": "2026-09-04T09:42:51.849Z"
+  },
+  {
+    "id": "cls_x_c",
+    "name": "X-C",
+    "nama_kelas": "X-C",
+    "tingkat": "X",
+    "jurusan": "Umum",
+    "subject": "Semua Mapel",
+    "schoolId": "1",
+    "createdAt": "2026-09-04T09:42:51.849Z"
+  },
+  {
+    "id": "cls_x_d",
+    "name": "X-D",
+    "nama_kelas": "X-D",
+    "tingkat": "X",
+    "jurusan": "Umum",
+    "subject": "Semua Mapel",
+    "schoolId": "1",
+    "createdAt": "2026-09-04T09:42:51.849Z"
+  },
+  {
+    "id": "cls_x_e",
+    "name": "X-E",
+    "nama_kelas": "X-E",
+    "tingkat": "X",
+    "jurusan": "Umum",
+    "subject": "Semua Mapel",
+    "schoolId": "1",
+    "createdAt": "2026-09-04T09:42:51.849Z"
+  },
+  {
+    "id": "cls_x_f",
+    "name": "X-F",
+    "nama_kelas": "X-F",
+    "tingkat": "X",
+    "jurusan": "Umum",
+    "subject": "Semua Mapel",
+    "schoolId": "1",
+    "createdAt": "2026-09-04T09:42:51.849Z"
+  },
+  {
+    "id": "cls_x_g",
+    "name": "X-G",
+    "nama_kelas": "X-G",
+    "tingkat": "X",
+    "jurusan": "Umum",
+    "subject": "Semua Mapel",
+    "schoolId": "1",
+    "createdAt": "2026-09-04T09:42:51.849Z"
+  },
+  {
+    "id": "cls_x_h",
+    "name": "X-H",
+    "nama_kelas": "X-H",
+    "tingkat": "X",
+    "jurusan": "Umum",
+    "subject": "Semua Mapel",
+    "schoolId": "1",
+    "createdAt": "2026-09-04T09:42:51.849Z"
+  },
+  {
+    "id": "cls_x_i",
+    "name": "X-I",
+    "nama_kelas": "X-I",
+    "tingkat": "X",
+    "jurusan": "Umum",
+    "subject": "Semua Mapel",
+    "schoolId": "1",
+    "createdAt": "2026-09-04T09:42:51.849Z"
+  },
+  {
+    "id": "cls_x_j",
+    "name": "X-J",
+    "nama_kelas": "X-J",
+    "tingkat": "X",
+    "jurusan": "Umum",
+    "subject": "Semua Mapel",
+    "schoolId": "1",
+    "createdAt": "2026-09-04T09:42:51.849Z"
+  },
+  {
+    "id": "cls_x_k",
+    "name": "X-K",
+    "nama_kelas": "X-K",
+    "tingkat": "X",
+    "jurusan": "Umum",
+    "subject": "Semua Mapel",
+    "schoolId": "1",
+    "createdAt": "2026-09-04T09:42:51.849Z"
+  },
+  {
+    "id": "cls_xi_a",
+    "name": "XI-A",
+    "nama_kelas": "XI-A",
+    "tingkat": "XI",
+    "jurusan": "Umum",
+    "subject": "Semua Mapel",
+    "schoolId": "1",
+    "createdAt": "2026-09-04T09:42:51.849Z"
+  },
+  {
+    "id": "cls_xi_b",
+    "name": "XI-B",
+    "nama_kelas": "XI-B",
+    "tingkat": "XI",
+    "jurusan": "Umum",
+    "subject": "Semua Mapel",
+    "schoolId": "1",
+    "createdAt": "2026-09-04T09:42:51.849Z"
+  },
+  {
+    "id": "cls_xi_c",
+    "name": "XI-C",
+    "nama_kelas": "XI-C",
+    "tingkat": "XI",
+    "jurusan": "Umum",
+    "subject": "Semua Mapel",
+    "schoolId": "1",
+    "createdAt": "2026-09-04T09:42:51.849Z"
+  },
+  {
+    "id": "cls_xi_d",
+    "name": "XI-D",
+    "nama_kelas": "XI-D",
+    "tingkat": "XI",
+    "jurusan": "Umum",
+    "subject": "Semua Mapel",
+    "schoolId": "1",
+    "createdAt": "2026-09-04T09:42:51.849Z"
+  },
+  {
+    "id": "cls_xi_e",
+    "name": "XI-E",
+    "nama_kelas": "XI-E",
+    "tingkat": "XI",
+    "jurusan": "Umum",
+    "subject": "Semua Mapel",
+    "schoolId": "1",
+    "createdAt": "2026-09-04T09:42:51.849Z"
+  },
+  {
+    "id": "cls_xi_f",
+    "name": "XI-F",
+    "nama_kelas": "XI-F",
+    "tingkat": "XI",
+    "jurusan": "Umum",
+    "subject": "Semua Mapel",
+    "schoolId": "1",
+    "createdAt": "2026-09-04T09:42:51.850Z"
+  },
+  {
+    "id": "cls_xi_g",
+    "name": "XI-G",
+    "nama_kelas": "XI-G",
+    "tingkat": "XI",
+    "jurusan": "Umum",
+    "subject": "Semua Mapel",
+    "schoolId": "1",
+    "createdAt": "2026-09-04T09:42:51.850Z"
+  },
+  {
+    "id": "cls_xi_h",
+    "name": "XI-H",
+    "nama_kelas": "XI-H",
+    "tingkat": "XI",
+    "jurusan": "Umum",
+    "subject": "Semua Mapel",
+    "schoolId": "1",
+    "createdAt": "2026-09-04T09:42:51.850Z"
+  },
+  {
+    "id": "cls_xi_i",
+    "name": "XI-I",
+    "nama_kelas": "XI-I",
+    "tingkat": "XI",
+    "jurusan": "Umum",
+    "subject": "Semua Mapel",
+    "schoolId": "1",
+    "createdAt": "2026-09-04T09:42:51.850Z"
+  },
+  {
+    "id": "cls_xi_j",
+    "name": "XI-J",
+    "nama_kelas": "XI-J",
+    "tingkat": "XI",
+    "jurusan": "Umum",
+    "subject": "Semua Mapel",
+    "schoolId": "1",
+    "createdAt": "2026-09-04T09:42:51.850Z"
+  },
+  {
+    "id": "cls_xii_a",
+    "name": "XII-A",
+    "nama_kelas": "XII-A",
+    "tingkat": "XII",
+    "jurusan": "Umum",
+    "subject": "Semua Mapel",
+    "schoolId": "1",
+    "createdAt": "2026-09-04T09:42:51.850Z"
+  },
+  {
+    "id": "cls_xii_b",
+    "name": "XII-B",
+    "nama_kelas": "XII-B",
+    "tingkat": "XII",
+    "jurusan": "Umum",
+    "subject": "Semua Mapel",
+    "schoolId": "1",
+    "createdAt": "2026-09-04T09:42:51.850Z"
+  },
+  {
+    "id": "cls_xii_c",
+    "name": "XII-C",
+    "nama_kelas": "XII-C",
+    "tingkat": "XII",
+    "jurusan": "Umum",
+    "subject": "Semua Mapel",
+    "schoolId": "1",
+    "createdAt": "2026-09-04T09:42:51.850Z"
+  },
+  {
+    "id": "cls_xii_d",
+    "name": "XII-D",
+    "nama_kelas": "XII-D",
+    "tingkat": "XII",
+    "jurusan": "Umum",
+    "subject": "Semua Mapel",
+    "schoolId": "1",
+    "createdAt": "2026-09-04T09:42:51.850Z"
+  },
+  {
+    "id": "cls_xii_e",
+    "name": "XII-E",
+    "nama_kelas": "XII-E",
+    "tingkat": "XII",
+    "jurusan": "Umum",
+    "subject": "Semua Mapel",
+    "schoolId": "1",
+    "createdAt": "2026-09-04T09:42:51.850Z"
+  },
+  {
+    "id": "cls_xii_f",
+    "name": "XII-F",
+    "nama_kelas": "XII-F",
+    "tingkat": "XII",
+    "jurusan": "Umum",
+    "subject": "Semua Mapel",
+    "schoolId": "1",
+    "createdAt": "2026-09-04T09:42:51.850Z"
+  },
+  {
+    "id": "cls_xii_g",
+    "name": "XII-G",
+    "nama_kelas": "XII-G",
+    "tingkat": "XII",
+    "jurusan": "Umum",
+    "subject": "Semua Mapel",
+    "schoolId": "1",
+    "createdAt": "2026-09-04T09:42:51.850Z"
+  },
+  {
+    "id": "cls_xii_h",
+    "name": "XII-H",
+    "nama_kelas": "XII-H",
+    "tingkat": "XII",
+    "jurusan": "Umum",
+    "subject": "Semua Mapel",
+    "schoolId": "1",
+    "createdAt": "2026-09-04T09:42:51.850Z"
+  },
+  {
+    "id": "cls_xii_i",
+    "name": "XII-I",
+    "nama_kelas": "XII-I",
+    "tingkat": "XII",
+    "jurusan": "Umum",
+    "subject": "Semua Mapel",
+    "schoolId": "1",
+    "createdAt": "2026-09-04T09:42:51.850Z"
+  }
+]

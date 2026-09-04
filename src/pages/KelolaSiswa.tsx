@@ -25,12 +25,12 @@ import * as XLSX from 'xlsx';
 import { useAlert } from '../context/AlertContext';
 import { supabase } from '../lib/supabase';
 import { getCollectionData, saveCollection } from '../lib/db';
-import { MURIDS_LIST } from '../lib/seedAccounts';
+import { MURIDS_LIST, CLASSES_LIST } from '../lib/seedAccounts';
 
 export default function KelolaSiswa() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [students, setStudents] = useState<any[]>(MURIDS_LIST);
-  const [classes, setClasses] = useState<any[]>([]);
+  const [classes, setClasses] = useState<any[]>(CLASSES_LIST);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClass, setSelectedClass] = useState('all');
@@ -55,7 +55,7 @@ export default function KelolaSiswa() {
       // 1. Fetch from Appwrite
       const { databases, COLLECTIONS, APPWRITE_DATABASE_ID, Query } = await import('../lib/appwrite');
       const [studentsRes, classesRes] = await Promise.all([
-        databases.listDocuments(APPWRITE_DATABASE_ID, COLLECTIONS.STUDENTS, [Query.limit(100)]),
+        databases.listDocuments(APPWRITE_DATABASE_ID, COLLECTIONS.STUDENTS, [Query.limit(5000)]),
         databases.listDocuments(APPWRITE_DATABASE_ID, COLLECTIONS.CLASSES, [Query.limit(100)])
       ]);
 
@@ -77,7 +77,7 @@ export default function KelolaSiswa() {
         saveCollection('classes', classesRes.documents);
       } else {
         const localClasses = await getCollectionData('classes');
-        setClasses(localClasses || []);
+        setClasses(localClasses && localClasses.length > 0 ? localClasses : CLASSES_LIST);
       }
     } catch (err) {
       console.warn('Appwrite fetch notice, using local fallback:', err);
@@ -86,7 +86,7 @@ export default function KelolaSiswa() {
         getCollectionData('classes')
       ]);
       setStudents(localStudents && localStudents.length > 0 ? localStudents : MURIDS_LIST);
-      setClasses(localClasses || []);
+      setClasses(localClasses && localClasses.length > 0 ? localClasses : CLASSES_LIST);
     } finally {
       setLoading(false);
     }
@@ -244,7 +244,15 @@ export default function KelolaSiswa() {
     return matchSearch && matchClass;
   });
 
-  const distinctClassNames = Array.from(new Set(students.map(s => s.nama_kelas || s.classId).filter(Boolean)));
+  const distinctClassNames = Array.from(
+    new Set<string>(students.map(s => String(s.nama_kelas || s.classId || '')).filter(Boolean))
+  ).sort((a: string, b: string) => {
+    const rank = (k: string) => k.startsWith('X-') ? 1 : (k.startsWith('XI-') ? 2 : (k.startsWith('XII-') ? 3 : 4));
+    const rA = rank(a);
+    const rB = rank(b);
+    if (rA !== rB) return rA - rB;
+    return a.localeCompare(b);
+  });
 
   return (
     <div className="space-y-8 pb-20">
