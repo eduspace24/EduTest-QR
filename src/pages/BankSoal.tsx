@@ -12,9 +12,7 @@ import {
   Upload,
   Download,
   Folder,
-  FolderPlus,
   ArrowLeft,
-  Edit3,
   MoreVertical,
   FolderOpen,
   Layers,
@@ -97,20 +95,8 @@ export default function BankSoal() {
 
   // Folder & Selection States
   const [activeFolder, setActiveFolder] = useState<string | null>(null);
-  const [customFolders, setCustomFolders] = useState<string[]>(() => {
-    try {
-      return JSON.parse(localStorage.getItem('edu_custom_folders') || '[]');
-    } catch {
-      return [];
-    }
-  });
   const [selectedQuestions, setSelectedQuestions] = useState<string[]>([]);
-  const [showCreateFolderModal, setShowCreateFolderModal] = useState(false);
-  const [showRenameFolderModal, setShowRenameFolderModal] = useState(false);
   const [showBatchMoveModal, setShowBatchMoveModal] = useState(false);
-  const [newFolderNameInput, setNewFolderNameInput] = useState('');
-  const [selectedFolderToRename, setSelectedFolderToRename] = useState<string | null>(null);
-  const [renameFolderInput, setRenameFolderInput] = useState('');
   const [targetBatchMoveFolder, setTargetBatchMoveFolder] = useState('');
   const [autoDetectCategory, setAutoDetectCategory] = useState(() => {
     return localStorage.getItem('edu_auto_detect_category') !== 'false';
@@ -118,7 +104,7 @@ export default function BankSoal() {
   const [newQuestion, setNewQuestion] = useState({
     text: '',
     type: 'Pilihan Ganda',
-    category: teacherSubjects[0] || (isSuperAdmin ? 'Informatika' : 'Umum'),
+    category: teacherSubjects[0] || (isSuperAdmin ? 'Informatika' : 'Informatika'),
     jenjang: 'X',
     option_a: '',
     option_b: '',
@@ -131,6 +117,14 @@ export default function BankSoal() {
 
   useEffect(() => {
     const fetchQuestions = async () => {
+      const normalizeCategory = (cat: any) => {
+        const str = (cat || '').trim();
+        if (!str || str.toLowerCase() === 'umum') {
+          return teacherSubjects[0] || 'Informatika';
+        }
+        return str;
+      };
+
       try {
         const { databases, COLLECTIONS, APPWRITE_DATABASE_ID, Query } = await import('../lib/appwrite');
         const res = await databases.listDocuments(
@@ -143,6 +137,7 @@ export default function BankSoal() {
           const mapped = res.documents.map(d => ({
             ...d,
             id: d.$id,
+            category: normalizeCategory(d.category),
             jenjang: normalizeJenjang(d.jenjang || d.tingkat || d.kelas)
           }));
           setQuestions(mapped);
@@ -159,6 +154,7 @@ export default function BankSoal() {
       if (local && local.length > 0) {
         const mapped = local.map((d: any) => ({
           ...d,
+          category: normalizeCategory(d.category),
           jenjang: normalizeJenjang(d.jenjang || d.tingkat || d.kelas)
         }));
         setQuestions(mapped);
@@ -171,6 +167,7 @@ export default function BankSoal() {
             const seed = await res.json();
             const mapped = seed.map((d: any) => ({
               ...d,
+              category: normalizeCategory(d.category),
               jenjang: normalizeJenjang(d.jenjang || d.tingkat || d.kelas)
             }));
             setQuestions(mapped);
@@ -191,6 +188,7 @@ export default function BankSoal() {
   const syncToDrive = async (updatedQuestions: any[]) => {
     const normalized = updatedQuestions.map(q => ({
       ...q,
+      category: (!q.category || q.category.trim().toLowerCase() === 'umum') ? (teacherSubjects[0] || 'Informatika') : q.category.trim(),
       jenjang: normalizeJenjang(q.jenjang)
     }));
     await saveCollection('bank_soal', normalized);
@@ -201,7 +199,7 @@ export default function BankSoal() {
         const payload: any = {
           text: (q.text || '').substring(0, 1990),
           type: q.type || 'Pilihan Ganda',
-          category: q.category || 'Informatika',
+          category: q.category,
           jenjang: normalizeJenjang(q.jenjang),
           option_a: (q.option_a || '').substring(0, 490),
           option_b: (q.option_b || '').substring(0, 490),
@@ -504,12 +502,12 @@ export default function BankSoal() {
             finalCategory = row['Kategori'] || row['category'] || '';
           } else {
             // Import to active folder
-            finalCategory = (activeFolder === 'Umum' ? '' : activeFolder) || '';
+            finalCategory = activeFolder || '';
           }
           if (!isSuperAdmin && teacherSubjects.length > 0) {
             const matchedSubject = teacherSubjects.find(ts => finalCategory.toLowerCase().includes(ts.toLowerCase()));
             finalCategory = matchedSubject || (selectedSubjectFilter !== 'ALL' ? selectedSubjectFilter : teacherSubjects[0]);
-          } else if (!finalCategory) {
+          } else if (!finalCategory || finalCategory.toLowerCase() === 'umum') {
             finalCategory = selectedSubjectFilter !== 'ALL' ? selectedSubjectFilter : 'Informatika';
           }
 
@@ -605,7 +603,7 @@ export default function BankSoal() {
             currentQuestion = {
               text: startMatch[2].trim(),
               type: '',
-              category: 'Umum',
+              category: teacherSubjects[0] || 'Informatika',
               option_a: '',
               option_b: '',
               option_c: '',
@@ -713,12 +711,12 @@ export default function BankSoal() {
             finalCategory = q.category || '';
           } else {
             // Import to active folder
-            finalCategory = (activeFolder === 'Umum' ? '' : activeFolder) || '';
+            finalCategory = activeFolder || '';
           }
           if (!isSuperAdmin && teacherSubjects.length > 0) {
             const matchedSubject = teacherSubjects.find(ts => finalCategory.toLowerCase().includes(ts.toLowerCase()));
             finalCategory = matchedSubject || (selectedSubjectFilter !== 'ALL' ? selectedSubjectFilter : teacherSubjects[0]);
-          } else if (!finalCategory) {
+          } else if (!finalCategory || finalCategory.toLowerCase() === 'umum') {
             finalCategory = selectedSubjectFilter !== 'ALL' ? selectedSubjectFilter : 'Informatika';
           }
 
@@ -809,7 +807,7 @@ export default function BankSoal() {
     setNewQuestion({
       text: '',
       type: 'Pilihan Ganda',
-      category: teacherSubjects[0] || (isSuperAdmin ? 'Informatika' : 'Umum'),
+      category: teacherSubjects[0] || (isSuperAdmin ? 'Informatika' : 'Informatika'),
       jenjang: selectedJenjangFilter !== 'ALL' ? selectedJenjangFilter : 'X',
       option_a: '',
       option_b: '',
@@ -838,92 +836,6 @@ export default function BankSoal() {
       image_url: q.image_url || ''
     });
     setShowAddModal(true);
-  };
-
-  const handleCreateFolder = (name: string) => {
-    const trimmed = name.trim();
-    if (!trimmed) return;
-    if (foldersList.some(f => f.toLowerCase() === trimmed.toLowerCase())) {
-      showAlert({ title: 'Peringatan', message: 'Folder dengan nama ini sudah ada.', type: 'warning' });
-      return;
-    }
-    const updated = [...customFolders, trimmed];
-    setCustomFolders(updated);
-    localStorage.setItem('edu_custom_folders', JSON.stringify(updated));
-    setShowCreateFolderModal(false);
-    setNewFolderNameInput('');
-    showAlert({ title: 'Berhasil', message: `Folder "${trimmed}" berhasil dibuat.`, type: 'success' });
-  };
-
-  const handleRenameFolder = async (oldName: string, newName: string) => {
-    const trimmedNew = newName.trim();
-    if (!trimmedNew || oldName === trimmedNew) return;
-    
-    if (foldersList.some(f => f.toLowerCase() === trimmedNew.toLowerCase() && f !== oldName)) {
-      showAlert({ title: 'Peringatan', message: 'Folder dengan nama ini sudah ada.', type: 'warning' });
-      return;
-    }
-
-    const updatedQuestions = questions.map(q => {
-      const cat = (q.category || '').trim();
-      const isOld = oldName === 'Umum' ? (cat === '' || cat === 'Umum') : (cat === oldName);
-      if (isOld) {
-        return { ...q, category: trimmedNew };
-      }
-      return q;
-    });
-
-    let updatedCustom = customFolders.filter(f => f !== oldName);
-    if (trimmedNew !== 'Umum' && !updatedCustom.includes(trimmedNew)) {
-      updatedCustom.push(trimmedNew);
-    }
-    setCustomFolders(updatedCustom);
-    localStorage.setItem('edu_custom_folders', JSON.stringify(updatedCustom));
-
-    setQuestions(updatedQuestions);
-    await syncToDrive(updatedQuestions);
-
-    if (activeFolder === oldName) {
-      setActiveFolder(trimmedNew);
-    }
-    
-    setShowRenameFolderModal(false);
-    setSelectedFolderToRename(null);
-    setRenameFolderInput('');
-    showAlert({ title: 'Berhasil', message: 'Folder berhasil diubah namanya.', type: 'success' });
-  };
-
-  const handleDeleteFolder = (folderName: string) => {
-    if (folderName === 'Umum') {
-      showAlert({ title: 'Gagal', message: 'Folder default "Umum" tidak dapat dihapus.', type: 'error' });
-      return;
-    }
-    
-    const count = questions.filter(q => (q.category || '').trim() === folderName).length;
-    
-    showAlert({
-      title: 'Hapus Folder?',
-      message: count > 0 
-        ? `Apakah Anda yakin ingin menghapus folder "${folderName}" beserta seluruh ${count} soal di dalamnya?`
-        : `Apakah Anda yakin ingin menghapus folder kosong "${folderName}"?`,
-      type: 'confirm',
-      confirmText: 'Ya, Hapus Semua',
-      onConfirm: async () => {
-        const updatedQuestions = questions.filter(q => (q.category || '').trim() !== folderName);
-        
-        const updatedCustom = customFolders.filter(f => f !== folderName);
-        setCustomFolders(updatedCustom);
-        localStorage.setItem('edu_custom_folders', JSON.stringify(updatedCustom));
-
-        setQuestions(updatedQuestions);
-        await syncToDrive(updatedQuestions);
-        
-        if (activeFolder === folderName) {
-          setActiveFolder(null);
-        }
-        showAlert({ title: 'Terhapus', message: 'Folder berhasil dihapus.', type: 'success' });
-      }
-    });
   };
 
   const toggleSelectQuestion = (id: string) => {
@@ -964,12 +876,10 @@ export default function BankSoal() {
 
   const handleBatchMove = async (targetFolder: string) => {
     if (selectedQuestions.length === 0 || !targetFolder) return;
-    
-    const folderName = targetFolder === 'Umum' ? '' : targetFolder;
 
     const updatedQuestions = questions.map(q => {
       if (selectedQuestions.includes(q.id)) {
-        return { ...q, category: folderName };
+        return { ...q, category: targetFolder };
       }
       return q;
     });
@@ -978,7 +888,7 @@ export default function BankSoal() {
     await syncToDrive(updatedQuestions);
     setSelectedQuestions([]);
     setShowBatchMoveModal(false);
-    showAlert({ title: 'Berhasil', message: `Berhasil memindahkan ${selectedQuestions.length} soal ke folder "${targetFolder}".`, type: 'success' });
+    showAlert({ title: 'Berhasil', message: `Berhasil memindahkan ${selectedQuestions.length} soal ke mata pelajaran "${targetFolder}".`, type: 'success' });
   };
 
   // 1. Filter questions by teacher's subject access
@@ -1014,18 +924,16 @@ export default function BankSoal() {
     });
   }, [subjectFilteredQuestions, selectedJenjangFilter]);
 
-  // Get unique categories from teacher-authorized questions
-  const uniqueCategories = Array.from(new Set(teacherAuthorizedQuestions.map(q => {
-    const cat = (q.category || '').trim();
-    return cat === '' ? 'Umum' : cat;
-  })));
-  
-  const combinedFoldersList = Array.from(new Set([
-    ...uniqueCategories,
-    ...customFolders
-  ])).filter(f => f !== 'Umum');
-
-  const foldersList = ['Umum', ...combinedFoldersList];
+  // Folders are strictly fixed by subject names (no custom folders, no "Umum")
+  const foldersList = useMemo(() => {
+    if (isSuperAdmin) {
+      return ALL_SCHOOL_SUBJECTS;
+    }
+    if (teacherSubjects.length > 0) {
+      return teacherSubjects;
+    }
+    return ['Informatika'];
+  }, [isSuperAdmin, teacherSubjects]);
 
   const isSearching = searchTerm.trim().length > 0;
   const isDirectQuestionView = activeFolder !== null || isSearching || selectedSubjectFilter !== 'ALL' || selectedJenjangFilter !== 'ALL';
@@ -1035,9 +943,8 @@ export default function BankSoal() {
     if (!matchesSearch) return false;
 
     if (activeFolder !== null) {
-      const cat = (q.category || '').trim();
-      const normalizedCat = cat === '' ? 'Umum' : cat;
-      return normalizedCat === activeFolder;
+      const cat = (q.category || '').toLowerCase().trim();
+      return cat === activeFolder.toLowerCase() || cat.includes(activeFolder.toLowerCase()) || activeFolder.toLowerCase().includes(cat);
     }
     return true;
   });
@@ -1069,11 +976,11 @@ export default function BankSoal() {
               </span>
             </div>
           ) : null}
-          <h2 className="tracking-tight">{activeFolder !== null ? activeFolder : 'Bank Soal'}</h2>
+          <h2 className="tracking-tight">{activeFolder !== null ? `Mata Pelajaran: ${activeFolder}` : 'Bank Soal'}</h2>
           <p className="text-slate-500 text-sm font-medium">
             {activeFolder !== null 
-              ? `Koleksi soal di folder ${activeFolder}.` 
-              : 'Koleksi pertanyaan ujian Anda yang tersimpan di Cloud.'}
+              ? `Koleksi soal untuk mata pelajaran ${activeFolder}.` 
+              : 'Koleksi pertanyaan ujian Anda yang tersimpan di Cloud berdasarkan mata pelajaran.'}
           </p>
         </div>
         <div className="flex flex-wrap gap-2 w-full sm:w-auto">
@@ -1101,7 +1008,7 @@ export default function BankSoal() {
           </button>
           <button 
             onClick={() => {
-              setNewQuestion(prev => ({ ...prev, category: (activeFolder === 'Umum' ? '' : activeFolder) || '' }));
+              setNewQuestion(prev => ({ ...prev, category: activeFolder || teacherSubjects[0] || 'Informatika' }));
               setShowAddModal(true);
             }}
             className="bg-indigo-950 text-white px-5 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-lg hover:bg-indigo-900 transition-all active:scale-95"
@@ -1206,13 +1113,12 @@ export default function BankSoal() {
       </div>
 
       {!isDirectQuestionView ? (
-        /* Folder Directory Grid View */
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+        /* Folder Directory Grid View - Fixed by Subjects */
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {foldersList.map(folder => {
             const count = questions.filter(q => {
-              const cat = (q.category || '').trim();
-              const norm = cat === '' ? 'Umum' : cat;
-              return norm === folder;
+              const cat = (q.category || '').toLowerCase().trim();
+              return cat === folder.toLowerCase() || cat.includes(folder.toLowerCase()) || folder.toLowerCase().includes(cat);
             }).length;
             
             return (
@@ -1221,27 +1127,9 @@ export default function BankSoal() {
                 className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between hover:shadow-xl transition-all relative group cursor-pointer border-l-4 border-l-blue-500"
                 onClick={() => { setActiveFolder(folder); setSelectedQuestions([]); }}
               >
-                {folder !== 'Umum' && (
-                  <div className="absolute top-4 right-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
-                    <button 
-                      onClick={() => { setSelectedFolderToRename(folder); setRenameFolderInput(folder); setShowRenameFolderModal(true); }}
-                      className="p-1 text-slate-400 hover:text-blue-500 rounded-md hover:bg-slate-50 transition-colors"
-                      title="Ubah Nama Folder"
-                    >
-                      <Edit3 className="w-3.5 h-3.5" />
-                    </button>
-                    <button 
-                      onClick={() => handleDeleteFolder(folder)}
-                      className="p-1 text-slate-400 hover:text-rose-500 rounded-md hover:bg-slate-50 transition-colors"
-                      title="Hapus Folder & Soal"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                )}
                 <div className="mb-4">
                   <div className="bg-blue-50 text-blue-600 p-3 rounded-xl w-fit">
-                    <Folder className="w-6 h-6 fill-blue-100 text-blue-500" />
+                    <BookOpen className="w-6 h-6 text-blue-600" />
                   </div>
                 </div>
                 <div>
@@ -1251,16 +1139,6 @@ export default function BankSoal() {
               </div>
             );
           })}
-          
-          <div 
-            onClick={() => setShowCreateFolderModal(true)}
-            className="border-2 border-dashed border-slate-200 p-5 rounded-2xl flex flex-col items-center justify-center text-center cursor-pointer hover:border-indigo-950 transition-all group min-h-[140px]"
-          >
-            <div className="bg-slate-50 text-slate-400 p-3 rounded-xl group-hover:bg-indigo-950 group-hover:text-white transition-all mb-3">
-              <FolderPlus className="w-6 h-6" />
-            </div>
-            <span className="text-xs font-bold text-slate-500 group-hover:text-indigo-950 transition-colors">Buat Folder Baru</span>
-          </div>
         </div>
       ) : (
         /* Questions List View (Inside Folder or searching globally) */
@@ -1314,7 +1192,7 @@ export default function BankSoal() {
               {activeFolder !== null && !isSearching && (
                 <button 
                   onClick={() => {
-                    setNewQuestion(prev => ({ ...prev, category: (activeFolder === 'Umum' ? '' : activeFolder) || '' }));
+                    setNewQuestion(prev => ({ ...prev, category: activeFolder || teacherSubjects[0] || 'Informatika' }));
                     setShowAddModal(true);
                   }}
                   className="mt-6 bg-indigo-950 text-white px-6 py-2.5 rounded-xl font-bold text-xs hover:bg-indigo-900 transition-all inline-flex items-center gap-2"
@@ -1349,7 +1227,7 @@ export default function BankSoal() {
                               Kelas {normalizeJenjang(q.jenjang)}
                             </span>
                             <div className="bg-blue-50 text-blue-600 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest border border-blue-100">
-                              {q.category || 'Umum'}
+                              {q.category || teacherSubjects[0] || 'Informatika'}
                             </div>
                           </div>
                         </div>
@@ -1395,12 +1273,14 @@ export default function BankSoal() {
           <span className="text-xs font-bold shrink-0">{selectedQuestions.length} soal terpilih</span>
           <div className="w-px h-5 bg-white/20 shrink-0" />
           <div className="flex gap-2 shrink-0">
-            <button 
-              onClick={() => { setTargetBatchMoveFolder(foldersList[0]); setShowBatchMoveModal(true); }}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all"
-            >
-              Pindahkan
-            </button>
+            {foldersList.length > 1 && (
+              <button 
+                onClick={() => { setTargetBatchMoveFolder(foldersList[0]); setShowBatchMoveModal(true); }}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all"
+              >
+                Pindahkan Mapel
+              </button>
+            )}
             <button 
               onClick={handleBatchDelete}
               className="bg-rose-500 hover:bg-rose-600 text-white px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all"
@@ -1532,7 +1412,6 @@ export default function BankSoal() {
                     <option value="X">Kelas X</option>
                     <option value="XI">Kelas XI</option>
                     <option value="XII">Kelas XII</option>
-                    <option value="Umum">Umum / Semua</option>
                   </select>
                 </div>
                 <div className="space-y-2">
@@ -1546,7 +1425,6 @@ export default function BankSoal() {
                       {ALL_SCHOOL_SUBJECTS.map(s => (
                         <option key={s} value={s}>{s}</option>
                       ))}
-                      <option value="Umum">Umum</option>
                     </select>
                   ) : teacherSubjects.length > 1 ? (
                     <select
@@ -1843,8 +1721,8 @@ export default function BankSoal() {
                 <p className="text-xs font-bold text-indigo-950">Deteksi Folder Otomatis</p>
                 <p className="text-[9px] text-slate-400 leading-normal mt-0.5">
                   {autoDetectCategory 
-                    ? "Membaca kolom/baris Kategori dari berkas impor untuk membuat folder."
-                    : `Menyimpan semua soal impor ke folder aktif saat ini (${activeFolder || 'Umum'}).`
+                    ? "Membaca kolom/baris Kategori dari berkas impor untuk mencocokkan nama mata pelajaran."
+                    : `Menyimpan semua soal impor ke folder mata pelajaran aktif (${activeFolder || teacherSubjects[0] || 'Informatika'}).`
                   }
                 </p>
               </div>
@@ -1894,90 +1772,6 @@ export default function BankSoal() {
         </div>
       )}
 
-      {showCreateFolderModal && (
-        <div 
-          className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 animate-in fade-in duration-150"
-        >
-          <motion.div 
-            initial={{ scale: 0.95, y: 10 }} animate={{ scale: 1, y: 0 }}
-            className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl space-y-4 border border-slate-100"
-          >
-            <div className="flex justify-between items-center">
-              <h3 className="font-bold text-indigo-950 text-sm flex items-center gap-2">
-                <FolderPlus className="w-4 h-4 text-blue-500" /> Buat Folder Baru
-              </h3>
-              <button onClick={() => setShowCreateFolderModal(false)} className="p-1.5 hover:bg-slate-100 rounded-lg">
-                <X className="w-4 h-4 text-slate-400" />
-              </button>
-            </div>
-            <div className="space-y-2 text-left">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nama Folder (Mapel/Materi)</label>
-              <input 
-                type="text"
-                placeholder="Contoh: Fisika UTBK, Kimia XI, dll."
-                value={newFolderNameInput}
-                onChange={e => setNewFolderNameInput(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-indigo-950 text-xs font-bold text-indigo-950"
-              />
-            </div>
-            <div className="flex gap-2 pt-2">
-              <button onClick={() => setShowCreateFolderModal(false)} className="flex-1 py-2.5 rounded-xl border border-slate-200 font-bold text-slate-500 text-xs bg-white">
-                Batal
-              </button>
-              <button 
-                onClick={() => handleCreateFolder(newFolderNameInput)}
-                disabled={!newFolderNameInput.trim()}
-                className="flex-1 py-2.5 rounded-xl bg-indigo-950 text-white font-bold text-xs disabled:opacity-50"
-              >
-                Buat Folder
-              </button>
-            </div>
-          </motion.div>
-        </div>
-      )}
-
-      {showRenameFolderModal && (
-        <div 
-          className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 animate-in fade-in duration-150"
-        >
-          <motion.div 
-            initial={{ scale: 0.95, y: 10 }} animate={{ scale: 1, y: 0 }}
-            className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl space-y-4 border border-slate-100"
-          >
-            <div className="flex justify-between items-center">
-              <h3 className="font-bold text-indigo-950 text-sm flex items-center gap-2">
-                <Edit3 className="w-4 h-4 text-blue-500" /> Ubah Nama Folder
-              </h3>
-              <button onClick={() => { setShowRenameFolderModal(false); setSelectedFolderToRename(null); }} className="p-1.5 hover:bg-slate-100 rounded-lg">
-                <X className="w-4 h-4 text-slate-400" />
-              </button>
-            </div>
-            <div className="space-y-2 text-left">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nama Folder Baru</label>
-              <input 
-                type="text"
-                placeholder="Contoh: Matematika Peminatan"
-                value={renameFolderInput}
-                onChange={e => setRenameFolderInput(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-indigo-950 text-xs font-bold text-indigo-950"
-              />
-            </div>
-            <div className="flex gap-2 pt-2">
-              <button onClick={() => { setShowRenameFolderModal(false); setSelectedFolderToRename(null); }} className="flex-1 py-2.5 rounded-xl border border-slate-200 font-bold text-slate-500 text-xs bg-white">
-                Batal
-              </button>
-              <button 
-                onClick={() => selectedFolderToRename && handleRenameFolder(selectedFolderToRename, renameFolderInput)}
-                disabled={!renameFolderInput.trim() || renameFolderInput.trim() === selectedFolderToRename}
-                className="flex-1 py-2.5 rounded-xl bg-indigo-950 text-white font-bold text-xs disabled:opacity-50"
-              >
-                Simpan
-              </button>
-            </div>
-          </motion.div>
-        </div>
-      )}
-
       {showBatchMoveModal && (
         <div 
           className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 animate-in fade-in duration-150"
@@ -1995,7 +1789,7 @@ export default function BankSoal() {
               </button>
             </div>
             <div className="space-y-2 text-left">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Pilih Folder Tujuan</label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Pilih Mata Pelajaran Tujuan</label>
               <select
                 value={targetBatchMoveFolder}
                 onChange={e => setTargetBatchMoveFolder(e.target.value)}
