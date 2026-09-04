@@ -16,16 +16,17 @@ import {
   QrCode
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { cn } from '../lib/utils';
+import { cn, formatPersonName } from '../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAlert } from '../context/AlertContext';
 import { useSchool } from '../context/SchoolContext';
 
 interface LayoutProps {
   session: any;
+  onLogout?: () => void;
 }
 
-export default function Layout({ session }: LayoutProps) {
+export default function Layout({ session, onLogout }: LayoutProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -33,7 +34,8 @@ export default function Layout({ session }: LayoutProps) {
   const { schools, activeSchool, setActiveSchool, loading: schoolLoading } = useSchool();
 
   const userRole = session?.user?.role || 'guru';
-  const userName = session?.user?.name || session?.user?.email?.split('@')[0];
+  const rawUserName = session?.user?.nama || session?.user?.name || session?.user?.email?.split('@')[0];
+  const userName = formatPersonName(rawUserName, userRole);
 
   const superAdminMenuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },

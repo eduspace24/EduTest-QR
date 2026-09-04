@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import React from 'react';
-import { cn } from '../lib/utils';
+import { cn, formatPersonName } from '../lib/utils';
 import { useSchool } from '../context/SchoolContext';
 import { useAlert } from '../context/AlertContext';
 import { saveCollection } from '../lib/db';
@@ -54,8 +54,9 @@ export default function Profil() {
     if (saved) {
       const data = JSON.parse(saved);
       setSession(data);
+      const role = data.user?.role;
       setFormData({
-        name: data.user.name || '',
+        name: formatPersonName(data.user.name || data.user.nama || '', role),
         email: data.user.email || '',
         schools: data.user.schools || (data.user.schoolName ? [data.user.schoolName] : []),
         subjects: data.user.subjects || (data.user.subject ? [data.user.subject] : []),
@@ -69,11 +70,13 @@ export default function Profil() {
     e.preventDefault();
     setSaving(true);
     try {
+      const formattedName = formatPersonName(formData.name, session?.user?.role);
       const updatedSession = {
         ...session,
         user: {
           ...session.user,
-          name: formData.name,
+          name: formattedName,
+          nama: formattedName,
           schools: formData.schools,
           subjects: formData.subjects,
           serverUrl: formData.serverUrl ? formData.serverUrl.trim() : '',

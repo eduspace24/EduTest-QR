@@ -18,7 +18,7 @@ import { motion } from 'framer-motion';
 import { QRCodeSVG } from 'qrcode.react';
 import { supabase } from '../../lib/supabase';
 import { getCollectionData } from '../../lib/db';
-import { cn } from '../../lib/utils';
+import { cn, formatStudentName, formatTeacherName } from '../../lib/utils';
 
 export default function StudentDashboard() {
   const navigate = useNavigate();
@@ -93,7 +93,7 @@ export default function StudentDashboard() {
             Portal Murid • Nineteen Exam
           </span>
           <h1 className="text-2xl sm:text-3xl font-black text-indigo-950 mt-2">
-            Halo, {sessionUser?.nama || sessionUser?.name || 'Murid'}! 👋
+            Halo, {formatStudentName(sessionUser?.nama || sessionUser?.name || 'Murid')}! 👋
           </h1>
           <p className="text-slate-500 text-sm font-medium">Selamat datang di ruang ujian digital. Pastikan kartu ujian Anda selalu siap.</p>
         </div>
@@ -125,7 +125,7 @@ export default function StudentDashboard() {
               <QRCodeSVG
                 value={JSON.stringify({
                   nisn: sessionUser?.nisn || sessionUser?.code || '242510311',
-                  nama: sessionUser?.nama || sessionUser?.name || 'Murid',
+                  nama: formatStudentName(sessionUser?.nama || sessionUser?.name || 'Murid'),
                   kelas: sessionUser?.kelas || sessionUser?.nama_kelas || 'XII'
                 })}
                 size={130}
@@ -140,7 +140,7 @@ export default function StudentDashboard() {
             <div className="space-y-2 text-xs bg-white/5 p-4 rounded-2xl border border-white/10">
               <div className="flex justify-between">
                 <span className="text-slate-400 font-medium">Nama Murid:</span>
-                <span className="font-bold text-white text-right">{sessionUser?.nama || sessionUser?.name || 'Murid'}</span>
+                <span className="font-bold text-white text-right">{formatStudentName(sessionUser?.nama || sessionUser?.name || 'Murid')}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400 font-medium">No. Peserta:</span>
@@ -221,7 +221,7 @@ export default function StudentDashboard() {
                       </div>
                       <h4 className="text-base font-black text-indigo-950">{exam.title}</h4>
                       <p className="text-xs text-slate-400 font-medium">
-                        Oleh: {exam.teacher_name || 'Guru Pengampu'} • Token: <span className="font-mono font-bold text-indigo-950">{exam.token || '-'}</span>
+                        Oleh: {formatTeacherName(exam.teacher_name || 'Guru Pengampu')} • Token: <span className="font-mono font-bold text-indigo-950">{exam.token || '-'}</span>
                         {exam.start_time && ` • Pkl ${exam.start_time} - ${exam.end_time || ''}`}
                       </p>
                     </div>

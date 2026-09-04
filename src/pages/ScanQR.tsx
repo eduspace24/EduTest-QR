@@ -4,6 +4,7 @@ import { unpackResult } from '../lib/hash';
 import { getCollectionData, saveCollection } from '../lib/db';
 import { useAlert } from '../context/AlertContext';
 import { supabase } from '../lib/supabase';
+import { formatStudentName } from '../lib/utils';
 import * as XLSX from 'xlsx';
 import { motion } from 'framer-motion';
 import { 
@@ -253,7 +254,7 @@ export default function ScanQR() {
     const rows = scannedQueue.map((item, idx) => ({
       'No': idx + 1,
       'Ruang Ujian': item.room_name || roomName,
-      'Nama Murid': item.student_name || item.student?.nama,
+      'Nama Murid': formatStudentName(item.student_name || item.student?.nama || 'Murid'),
       'NIS': item.student_code || item.student?.code,
       'Kelas': item.student_class || item.student?.kelas,
       'Mata Pelajaran / Ujian': item.exam_title,
@@ -415,7 +416,7 @@ export default function ScanQR() {
                   <Check className="w-4 h-4" />
                   Baru Saja Dipindai
                 </div>
-                <h4 className="text-base font-black mt-0.5">{lastScannedStudent.student_name}</h4>
+                <h4 className="text-base font-black mt-0.5">{formatStudentName(lastScannedStudent.student_name)}</h4>
                 <p className="text-xs text-emerald-100">
                   NIS: {lastScannedStudent.student_code} • Kelas {lastScannedStudent.student_class}
                 </p>
@@ -498,7 +499,7 @@ export default function ScanQR() {
                       </div>
                       <div>
                         <h4 className="font-bold text-indigo-950 text-sm leading-tight">
-                          {item.student_name || item.student?.nama}
+                          {formatStudentName(item.student_name || item.student?.nama || 'Murid')}
                         </h4>
                         <div className="flex items-center gap-2 text-[11px] text-slate-400 font-medium mt-0.5">
                           <span>NIS: {item.student_code || item.student?.code}</span>

@@ -31,6 +31,7 @@ import { useAlert } from '../context/AlertContext';
 import { supabase } from '../lib/supabase';
 import { getCollectionData, saveCollection } from '../lib/db';
 import { MURIDS_LIST, CLASSES_LIST } from '../lib/seedAccounts';
+import { formatStudentName } from '../lib/utils';
 
 function getPageNumbers(current: number, total: number): (number | string)[] {
   if (total <= 7) {
@@ -131,7 +132,8 @@ export default function KelolaSiswa() {
     const generatedNisn = formData.nisn || `NIS-${Date.now().toString().slice(-6)}`;
 
     const newStudent = {
-      nama: formData.name,
+      nama: formatStudentName(formData.name),
+      name: formatStudentName(formData.name),
       nisn: generatedNisn,
       nama_kelas: className,
       nomor_absen: formData.noAbsen || '1',
@@ -200,7 +202,8 @@ export default function KelolaSiswa() {
         }
 
         const newParsedStudents = data.map((row: any, idx: number) => {
-          const sName = row['Nama'] || row['nama'] || row['Nama Murid'] || row['Nama Siswa'] || `Murid ${idx + 1}`;
+          const rawName = row['Nama'] || row['nama'] || row['Nama Murid'] || row['Nama Siswa'] || `Murid ${idx + 1}`;
+          const sName = formatStudentName(rawName);
           const sNisn = String(row['NIS'] || row['NISN'] || row['nis'] || `NIS${100000 + idx}`);
           const sKelas = String(row['Kelas'] || row['kelas'] || 'Umum');
           const sAbsen = String(row['No Absen'] || row['absen'] || idx + 1);
@@ -490,7 +493,7 @@ export default function KelolaSiswa() {
                             {s.nomor_absen || studentIndex}
                           </div>
                           <div>
-                            <p className="font-bold text-indigo-950 text-sm leading-tight">{s.nama || s.name}</p>
+                            <p className="font-bold text-indigo-950 text-sm leading-tight">{formatStudentName(s.nama || s.name)}</p>
                             <p className="text-[11px] text-slate-400 font-medium">Absen: {s.nomor_absen || '-'}</p>
                           </div>
                         </div>
@@ -745,7 +748,7 @@ export default function KelolaSiswa() {
                 <QRCodeSVG
                   value={JSON.stringify({
                     nisn: activeStudentForCard.nisn || activeStudentForCard.code,
-                    nama: activeStudentForCard.nama || activeStudentForCard.name,
+                    nama: formatStudentName(activeStudentForCard.nama || activeStudentForCard.name),
                     kelas: activeStudentForCard.nama_kelas || activeStudentForCard.classId
                   })}
                   size={150}
@@ -766,7 +769,7 @@ export default function KelolaSiswa() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400 font-medium">Nama Murid:</span>
-                  <span className="font-bold text-indigo-950 truncate max-w-[180px]">{activeStudentForCard.nama || activeStudentForCard.name}</span>
+                  <span className="font-bold text-indigo-950 truncate max-w-[180px]">{formatStudentName(activeStudentForCard.nama || activeStudentForCard.name)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400 font-medium">Kelas / Rombel:</span>

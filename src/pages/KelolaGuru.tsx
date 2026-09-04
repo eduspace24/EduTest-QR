@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../lib/supabase';
-import { cn } from '../lib/utils';
+import { cn, formatTeacherName } from '../lib/utils';
 import { useAlert } from '../context/AlertContext';
 import { GURUS_LIST } from '../lib/seedAccounts';
 
@@ -82,7 +82,7 @@ export default function KelolaGuru() {
 
           return {
             id: d.$id,
-            nama: d.nama || seedMatch?.nama || 'Guru',
+            nama: formatTeacherName(d.nama || seedMatch?.nama || 'Guru'),
             nip: d.nip || seedMatch?.nip || '',
             email: d.email || seedMatch?.email || '',
             mata_pelajaran: finalMapel,
@@ -96,7 +96,7 @@ export default function KelolaGuru() {
       } else {
         const fallback = GURUS_LIST.map((g, idx) => ({
           id: g.id || `guru-${idx + 1}`,
-          nama: g.nama,
+          nama: formatTeacherName(g.nama),
           nip: g.nip,
           email: g.email,
           mata_pelajaran: g.mata_pelajaran || 'Umum',
@@ -121,6 +121,7 @@ export default function KelolaGuru() {
             );
             return {
               ...t,
+              nama: formatTeacherName(t.nama || seedMatch?.nama || 'Guru'),
               mata_pelajaran: (t.mata_pelajaran && t.mata_pelajaran !== 'Guru Mata Pelajaran' && t.mata_pelajaran !== 'Umum')
                 ? t.mata_pelajaran
                 : (seedMatch?.mata_pelajaran || t.mata_pelajaran || 'Umum')
@@ -130,7 +131,7 @@ export default function KelolaGuru() {
         } catch {
           const fallback = GURUS_LIST.map((g, idx) => ({
             id: g.id || `guru-${idx + 1}`,
-            nama: g.nama,
+            nama: formatTeacherName(g.nama),
             nip: g.nip,
             email: g.email,
             mata_pelajaran: g.mata_pelajaran || 'Umum',
@@ -143,7 +144,7 @@ export default function KelolaGuru() {
       } else {
         const fallback = GURUS_LIST.map((g, idx) => ({
           id: g.id || `guru-${idx + 1}`,
-          nama: g.nama,
+          nama: formatTeacherName(g.nama),
           nip: g.nip,
           email: g.email,
           mata_pelajaran: g.mata_pelajaran || 'Umum',
@@ -206,7 +207,7 @@ export default function KelolaGuru() {
           COLLECTIONS.PROFILES,
           editingTeacher.id,
           {
-            nama: formData.nama,
+            nama: formatTeacherName(formData.nama),
             nip: formData.nip,
             email: formData.email,
             mata_pelajaran: formData.mata_pelajaran,
@@ -222,7 +223,7 @@ export default function KelolaGuru() {
           COLLECTIONS.PROFILES,
           docId,
           {
-            nama: formData.nama,
+            nama: formatTeacherName(formData.nama),
             nip: formData.nip || '',
             email: formData.email.trim().toLowerCase(),
             role: 'guru',
@@ -420,10 +421,10 @@ export default function KelolaGuru() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-950 font-black flex items-center justify-center text-sm shrink-0">
-                          {teacher.nama.charAt(0).toUpperCase()}
+                          {formatTeacherName(teacher.nama).charAt(0).toUpperCase()}
                         </div>
                         <div>
-                          <p className="font-bold text-indigo-950 text-sm leading-tight">{teacher.nama}</p>
+                          <p className="font-bold text-indigo-950 text-sm leading-tight">{formatTeacherName(teacher.nama)}</p>
                           <p className="text-xs text-slate-400 font-medium">NIP: {teacher.nip || '-'}</p>
                         </div>
                       </div>

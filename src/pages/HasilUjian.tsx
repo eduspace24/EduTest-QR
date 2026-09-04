@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import React from 'react';
-import { cn } from '../lib/utils';
+import { cn, formatStudentName } from '../lib/utils';
 import { getCollectionData } from '../lib/db';
 import { supabase } from '../lib/supabase';
 import * as XLSX from 'xlsx';
@@ -73,7 +73,7 @@ export default function HasilUjian({ isEmbedded = false }: { isEmbedded?: boolea
 
   const exportToExcel = () => {
     const dataToExport = filteredResults.map(res => ({
-      Murid: res.student?.nama,
+      Murid: formatStudentName(res.student?.nama || res.student?.name || res.student_name || 'Murid'),
       Kelas: res.student?.kelas,
       Ujian: res.examTitle,
       Waktu: new Date(res.timestamp).toLocaleString(),
@@ -91,7 +91,7 @@ export default function HasilUjian({ isEmbedded = false }: { isEmbedded?: boolea
     doc.text("Laporan Hasil Ujian - EduTest", 14, 15);
     
     const tableData = filteredResults.map(res => [
-      res.student?.nama,
+      formatStudentName(res.student?.nama || res.student?.name || res.student_name || 'Murid'),
       res.student?.kelas,
       res.examTitle,
       new Date(res.timestamp).toLocaleString(),
@@ -199,7 +199,7 @@ export default function HasilUjian({ isEmbedded = false }: { isEmbedded?: boolea
                 <tr key={res.timestamp || i} className="hover:bg-slate-50 transition-colors">
                   <td className="px-8 py-5">
                     <div>
-                      <p className="font-bold text-indigo-950">{res.student?.nama || res.student?.name}</p>
+                      <p className="font-bold text-indigo-950">{formatStudentName(res.student?.nama || res.student?.name || res.student_name || 'Murid')}</p>
                       <p className="text-xs text-slate-400 font-bold uppercase">{res.student?.kelas}</p>
                     </div>
                   </td>
