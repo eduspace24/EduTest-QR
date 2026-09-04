@@ -39,6 +39,7 @@ export default function ScanQR() {
   const [selectedCameraId, setSelectedCameraId] = useState<string>('');
   const [isScanning, setIsScanning] = useState(false);
   const [roomName, setRoomName] = useState<string>('Ruang 1');
+  const [availableRooms, setAvailableRooms] = useState<string[]>([]);
   const [scannedQueue, setScannedQueue] = useState<any[]>([]);
   const [isSendingBatch, setIsSendingBatch] = useState(false);
   const [lastScannedStudent, setLastScannedStudent] = useState<any>(null);
@@ -67,11 +68,19 @@ export default function ScanQR() {
   };
 
   useEffect(() => {
-    // Load local results
+    // Load local results and distributed rooms
     const loadLocal = async () => {
       const local = await getCollectionData('results');
       if (local && local.length > 0) {
         setScannedQueue(local);
+      }
+      const savedDistribution = await getCollectionData('exam_rooms_distribution');
+      if (savedDistribution && savedDistribution.length > 0) {
+        const roomNames = savedDistribution.map((r: any) => r.name || `Ruang ${r.roomNumber}`);
+        setAvailableRooms(roomNames);
+        if (roomNames.length > 0) {
+          setRoomName(roomNames[0]);
+        }
       }
     };
     loadLocal();
@@ -350,16 +359,29 @@ export default function ScanQR() {
             <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-100">
               <Layers className="w-5 h-5 text-indigo-950 shrink-0" />
               <div className="flex-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">
-                  Nama Ruang / Sesi Ujian
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">
+                    Nama Ruang / Sesi Ujian
+                  </label>
+                  {availableRooms.length > 0 && (
+                    <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                      {availableRooms.length} Ruang Terdaftar
+                    </span>
+                  )}
+                </div>
                 <input
                   type="text"
+                  list="room-options"
                   value={roomName}
                   onChange={(e) => setRoomName(e.target.value)}
-                  placeholder="Contoh: Ruang 01 atau Lab Komputer"
+                  placeholder="Pilih atau ketik ruangan..."
                   className="w-full bg-transparent font-bold text-indigo-950 text-sm outline-none"
                 />
+                <datalist id="room-options">
+                  {availableRooms.map((r, idx) => (
+                    <option key={idx} value={r} />
+                  ))}
+                </datalist>
               </div>
             </div>
 

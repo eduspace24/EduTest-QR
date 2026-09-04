@@ -13,7 +13,8 @@ import {
   ListTodo,
   CheckCircle2,
   X,
-  QrCode
+  QrCode,
+  Building2
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { cn, formatPersonName } from '../lib/utils';
@@ -42,6 +43,7 @@ export default function Layout({ session, onLogout }: LayoutProps) {
     { icon: Users, label: 'Kelola Guru', path: '/kelola-guru' },
     { icon: LayoutGrid, label: 'Kelola Kelas', path: '/kelola-kelas' },
     { icon: Users, label: 'Kelola Murid', path: '/kelola-siswa' },
+    { icon: Building2, label: 'Ruang & Pengawas', path: '/distribusi-ruang' },
     { icon: BookOpen, label: 'Bank Soal', path: '/bank-soal' },
     { icon: PlusCircle, label: 'Buat Ujian', path: '/buat-ujian' },
     { icon: ListTodo, label: 'Daftar Ujian', path: '/daftar-ujian' },
@@ -53,6 +55,7 @@ export default function Layout({ session, onLogout }: LayoutProps) {
 
   const teacherMenuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
+    { icon: Building2, label: 'Ruang & Pengawas', path: '/distribusi-ruang' },
     { icon: BookOpen, label: 'Bank Soal', path: '/bank-soal' },
     { icon: PlusCircle, label: 'Buat Ujian', path: '/buat-ujian' },
     { icon: ListTodo, label: 'Daftar Ujian', path: '/daftar-ujian' },

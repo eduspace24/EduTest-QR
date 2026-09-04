@@ -23,6 +23,7 @@ const KelolaKelas = lazy(() => import('./pages/KelolaKelas'));
 const KelolaSiswa = lazy(() => import('./pages/KelolaSiswa'));
 const ScanQR = lazy(() => import('./pages/ScanQR'));
 const KelolaGuru = lazy(() => import('./pages/KelolaGuru'));
+const DistribusiRuang = lazy(() => import('./pages/DistribusiRuang'));
 
 export default function App() {
   const [session, setSession] = useState<any>(() => {
@@ -90,6 +91,7 @@ export default function App() {
               <Route path="/analisis" element={isStaff ? <Analisis /> : <Navigate to="/dashboard" />} />
               <Route path="/kelola-kelas" element={isSuperAdmin ? <KelolaKelas /> : <Navigate to="/dashboard" />} />
               <Route path="/kelola-siswa" element={isSuperAdmin ? <KelolaSiswa /> : <Navigate to="/dashboard" />} />
+              <Route path="/distribusi-ruang" element={isStaff ? <DistribusiRuang /> : <Navigate to="/dashboard" />} />
               <Route path="/profil" element={<Profil />} />
             </Route>
 
