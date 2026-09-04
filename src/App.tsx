@@ -91,7 +91,7 @@ export default function App() {
               <Route path="/analisis" element={isStaff ? <Analisis /> : <Navigate to="/dashboard" />} />
               <Route path="/kelola-kelas" element={isSuperAdmin ? <KelolaKelas /> : <Navigate to="/dashboard" />} />
               <Route path="/kelola-siswa" element={isSuperAdmin ? <KelolaSiswa /> : <Navigate to="/dashboard" />} />
-              <Route path="/distribusi-ruang" element={isStaff ? <DistribusiRuang /> : <Navigate to="/dashboard" />} />
+              <Route path="/distribusi-ruang" element={isSuperAdmin ? <DistribusiRuang /> : <Navigate to="/dashboard" />} />
               <Route path="/profil" element={<Profil />} />
             </Route>
 

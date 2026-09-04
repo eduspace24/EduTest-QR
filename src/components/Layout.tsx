@@ -55,7 +55,6 @@ export default function Layout({ session, onLogout }: LayoutProps) {
 
   const teacherMenuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
-    { icon: Building2, label: 'Ruang & Pengawas', path: '/distribusi-ruang' },
     { icon: BookOpen, label: 'Bank Soal', path: '/bank-soal' },
     { icon: PlusCircle, label: 'Buat Ujian', path: '/buat-ujian' },
     { icon: ListTodo, label: 'Daftar Ujian', path: '/daftar-ujian' },
