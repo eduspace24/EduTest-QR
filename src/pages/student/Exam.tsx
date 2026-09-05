@@ -78,14 +78,24 @@ export default function StudentExam() {
   useEffect(() => {
     const session = JSON.parse(localStorage.getItem('edu_session') || '{}');
     const hasProgress = localStorage.getItem(`answers_${examId}`);
+    const isStudent = session.user && (session.user.role === 'siswa' || session.user.role === 'murid');
     
-    if (session.user?.role === 'siswa' && hasProgress) {
-      setIsJoined(true);
-      setStudentData(session.user);
-    } else if (session.user?.role === 'siswa' && !hasProgress) {
-      // If they are a student but no progress for THIS exam, force re-login
-      localStorage.removeItem('edu_session');
-      setIsJoined(false);
+    if (isStudent) {
+      const studentName = session.user.nama || session.user.name || '';
+      const studentKelas = session.user.nama_kelas || session.user.kelas || '';
+      const studentCodeVal = session.user.nisn || session.user.code || session.user.id || '';
+      
+      setStudentData({
+        nama: studentName,
+        kelas: studentKelas,
+        id: session.user.id || studentCodeVal,
+        code: studentCodeVal
+      });
+      setStudentCode(studentCodeVal);
+
+      if (hasProgress) {
+        setIsJoined(true);
+      }
     }
     
     const loadExam = async () => {
@@ -111,11 +121,21 @@ export default function StudentExam() {
           }
         } catch {}
 
+        // 1. Check direct exam payload (stored as exam_<id>)
+        if (!data) {
+          const single = await getCollectionData('exam_' + examId);
+          if (single) {
+            data = Array.isArray(single) ? single[0] : single;
+          }
+        }
+
+        // 2. Check local exams list
         if (!data) {
           const localExams = await getCollectionData('exams_list');
           data = localExams?.find((e: any) => e.id === examId || e.driveFileId === examId);
         }
 
+        // 3. Check local raw exams
         if (!data) {
           const rawExams = await getCollectionData('exams');
           data = rawExams?.find((e: any) => e.id === examId || e.driveFileId === examId);
@@ -123,6 +143,27 @@ export default function StudentExam() {
 
         if (!data) {
           throw new Error('Soal ujian tidak ditemukan atau telah ditutup oleh guru.');
+        }
+
+        // If data was retrieved from exams_list or exams (metadata only), pull full questions from exam_<id>
+        if (!data.questions || data.questions.length === 0) {
+          const single = await getCollectionData('exam_' + examId);
+          const singleObj = Array.isArray(single) ? single[0] : single;
+          if (singleObj && singleObj.questions && singleObj.questions.length > 0) {
+            data.questions = singleObj.questions;
+            if (!data._answer_key && singleObj._answer_key) {
+              data._answer_key = singleObj._answer_key;
+            }
+          }
+        }
+
+        // If questions is string (from Appwrite or serialized payload), parse it
+        if (data && typeof data.questions === 'string') {
+          try {
+            const parsed = JSON.parse(data.questions);
+            data.questions = parsed.questions || parsed;
+            if (parsed._answer_key) data._answer_key = parsed._answer_key;
+          } catch {}
         }
 
         // Advance progress after data received
@@ -138,6 +179,7 @@ export default function StudentExam() {
 
         setExam(data);
         
+        const rawQuestions = Array.isArray(data.questions) ? data.questions : [];
         const processQuestions = (questions: any[]) =>
           questions.map((q: any) => {
             if (data.randomize_options && q.options && q.options.length > 0) {
@@ -159,14 +201,14 @@ export default function StudentExam() {
           });
 
         if (data.randomized) {
-          const shuffled = processQuestions([...data.questions]);
+          const shuffled = processQuestions([...rawQuestions]);
           for (let i = shuffled.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
           }
           setDisplayQuestions(shuffled);
         } else {
-          setDisplayQuestions(processQuestions(data.questions));
+          setDisplayQuestions(processQuestions(rawQuestions));
         }
         
         // Restore progress
@@ -578,13 +620,28 @@ export default function StudentExam() {
         initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-lg bg-white rounded-[2.5rem] shadow-xl border border-slate-100 p-10"
       >
-        <div className="text-center mb-8">
+        <div className="text-center mb-6">
           <div className="bg-indigo-950 w-16 h-16 rounded-2xl flex items-center justify-center text-white mx-auto mb-4 shadow-lg">
             <GraduationCap className="w-8 h-8" />
           </div>
           <h2 className="text-2xl font-black text-indigo-950">{exam?.title || 'Memuat Judul...'}</h2>
-          <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-2 px-6 py-2 bg-slate-50 rounded-xl inline-block">Murid Silakan Masuk</p>
+          <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-2 px-6 py-2 bg-slate-50 rounded-xl inline-block">
+            {exam?.subject ? `${exam.subject} • ` : ''}Konfirmasi Masuk Ujian
+          </p>
         </div>
+
+        {studentData.nama && studentData.kelas && (
+          <div className="mb-6 p-4 rounded-2xl bg-indigo-50/80 border border-indigo-100 flex items-center gap-3 text-left">
+            <div className="w-10 h-10 rounded-xl bg-indigo-950 text-white flex items-center justify-center font-black text-sm shrink-0 shadow-sm">
+              {studentData.nama.charAt(0).toUpperCase()}
+            </div>
+            <div className="flex-1 min-w-0">
+              <span className="text-[10px] font-black uppercase tracking-wider text-indigo-500">Peserta Terdaftar</span>
+              <p className="text-sm font-black text-indigo-950 truncate">{studentData.nama}</p>
+              <p className="text-xs text-slate-500">Kelas: <strong className="text-indigo-950">{studentData.kelas}</strong> {studentCode ? `• NISN: ${studentCode}` : ''}</p>
+            </div>
+          </div>
+        )}
 
         <form onSubmit={handleJoin} className="space-y-6">
           <div className="space-y-2">
@@ -594,19 +651,19 @@ export default function StudentExam() {
                 type="text" required
                 className={cn(
                   "w-full px-5 py-4 rounded-2xl border-2 outline-none transition-all font-mono text-lg font-black tracking-widest uppercase",
-                  foundStudent ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-slate-100 bg-slate-50 text-indigo-950 focus:border-indigo-950"
+                  foundStudent || studentCode ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-slate-100 bg-slate-50 text-indigo-950 focus:border-indigo-950"
                 )}
                 placeholder="CONTOH: ADL-123"
                 value={studentCode}
                 onChange={(e) => handleCheckCode(e.target.value)}
               />
-              {foundStudent && (
+              {(foundStudent || studentCode) && (
                 <div className="absolute right-4 top-1/2 -translate-y-1/2 bg-emerald-500 text-white p-1 rounded-full">
                   <Check className="w-4 h-4" />
                 </div>
               )}
             </div>
-            {studentCode && !foundStudent && (
+            {studentCode && !foundStudent && !studentData.nama && (
               <p className="text-[10px] font-bold text-rose-500 mt-1 ml-1 uppercase tracking-wider">Kode tidak terdaftar untuk ujian ini!</p>
             )}
           </div>
@@ -625,10 +682,10 @@ export default function StudentExam() {
           </AnimatePresence>
 
           {!foundStudent && (
-            <div className="pt-4 text-center">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Atau Isi Manual</p>
-              <div className="mt-4 space-y-4 text-left">
-                <div className="space-y-2">
+            <div className="pt-2 text-center">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Konfirmasi Data Murid</p>
+              <div className="mt-3 space-y-3 text-left">
+                <div className="space-y-1.5">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nama Lengkap</label>
                   <input 
                     type="text" 
@@ -638,7 +695,7 @@ export default function StudentExam() {
                     onChange={(e) => setStudentData({ ...studentData, nama: e.target.value })}
                   />
                 </div>
-                <div className="space-y-2 text-left">
+                <div className="space-y-1.5 text-left">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Kelas</label>
                   <input 
                     type="text" 
@@ -657,8 +714,8 @@ export default function StudentExam() {
             disabled={!foundStudent && (!studentData.nama || !studentData.kelas)}
             className={cn(
               "w-full py-4 rounded-2xl font-black text-lg transition-all flex items-center justify-center gap-3 shadow-lg",
-              foundStudent 
-                ? "bg-indigo-950 text-white shadow-indigo-950/20" 
+              foundStudent || (studentData.nama && studentData.kelas)
+                ? "bg-indigo-950 text-white shadow-indigo-950/20 hover:bg-indigo-900 cursor-pointer" 
                 : "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
             )}
           >

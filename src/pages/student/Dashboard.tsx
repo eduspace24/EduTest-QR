@@ -40,27 +40,97 @@ export default function StudentDashboard() {
     // Fetch Exams from Appwrite & Local Cache
     const fetchExams = async () => {
       try {
-        const { databases, COLLECTIONS, APPWRITE_DATABASE_ID, Query } = await import('../../lib/appwrite');
-        const res = await databases.listDocuments(
-          APPWRITE_DATABASE_ID,
-          COLLECTIONS.EXAMS,
-          [Query.equal('status', 'active'), Query.orderDesc('$createdAt'), Query.limit(100)]
-        );
+        let allExams: any[] = [];
 
-        if (res && res.documents && res.documents.length > 0) {
-          const mapped = res.documents.map(d => ({
-            ...d,
-            id: d.$id,
-            created_at: d.$createdAt
-          }));
-          setActiveExams(mapped);
-        } else {
-          const localExams = await getCollectionData('exams');
-          setActiveExams(localExams || []);
+        // 1. Appwrite (Online sync if available)
+        try {
+          const { databases, COLLECTIONS, APPWRITE_DATABASE_ID, Query } = await import('../../lib/appwrite');
+          const res = await databases.listDocuments(
+            APPWRITE_DATABASE_ID,
+            COLLECTIONS.EXAMS,
+            [Query.equal('status', 'active'), Query.orderDesc('$createdAt'), Query.limit(100)]
+          );
+
+          if (res && res.documents && res.documents.length > 0) {
+            allExams = res.documents.map(d => ({
+              ...d,
+              id: d.$id,
+              created_at: d.$createdAt
+            }));
+          }
+        } catch {}
+
+        // 2. Local IndexedDB Cache (both exams_list and exams)
+        const [localExamsList, localRawExams] = await Promise.all([
+          getCollectionData('exams_list'),
+          getCollectionData('exams')
+        ]);
+
+        const combinedLocal = [...(localExamsList || []), ...(localRawExams || [])];
+        for (const item of combinedLocal) {
+          if (item && item.id && !allExams.some(e => e.id === item.id)) {
+            allExams.push(item);
+          }
         }
+
+        // 3. Filter by Active status
+        const activeOnly = allExams.filter((exam: any) => {
+          if (!exam) return false;
+          const status = exam.status || (exam.is_active ? 'active' : 'draft');
+          return status === 'active';
+        });
+
+        // 4. Target Class Filtering based on current student's class
+        const studentClass = (user.kelas || user.nama_kelas || '').trim();
+        const studentGrade = studentClass.startsWith('XII') ? 'XII' : studentClass.startsWith('XI') ? 'XI' : studentClass.startsWith('X') ? 'X' : '';
+
+        const targeted = activeOnly.filter((exam: any) => {
+          // If no specific class requirement is set or exam is for all grades
+          if (!exam.targetClasses && !exam.targetClassNames && !exam.targetGrade) return true;
+          if (exam.targetGrade === 'ALL') return true;
+
+          // Check targetClassNames array
+          if (Array.isArray(exam.targetClassNames) && exam.targetClassNames.length > 0) {
+            const hasMatchName = exam.targetClassNames.some((cnStr: string) => {
+              const cnNorm = String(cnStr).trim().toLowerCase();
+              const stNorm = studentClass.toLowerCase();
+              return cnNorm === stNorm || cnNorm.replace(/-/g, ' ') === stNorm.replace(/-/g, ' ');
+            });
+            if (hasMatchName) return true;
+          }
+
+          // Check targetClasses ID array
+          if (Array.isArray(exam.targetClasses) && exam.targetClasses.length > 0) {
+            const hasMatchId = exam.targetClasses.some((tcId: string) => {
+              const tcNorm = String(tcId).toLowerCase().replace(/^(cls_|class_)/, '').replace(/-/g, '_');
+              const stNorm = studentClass.toLowerCase().replace(/[\s-]+/g, '_');
+              return tcNorm === stNorm || tcNorm.includes(stNorm) || String(tcId).toLowerCase() === studentClass.toLowerCase();
+            });
+            if (hasMatchId) return true;
+          }
+
+          // Check targetGrade match (e.g. grade 'X' matches class 'X-A')
+          if (exam.targetGrade && studentGrade && exam.targetGrade.toUpperCase() === studentGrade.toUpperCase()) {
+            return true;
+          }
+
+          // Check allowedStudents list if explicitly listed
+          if (Array.isArray(exam.allowedStudents) && exam.allowedStudents.length > 0) {
+            const isListed = exam.allowedStudents.some((s: any) => 
+              (s.nisn && s.nisn === user.nisn) || 
+              (s.code && (s.code === user.nisn || s.code === user.code)) ||
+              (s.nama && s.nama.toLowerCase() === (user.nama || user.name || '').toLowerCase())
+            );
+            if (isListed) return true;
+          }
+
+          return false;
+        });
+
+        setActiveExams(targeted);
       } catch (err) {
-        const localExams = await getCollectionData('exams');
-        setActiveExams(localExams || []);
+        console.error('Error fetching student exams:', err);
+        setActiveExams([]);
       } finally {
         setLoading(false);
       }
@@ -211,7 +281,7 @@ export default function StudentDashboard() {
                           {exam.subject || 'Mata Pelajaran'}
                         </span>
                         <span className="text-xs text-slate-400 font-medium flex items-center gap-1">
-                          <Clock className="w-3.5 h-3.5" /> {exam.duration_minutes || 60} Menit
+                          <Clock className="w-3.5 h-3.5" /> {exam.duration_minutes || exam.duration || 60} Menit
                         </span>
                         {exam.session_name && (
                           <span className="text-[10px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md font-semibold">
@@ -221,7 +291,7 @@ export default function StudentDashboard() {
                       </div>
                       <h4 className="text-base font-black text-indigo-950">{exam.title}</h4>
                       <p className="text-xs text-slate-400 font-medium">
-                        Oleh: {formatTeacherName(exam.teacher_name || 'Guru Pengampu')} • Token: <span className="font-mono font-bold text-indigo-950">{exam.token || '-'}</span>
+                        Oleh: {formatTeacherName(exam.teacher_name || 'Guru Pengampu')} • Token: <span className="font-mono font-bold text-indigo-950">{exam.token || exam.unlock_code || '-'}</span>
                         {exam.start_time && ` • Pkl ${exam.start_time} - ${exam.end_time || ''}`}
                       </p>
                     </div>

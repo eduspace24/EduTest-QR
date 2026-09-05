@@ -33,6 +33,7 @@ import { getCollectionData, saveCollection } from '../lib/db';
 import { useSchool } from '../context/SchoolContext';
 import { uploadQuestionImage } from '../lib/cloudinary';
 import { ALL_SCHOOL_SUBJECTS } from './BankSoal';
+import { CLASSES_LIST } from '../lib/seedAccounts';
 
 export default function BuatUjian() {
   const navigate = useNavigate();
@@ -73,9 +74,13 @@ export default function BuatUjian() {
 
   useEffect(() => {
     const fetchData = async () => {
-      const [classesData] = await Promise.all([
-        getCollectionData('classes', activeSchool?.id),
-      ]);
+      let classesData = await getCollectionData('classes', activeSchool?.id);
+      if (!classesData || classesData.length === 0) {
+        classesData = CLASSES_LIST;
+        try {
+          await saveCollection('classes', CLASSES_LIST);
+        } catch {}
+      }
       setClasses(classesData);
     };
     fetchData();
@@ -96,6 +101,30 @@ export default function BuatUjian() {
     } else {
       setFormData({ ...formData, targetClasses: classes.map(c => c.id) });
     }
+  };
+
+  const selectGradeClasses = (grade: 'ALL' | 'X' | 'XI' | 'XII') => {
+    if (grade === 'ALL') {
+      setFormData(prev => ({ ...prev, targetGrade: 'ALL', targetClasses: classes.map(c => c.id) }));
+      return;
+    }
+    const matched = classes.filter(c => {
+      const t = (c.tingkat || '').toUpperCase();
+      const n = (c.name || c.nama_kelas || '').toUpperCase();
+      if (grade === 'X') return t === 'X' || n.startsWith('X-') || n.startsWith('X ');
+      if (grade === 'XI') return t === 'XI' || n.startsWith('XI-') || n.startsWith('XI ');
+      if (grade === 'XII') return t === 'XII' || n.startsWith('XII-') || n.startsWith('XII ') || n.startsWith('XII');
+      return false;
+    });
+    setFormData(prev => ({
+      ...prev,
+      targetGrade: grade,
+      targetClasses: matched.map(c => c.id)
+    }));
+  };
+
+  const clearAllClasses = () => {
+    setFormData(prev => ({ ...prev, targetGrade: 'CUSTOM', targetClasses: [] }));
   };
 
   const [questions, setQuestions] = useState<any[]>([]);
@@ -339,6 +368,11 @@ export default function BuatUjian() {
       return;
     }
 
+    if (!formData.targetClasses || formData.targetClasses.length === 0) {
+      showAlert({ title: 'Peringatan', message: 'Pilih minimal 1 kelas target peserta ujian!', type: 'warning' });
+      return;
+    }
+
     if (questions.length === 0) {
       showAlert({ title: 'Peringatan', message: 'Belum ada soal. Tambahkan soal terlebih dahulu!', type: 'warning' });
       return;
@@ -354,18 +388,21 @@ export default function BuatUjian() {
 
     try {
       const examId = generateExamCode();
+      const sessionData = JSON.parse(localStorage.getItem('edu_session') || '{}');
+      const teacherId = sessionData.user?.id || 'guru';
+      const teacherName = sessionData.user?.name || sessionData.user?.nama || 'Guru Mata Pelajaran';
 
       // Fetch allowed students for this exam based on targetClasses
       const [allStudents, allClasses] = await Promise.all([
         getCollectionData('students'),
-        getCollectionData('classes')
+        classes.length > 0 ? Promise.resolve(classes) : getCollectionData('classes')
       ]);
       
-      const targetClassNames = allClasses
+      const targetClassNames = (allClasses || [])
         .filter((c: any) => formData.targetClasses.includes(c.id))
-        .map((c: any) => (c.name || '').toLowerCase().trim());
+        .map((c: any) => (c.name || c.nama_kelas || '').toLowerCase().trim());
 
-      const allowedStudents = allStudents
+      const allowedStudents = (allStudents || [])
         .filter((s: any) => {
           if (formData.targetClasses.includes(s.classId)) return true;
           const sClass = (s.nama_kelas || s.kelas || '').toLowerCase().trim();
@@ -373,7 +410,7 @@ export default function BuatUjian() {
         })
         .map((s: any) => ({
           ...s,
-          className: allClasses.find((c: any) => c.id === s.classId)?.name || s.nama_kelas || s.kelas || 'Umum'
+          className: (allClasses || []).find((c: any) => c.id === s.classId)?.name || s.nama_kelas || s.kelas || 'Umum'
         }));
 
       // Safe questions for students
@@ -387,6 +424,14 @@ export default function BuatUjian() {
         subject: formData.subject || teacherSubjects[0] || 'Informatika',
         id: examId,
         driveFileId: examId,
+        teacher_id: teacherId,
+        teacher_name: teacherName,
+        status: 'active',
+        is_active: true,
+        targetClasses: formData.targetClasses,
+        targetClassNames: (allClasses || [])
+          .filter((c: any) => formData.targetClasses.includes(c.id))
+          .map((c: any) => c.name || c.nama_kelas || c.id),
         questions: safeQuestions,
         _answer_key: questions.map(q => ({ id: q.id, answer: q.correct_answer })),
         allowedStudents,
@@ -419,7 +464,10 @@ export default function BuatUjian() {
       }
 
       // Update global exams list via IndexedDB
-      const savedExams = await getCollectionData('exams_list');
+      const targetClassLabels = (allClasses || [])
+        .filter((c: any) => formData.targetClasses.includes(c.id))
+        .map((c: any) => c.name || c.nama_kelas || c.id);
+
       const newExamMeta = {
         id: examId,
         driveFileId: examId,
@@ -431,9 +479,18 @@ export default function BuatUjian() {
         end_time: formData.end_time || '09:30',
         room_capacity: formData.room_capacity || 20,
         targetGrade: formData.targetGrade || 'ALL',
-        duration: formData.duration,
+        targetClasses: formData.targetClasses,
+        targetClassNames: targetClassLabels,
+        teacher_id: teacherId,
+        teacher_name: teacherName,
+        status: 'active',
+        is_active: true,
+        token: formData.unlock_code || '',
+        duration: Number(formData.duration) || 60,
+        duration_minutes: Number(formData.duration) || 60,
         totalQuestions: questions.length,
         createdAt: new Date().toISOString(),
+        created_at: new Date().toISOString(),
         randomized: formData.randomized,
         randomize_options: formData.randomize_options,
         anti_cheat: formData.anti_cheat,
@@ -443,11 +500,14 @@ export default function BuatUjian() {
         show_score: formData.show_score
       };
       
-      const updatedExams = [newExamMeta, ...savedExams];
+      const savedExams = (await getCollectionData('exams_list')) || [];
+      const updatedExams = [newExamMeta, ...savedExams.filter((e: any) => e.id !== examId)];
       await saveCollection('exams_list', updatedExams);
-      
-      const sessionData = JSON.parse(localStorage.getItem('edu_session') || '{}');
-      const teacherId = sessionData.user?.id || 'guru';
+
+      // Also save to 'exams' collection for student portal dashboard compatibility
+      const savedRawExams = (await getCollectionData('exams')) || [];
+      const updatedRawExams = [newExamMeta, ...savedRawExams.filter((e: any) => e.id !== examId)];
+      await saveCollection('exams', updatedRawExams);
       
       const shareUrl = `${window.location.origin}/test/${teacherId}/${examId}`;
       setGeneratedLink(shareUrl);
@@ -668,69 +728,178 @@ export default function BuatUjian() {
               </div>
             )}
 
-            <div className="space-y-3">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <label className="text-xs font-bold text-slate-700">Target Kelas Peserta</label>
+            <div className="space-y-4 p-5 bg-slate-50/70 rounded-2xl border border-slate-200/80">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                <div>
+                  <label className="text-xs font-bold text-indigo-950 flex items-center gap-1.5">
+                    <GraduationCap className="w-4 h-4 text-indigo-600" /> Target Kelas Peserta Ujian
+                  </label>
+                  <p className="text-[10px] text-slate-500 mt-0.5">
+                    Tentukan kelas mana saja yang dapat mengakses & mengerjakan ujian ini di portal murid.
+                  </p>
+                </div>
                 
-                {formData.exam_type === 'semester' ? (
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {[
-                      { id: 'ALL', label: 'Semua Angkatan' },
-                      { id: 'X', label: 'Kelas X' },
-                      { id: 'XI', label: 'Kelas XI' },
-                      { id: 'XII', label: 'Kelas XII' }
-                    ].map(grade => (
-                      <button
-                        key={grade.id}
-                        type="button"
-                        onClick={() => {
-                          setFormData(prev => {
-                            if (grade.id === 'ALL') {
-                              return { ...prev, targetGrade: 'ALL', targetClasses: classes.map(c => c.id) };
-                            } else {
-                              const matched = classes.filter(c => (c.name || '').toLowerCase().startsWith(grade.id.toLowerCase()));
-                              return { ...prev, targetGrade: grade.id, targetClasses: matched.map(c => c.id) };
-                            }
-                          });
-                        }}
-                        className={cn(
-                          "px-2.5 py-1 rounded-md text-[10px] font-black border transition-all",
-                          formData.targetGrade === grade.id
-                            ? "bg-indigo-950 text-white border-indigo-950 shadow-sm"
-                            : "bg-white text-slate-600 border-slate-200 hover:border-indigo-950"
-                        )}
-                      >
-                        {grade.label}
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <button 
-                    type="button" onClick={toggleAllClasses}
-                    className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:text-blue-700"
-                  >
-                    {formData.targetClasses.length === classes.length ? 'Hapus Semua' : 'Pilih Semua'}
-                  </button>
-                )}
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {classes.map(c => (
+                {/* Quick Selection Buttons */}
+                <div className="flex flex-wrap items-center gap-1.5">
                   <button
-                    key={c.id} type="button"
-                    onClick={() => toggleClass(c.id)}
-                    className={cn(
-                      "px-3 py-1.5 rounded-lg text-[10px] font-bold border transition-all",
-                      formData.targetClasses.includes(c.id)
-                        ? "bg-indigo-950 text-white border-indigo-950 shadow-md"
-                        : "bg-white text-slate-500 border-slate-200 hover:border-indigo-950"
-                    )}
+                    type="button"
+                    onClick={() => selectGradeClasses('ALL')}
+                    className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-indigo-950 text-white hover:bg-indigo-900 transition-all shadow-xs"
                   >
-                    {c.name}
+                    Pilih Semua ({classes.length})
                   </button>
-                ))}
+                  <button
+                    type="button"
+                    onClick={() => selectGradeClasses('X')}
+                    className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white text-slate-700 border border-slate-200 hover:border-indigo-950 transition-all"
+                  >
+                    Semua Kelas X
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => selectGradeClasses('XI')}
+                    className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white text-slate-700 border border-slate-200 hover:border-indigo-950 transition-all"
+                  >
+                    Semua Kelas XI
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => selectGradeClasses('XII')}
+                    className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white text-slate-700 border border-slate-200 hover:border-indigo-950 transition-all"
+                  >
+                    Semua Kelas XII
+                  </button>
+                  <button
+                    type="button"
+                    onClick={clearAllClasses}
+                    className="px-2 py-1 rounded-lg text-[10px] font-bold text-rose-600 hover:bg-rose-50 transition-all"
+                  >
+                    Kosongkan
+                  </button>
+                </div>
+              </div>
+
+              {/* Status Counter */}
+              <div className="flex items-center justify-between text-xs bg-white px-3.5 py-2 rounded-xl border border-slate-200">
+                <span className="font-medium text-slate-500 text-[11px]">
+                  Status Target:
+                </span>
+                <span className={cn(
+                  "font-bold text-[11px] px-2.5 py-0.5 rounded-full",
+                  formData.targetClasses.length > 0
+                    ? "bg-emerald-100 text-emerald-800"
+                    : "bg-rose-100 text-rose-700"
+                )}>
+                  {formData.targetClasses.length > 0 
+                    ? `✓ ${formData.targetClasses.length} kelas dipilih (${classes.filter(c => formData.targetClasses.includes(c.id)).map(c => c.name).slice(0, 4).join(', ')}${formData.targetClasses.length > 4 ? '...' : ''})`
+                    : '⚠️ Belum ada kelas dipilih (Wajib pilih minimal 1)'}
+                </span>
+              </div>
+
+              {/* Grouped Class Pills */}
+              <div className="space-y-3 pt-1">
+                {/* Tingkat X */}
+                {classes.filter(c => (c.tingkat === 'X' || (c.name || '').startsWith('X-'))).length > 0 && (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Kelas X</span>
+                      <button
+                        type="button"
+                        onClick={() => selectGradeClasses('X')}
+                        className="text-[9px] font-bold text-blue-600 hover:underline"
+                      >
+                        Pilih Tingkat X Saja
+                      </button>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {classes.filter(c => (c.tingkat === 'X' || (c.name || '').startsWith('X-'))).map(c => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => toggleClass(c.id)}
+                          className={cn(
+                            "px-2.5 py-1.5 rounded-lg text-[11px] font-bold border transition-all",
+                            formData.targetClasses.includes(c.id)
+                              ? "bg-indigo-950 text-white border-indigo-950 shadow-xs"
+                              : "bg-white text-slate-600 border-slate-200 hover:border-indigo-400"
+                          )}
+                        >
+                          {c.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Tingkat XI */}
+                {classes.filter(c => (c.tingkat === 'XI' || (c.name || '').startsWith('XI-'))).length > 0 && (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Kelas XI</span>
+                      <button
+                        type="button"
+                        onClick={() => selectGradeClasses('XI')}
+                        className="text-[9px] font-bold text-blue-600 hover:underline"
+                      >
+                        Pilih Tingkat XI Saja
+                      </button>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {classes.filter(c => (c.tingkat === 'XI' || (c.name || '').startsWith('XI-'))).map(c => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => toggleClass(c.id)}
+                          className={cn(
+                            "px-2.5 py-1.5 rounded-lg text-[11px] font-bold border transition-all",
+                            formData.targetClasses.includes(c.id)
+                              ? "bg-indigo-950 text-white border-indigo-950 shadow-xs"
+                              : "bg-white text-slate-600 border-slate-200 hover:border-indigo-400"
+                          )}
+                        >
+                          {c.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Tingkat XII */}
+                {classes.filter(c => (c.tingkat === 'XII' || (c.name || '').startsWith('XII'))).length > 0 && (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Kelas XII</span>
+                      <button
+                        type="button"
+                        onClick={() => selectGradeClasses('XII')}
+                        className="text-[9px] font-bold text-blue-600 hover:underline"
+                      >
+                        Pilih Tingkat XII Saja
+                      </button>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {classes.filter(c => (c.tingkat === 'XII' || (c.name || '').startsWith('XII'))).map(c => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => toggleClass(c.id)}
+                          className={cn(
+                            "px-2.5 py-1.5 rounded-lg text-[11px] font-bold border transition-all",
+                            formData.targetClasses.includes(c.id)
+                              ? "bg-indigo-950 text-white border-indigo-950 shadow-xs"
+                              : "bg-white text-slate-600 border-slate-200 hover:border-indigo-400"
+                          )}
+                        >
+                          {c.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {classes.length === 0 && (
-                  <p className="text-[10px] text-amber-600 font-bold bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-100 italic">
-                    Belum ada kelas. Silakan hubungi Super Admin untuk membuat kelas di menu Kelola Kelas.
+                  <p className="text-xs text-amber-700 font-bold bg-amber-50 px-4 py-2.5 rounded-xl border border-amber-200">
+                    Memuat data kelas...
                   </p>
                 )}
               </div>
@@ -1224,31 +1393,107 @@ export default function BuatUjian() {
         {step === 3 && (
           <motion.div 
             key="step3" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-            className="bg-white p-6 sm:p-10 rounded-3xl border border-slate-100 shadow-xl text-center space-y-6"
+            className="bg-white p-6 sm:p-10 rounded-3xl border border-slate-100 shadow-xl space-y-6 max-w-2xl mx-auto"
           >
-            <div className="w-16 h-16 bg-emerald-50 text-emerald-500 rounded-2xl flex items-center justify-center mx-auto shadow-inner">
+            <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto shadow-inner">
               <CheckCircle2 className="w-8 h-8" />
             </div>
-            <div>
-              <h3 className="text-xl font-bold text-indigo-950 tracking-tight">Ujian Berhasil Diterbitkan!</h3>
-              <p className="text-slate-500 text-sm mt-1">Salin link di bawah ini dan bagikan ke murid Anda.</p>
+            
+            <div className="text-center space-y-2">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black bg-emerald-100 text-emerald-800 uppercase tracking-wider">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                Status: Ujian Aktif
+              </span>
+              <h3 className="text-2xl font-black text-indigo-950 tracking-tight">Ujian Berhasil Diterbitkan!</h3>
+              <p className="text-slate-500 text-sm max-w-md mx-auto">
+                Ujian sudah otomatis <strong>aktif di Portal Murid</strong> untuk kelas yang Anda tentukan. Murid cukup masuk ke akun dan mengklik tombol <strong>"Mulai Ujian"</strong>.
+              </p>
             </div>
-            <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex items-center gap-3">
-              <div className="bg-indigo-950 p-1.5 rounded-lg shrink-0">
-                <LinkIcon className="text-white w-3.5 h-3.5" />
+
+            {/* Exam Details Card */}
+            <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200/70 text-left space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-200/60 pb-2.5">
+                <span className="text-xs font-medium text-slate-500">Judul Ujian</span>
+                <span className="text-xs font-bold text-indigo-950">{formData.title}</span>
               </div>
-              <input readOnly value={generatedLink} className="bg-transparent border-none outline-none flex-1 text-xs font-mono text-indigo-950 overflow-x-auto" />
+              <div className="flex items-center justify-between border-b border-slate-200/60 pb-2.5">
+                <span className="text-xs font-medium text-slate-500">Mata Pelajaran</span>
+                <span className="text-xs font-bold text-indigo-950">{formData.subject || 'Informatika'}</span>
+              </div>
+              <div className="flex items-start justify-between border-b border-slate-200/60 pb-2.5 gap-4">
+                <span className="text-xs font-medium text-slate-500 shrink-0">Target Kelas</span>
+                <div className="flex flex-wrap gap-1 justify-end max-w-xs">
+                  {classes.filter(c => formData.targetClasses.includes(c.id)).map(c => (
+                    <span key={c.id} className="bg-indigo-100 text-indigo-950 px-2 py-0.5 rounded text-[10px] font-bold">
+                      {c.name}
+                    </span>
+                  ))}
+                  {formData.targetClasses.length === 0 && (
+                    <span className="text-xs text-slate-400">Semua Kelas</span>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center justify-between border-b border-slate-200/60 pb-2.5">
+                <span className="text-xs font-medium text-slate-500">Durasi Pengerjaan</span>
+                <span className="text-xs font-bold text-indigo-950">{formData.duration} Menit</span>
+              </div>
+              {formData.unlock_code && (
+                <div className="flex items-center justify-between border-b border-slate-200/60 pb-2.5">
+                  <span className="text-xs font-medium text-slate-500">Token Masuk Ujian</span>
+                  <span className="text-xs font-mono font-bold bg-amber-100 text-amber-900 px-2 py-0.5 rounded">
+                    {formData.unlock_code}
+                  </span>
+                </div>
+              )}
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-slate-500">Visibilitas Portal</span>
+                <span className="text-xs font-bold text-emerald-700 flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Langsung Muncul di Beranda Murid
+                </span>
+              </div>
+            </div>
+
+            {/* Direct Link (Optional) */}
+            <div className="space-y-1.5 text-left">
+              <label className="text-[11px] font-bold text-slate-500 flex items-center gap-1">
+                <LinkIcon className="w-3.5 h-3.5 text-slate-400" /> Tautan Langsung ke Ujian (Opsional / Cadangan):
+              </label>
+              <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200 flex items-center gap-3">
+                <input readOnly value={generatedLink} className="bg-transparent border-none outline-none flex-1 text-xs font-mono text-indigo-950 overflow-x-auto" />
+                <button 
+                  onClick={() => {
+                    navigator.clipboard.writeText(generatedLink);
+                    showAlert({ title: 'Disalin!', message: 'Link ujian telah disalin ke clipboard.', type: 'success' });
+                  }}
+                  className="text-indigo-950 font-black text-[10px] uppercase tracking-widest px-3 py-1.5 bg-white rounded-lg shadow-sm border border-slate-200 hover:bg-slate-50 transition-all shrink-0"
+                >
+                  Salin Link
+                </button>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3 pt-2">
+              <button 
+                onClick={() => navigate('/dashboard')} 
+                className="flex-1 bg-indigo-950 text-white py-3 rounded-xl font-bold hover:bg-indigo-900 transition-all text-xs flex items-center justify-center gap-2 shadow-md shadow-indigo-950/20"
+              >
+                Ke Dashboard Guru
+              </button>
               <button 
                 onClick={() => {
-                  navigator.clipboard.writeText(generatedLink);
-                  showAlert({ title: 'Disalin!', message: 'Link ujian telah disalin ke clipboard.', type: 'success' });
-                }}
-                className="text-indigo-950 font-black text-[10px] uppercase tracking-widest px-2.5 py-1.5 bg-white rounded-lg shadow-sm border border-slate-200"
+                  setStep(1);
+                  setQuestions([]);
+                  setFormData(prev => ({
+                    ...prev,
+                    title: '',
+                    targetClasses: []
+                  }));
+                }} 
+                className="py-3 px-5 bg-slate-100 text-slate-700 rounded-xl font-bold hover:bg-slate-200 transition-all text-xs"
               >
-                Salin
+                Buat Ujian Baru
               </button>
             </div>
-            <button onClick={() => navigate('/dashboard')} className="w-full bg-slate-100 text-slate-600 py-3 rounded-xl font-bold hover:bg-slate-200 transition-all text-sm">Kembali ke Dashboard</button>
           </motion.div>
         )}
       </AnimatePresence>
