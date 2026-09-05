@@ -10,12 +10,14 @@ import {
   CheckCircle2,
   AlertCircle,
   XCircle,
-  ChevronDown
+  ChevronDown,
+  Trash2
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import React from 'react';
 import { cn, formatStudentName } from '../lib/utils';
 import { getCollectionData, saveCollection } from '../lib/db';
+import { useAlert } from '../context/AlertContext';
 import { supabase } from '../lib/supabase';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -23,6 +25,7 @@ import autoTable from 'jspdf-autotable';
 import { RefreshCw } from 'lucide-react';
 
 export default function HasilUjian({ isEmbedded = false }: { isEmbedded?: boolean }) {
+  const { showAlert } = useAlert();
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -127,6 +130,52 @@ export default function HasilUjian({ isEmbedded = false }: { isEmbedded?: boolea
 
   const handleRefresh = async () => {
     await fetchData();
+  };
+
+  const handleDeleteResult = (resultItem: any) => {
+    const sName = resultItem.student_name || resultItem.student?.nama || resultItem.student?.name || 'Murid';
+    const eTitle = resultItem.exam_title || resultItem.examTitle || 'Ujian';
+    const targetId = resultItem.id || resultItem.$id;
+
+    showAlert({
+      title: 'Hapus Hasil Ujian?',
+      message: `Apakah Anda yakin ingin menghapus hasil ujian "${eTitle}" untuk murid "${formatStudentName(sName)}"? Data yang dihapus tidak dapat dikembalikan.`,
+      type: 'confirm',
+      confirmText: 'Ya, Hapus',
+      cancelText: 'Batal',
+      onConfirm: async () => {
+        // 1. Optimistic UI update
+        const updated = results.filter(r => (r.id !== targetId && r.$id !== targetId));
+        setResults(updated);
+
+        // 2. Simpan ke IndexedDB lokal
+        try {
+          await saveCollection('results', updated);
+        } catch (localErr) {
+          console.warn('Delete local result note:', localErr);
+        }
+
+        // 3. Hapus juga dari Appwrite Cloud jika memiliki ID cloud
+        if (targetId && !String(targetId).startsWith('loc_')) {
+          try {
+            const { databases, COLLECTIONS, APPWRITE_DATABASE_ID } = await import('../lib/appwrite');
+            await databases.deleteDocument(
+              APPWRITE_DATABASE_ID,
+              COLLECTIONS.EXAM_RESULTS,
+              targetId
+            );
+          } catch (cloudDelErr) {
+            console.warn('Appwrite deleteDocument exam_results note:', cloudDelErr);
+          }
+        }
+
+        showAlert({
+          title: 'Hasil Ujian Dihapus',
+          message: `Hasil ujian untuk "${formatStudentName(sName)}" berhasil dihapus dari sistem.`,
+          type: 'success'
+        });
+      }
+    });
   };
 
   const exportToExcel = () => {
@@ -254,6 +303,7 @@ export default function HasilUjian({ isEmbedded = false }: { isEmbedded?: boolea
                 <th className="px-8 py-5 text-left text-[11px] font-black text-slate-400 uppercase tracking-widest">Waktu Kerjain</th>
                 <th className="px-8 py-5 text-left text-[11px] font-black text-slate-400 uppercase tracking-widest">Status</th>
                 <th className="px-8 py-5 text-right text-[11px] font-black text-slate-400 uppercase tracking-widest">Skor</th>
+                <th className="px-8 py-5 text-center text-[11px] font-black text-slate-400 uppercase tracking-widest">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -285,6 +335,15 @@ export default function HasilUjian({ isEmbedded = false }: { isEmbedded?: boolea
                     </td>
                     <td className="px-8 py-5 text-right font-black text-xl text-indigo-950">
                       {res.score ?? 0}
+                    </td>
+                    <td className="px-8 py-5 text-center">
+                      <button
+                        onClick={() => handleDeleteResult(res)}
+                        className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all cursor-pointer"
+                        title="Hapus Hasil Ujian"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </td>
                   </tr>
                 );
