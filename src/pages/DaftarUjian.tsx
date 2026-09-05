@@ -62,7 +62,7 @@ export default function DaftarUjian() {
     
     showAlert({
       title: 'Link Ujian Disalin',
-      message: `Tautan ujian berhasil disalin ke clipboard:\n${link}\n\nAnda dapat membagikan tautan ini langsung kepada siswa.`,
+      message: `Tautan ujian disalin:\n${link}\n\nBagikan tautan ini kepada siswa.`,
       type: 'success'
     });
   };
@@ -371,8 +371,8 @@ export default function DaftarUjian() {
       setEditingExam(null);
 
       showAlert({
-        title: 'Ujian Berhasil Diperbarui',
-        message: `Perubahan pada "${updatedPayload.title}" berhasil disimpan dan langsung aktif di sistem.`,
+        title: 'Ujian Diperbarui',
+        message: `Perubahan "${updatedPayload.title}" berhasil disimpan.`,
         type: 'success'
       });
     } catch (err: any) {
@@ -739,11 +739,11 @@ export default function DaftarUjian() {
                     <button 
                       type="button"
                       onClick={() => handleOpenDirectEdit(exam)}
-                      className="px-3.5 py-1.5 rounded-lg border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
-                      title="Edit ujian ini langsung di tempat"
+                      className="px-3 py-1.5 rounded-lg border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                      title="Edit ujian"
                     >
                       <Edit3 className="w-3.5 h-3.5 text-amber-700" />
-                      <span>Edit Langsung</span>
+                      <span>Edit</span>
                     </button>
 
                     <button 
@@ -826,7 +826,7 @@ export default function DaftarUjian() {
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] font-black uppercase tracking-wider text-amber-800 bg-amber-100 px-2 py-0.5 rounded">
-                        Edit Ujian Langsung
+                        Edit Ujian
                       </span>
                       {editingExam && (
                         <button
@@ -987,9 +987,9 @@ export default function DaftarUjian() {
                           </label>
                           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                             {[
-                              { id: 'hybrid', title: 'Otomatis + Barcode', desc: 'Kirim otomatis via cloud & tetap ada Barcode QR cadangan.', icon: '⚡' },
-                              { id: 'direct', title: 'Kirim Langsung', desc: 'Otomatis tersimpan ke server guru tanpa perlu scan barcode.', icon: '🚀' },
-                              { id: 'qr', title: 'Scan Barcode QR', desc: 'Dikerjakan tanpa kuota, siswa tunjukkan barcode ke guru.', icon: '📱' },
+                              { id: 'hybrid', title: 'Otomatis + Barcode', desc: 'Kirim otomatis via cloud & sediakan barcode cadangan.', icon: '⚡' },
+                              { id: 'direct', title: 'Kirim Otomatis', desc: 'Tersimpan otomatis ke server tanpa scan barcode.', icon: '🚀' },
+                              { id: 'qr', title: 'Scan Barcode QR', desc: 'Tanpa kuota, tunjukkan barcode ke guru.', icon: '📱' },
                             ].map(opt => (
                               <div
                                 key={opt.id}
@@ -1204,8 +1204,8 @@ export default function DaftarUjian() {
                       <div className="space-y-4">
                         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                           <div>
-                            <h4 className="text-sm font-bold text-slate-800">Daftar Butir Soal Ujian ({editingExam.questions?.length || 0} Butir)</h4>
-                            <p className="text-xs text-slate-500">Anda dapat menyunting teks soal, pilihan jawaban, dan kunci jawaban secara langsung.</p>
+                            <h4 className="text-sm font-bold text-slate-800">Daftar Soal ({editingExam.questions?.length || 0} Butir)</h4>
+                            <p className="text-xs text-slate-500">Ubah teks pertanyaan, opsi jawaban, dan kunci jawaban.</p>
                           </div>
                           <button
                             type="button"
@@ -1363,7 +1363,7 @@ export default function DaftarUjian() {
                     ) : (
                       <>
                         <Save className="w-4 h-4" />
-                        <span>Simpan Perubahan Langsung</span>
+                        <span>Simpan Perubahan</span>
                       </>
                     )}
                   </button>

@@ -2787,7 +2787,7 @@ export default function DistribusiRuang() {
                   Pilih Murid untuk Meja {quickAssignDeskModal.seatNumber}
                 </h3>
                 <p className="text-[11px] text-slate-400 font-medium">
-                  Klik nama murid untuk langsung menempatkannya di meja ini.
+                  Pilih murid untuk meja ini.
                 </p>
               </div>
               <button onClick={() => setQuickAssignDeskModal(null)} className="p-1.5 hover:bg-slate-200 rounded-lg text-slate-400">

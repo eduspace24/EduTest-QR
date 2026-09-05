@@ -1886,7 +1886,7 @@ export default function BankSoal() {
                     onChange={(e) => setNewQuestion({ ...newQuestion, jawaban_benar: e.target.value })}
                   />
                   <p className="text-[11px] text-slate-400 leading-relaxed">
-                    💡 <b>Tips:</b> Gunakan tanda garis lurus <code className="bg-slate-100 px-1 py-0.5 rounded font-bold">|</code> jika memiliki beberapa variasi jawaban benar (contoh: <code className="text-indigo-950">Rp 50.000|50000|50 ribu</code>). Anda juga bisa menulis tanda kurung siku <code className="bg-slate-100 px-1 py-0.5 rounded font-bold">[kunci]</code> langsung di dalam teks pertanyaan.
+                    💡 <b>Tips:</b> Gunakan pemisah <code className="bg-slate-100 px-1 py-0.5 rounded font-bold">|</code> untuk variasi jawaban (contoh: <code className="text-indigo-950">Rp 50.000|50000|50 ribu</code>), atau tulis <code className="bg-slate-100 px-1 py-0.5 rounded font-bold">[kunci]</code> pada teks pertanyaan.
                   </p>
                 </div>
               )}

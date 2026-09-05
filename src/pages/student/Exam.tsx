@@ -870,8 +870,8 @@ export default function StudentExam() {
               className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl font-bold text-xs active:scale-95 transition-all cursor-pointer"
             >
               {(completionData?.submission_mode === 'direct' || exam?.submission_mode === 'direct')
-                ? 'Lihat Bukti Pengiriman Langsung'
-                : 'Lihat Bukti QR Hasil Ujian'}
+                ? 'Lihat Bukti Pengiriman'
+                : 'Lihat Barcode QR Hasil'}
             </button>
           </div>
         </motion.div>
@@ -1105,7 +1105,7 @@ export default function StudentExam() {
               <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                 <div>
                   <h3 className="font-black text-indigo-950 text-base">Lembar Nomor Soal</h3>
-                  <p className="text-xs text-slate-400 font-medium">Klik nomor untuk langsung berpindah soal.</p>
+                  <p className="text-xs text-slate-400 font-medium">Pilih nomor untuk menuju soal.</p>
                 </div>
                 <button 
                   onClick={() => setShowNumberGrid(false)}

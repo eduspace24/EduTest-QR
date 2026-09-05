@@ -1096,7 +1096,7 @@ export default function BuatUjian() {
                 <div>
                   <p className="font-black text-emerald-950">Ulangan Harian: Bebas Sesi & Jam (1x Pengerjaan)</p>
                   <p className="text-emerald-700 font-medium text-[11px] mt-0.5">
-                    Ujian biasa tidak dibatasi jam atau sesi tertentu. Murid di kelas target dapat langsung mengerjakan kapan saja selagi status ujian Aktif, dan sistem otomatis mengunci agar murid hanya bisa mengerjakan 1 kali.
+                    Siswa kelas target dapat mengerjakan kapan saja saat status aktif (maksimal 1x pengerjaan).
                   </p>
                 </div>
               </div>
@@ -1489,9 +1489,9 @@ export default function BuatUjian() {
                           </div>
                         )}
                       </div>
-                      <p className="text-xs font-black text-indigo-950">Kirim Langsung (Otomatis)</p>
+                      <p className="text-xs font-black text-indigo-950">Kirim Otomatis</p>
                       <p className="text-[10px] text-slate-500 leading-relaxed mt-1">
-                        Hasil ujian otomatis tersimpan saat murid klik selesai. Murid tidak perlu scan barcode sama sekali.
+                        Tersimpan otomatis saat siswa klik selesai tanpa perlu scan barcode.
                       </p>
                     </div>
                     <span className="mt-3 text-[9px] font-black uppercase tracking-wider text-blue-800 bg-blue-100 px-2 py-0.5 rounded-md w-fit">
@@ -1820,7 +1820,7 @@ export default function BuatUjian() {
                         onChange={(e) => updateQuestion(q.id, 'correct_answer', e.target.value)}
                       />
                       <p className="text-[10px] text-slate-400 italic">
-                        💡 Murid akan mengetik jawaban di kotak isian langsung. Gunakan tanda <code className="bg-slate-100 px-1 font-bold">|</code> untuk beberapa variasi jawaban benar.
+                        💡 Siswa mengetik jawaban di kotak isian. Gunakan tanda <code className="bg-slate-100 px-1 font-bold">|</code> untuk variasi jawaban benar.
                       </p>
                     </div>
                   )}
@@ -2020,7 +2020,7 @@ export default function BuatUjian() {
               <div className="flex items-center justify-between border-b border-slate-200/60 pb-2.5">
                 <span className="text-xs font-medium text-slate-500">Metode Pengumpulan</span>
                 <span className="text-xs font-bold text-indigo-950 bg-slate-200/70 px-2 py-0.5 rounded">
-                  {formData.submission_mode === 'hybrid' ? '⚡ Otomatis + Barcode' : formData.submission_mode === 'direct' ? '🚀 Kirim Langsung' : '📱 Scan Barcode QR'}
+                  {formData.submission_mode === 'hybrid' ? '⚡ Otomatis + Barcode' : formData.submission_mode === 'direct' ? '🚀 Kirim Otomatis' : '📱 Scan Barcode QR'}
                 </span>
               </div>
               {formData.unlock_code && (
@@ -2034,7 +2034,7 @@ export default function BuatUjian() {
               <div className="flex items-center justify-between">
                 <span className="text-xs font-medium text-slate-500">Visibilitas Portal</span>
                 <span className="text-xs font-bold text-emerald-700 flex items-center gap-1">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> Langsung Muncul di Beranda Murid
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Aktif di Beranda Siswa
                 </span>
               </div>
             </div>
@@ -2042,7 +2042,7 @@ export default function BuatUjian() {
             {/* Direct Link (Optional) */}
             <div className="space-y-1.5 text-left">
               <label className="text-[11px] font-bold text-slate-500 flex items-center gap-1">
-                <LinkIcon className="w-3.5 h-3.5 text-slate-400" /> Tautan Langsung ke Ujian (Opsional / Cadangan):
+                <LinkIcon className="w-3.5 h-3.5 text-slate-400" /> Tautan Ujian (Opsional):
               </label>
               <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200 flex items-center gap-3">
                 <input readOnly value={generatedLink} className="bg-transparent border-none outline-none flex-1 text-xs font-mono text-indigo-950 overflow-x-auto" />

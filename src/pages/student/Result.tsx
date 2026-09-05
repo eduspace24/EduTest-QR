@@ -68,7 +68,7 @@ export default function StudentResult() {
                     <CheckCircle2 className="w-4 h-4 text-blue-600" /> Terkirim Otomatis
                   </div>
                   <p className="text-slate-500 text-sm font-bold max-w-md mx-auto">
-                    Lembar jawaban Anda telah berhasil <strong>terkirim langsung ke Guru/Admin</strong>. Anda tidak perlu memindai Barcode QR!
+                    Lembar jawaban berhasil <strong>terkirim ke server</strong>. Tidak perlu scan barcode.
                   </p>
                 </div>
               ) : meta?.submission_mode === 'qr' ? (
@@ -143,12 +143,12 @@ export default function StudentResult() {
               {meta?.submission_mode === 'direct' ? (
                 <div className="flex items-center gap-3 justify-center mb-8 px-4 py-3 bg-emerald-50 text-emerald-800 rounded-2xl border border-emerald-100 text-xs font-bold max-w-md mx-auto">
                   <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-600" />
-                  <p className="text-left leading-relaxed">Pengerjaan Anda tuntas. Anda dapat langsung mengklik tombol "Selesai & Keluar" di bawah ini.</p>
+                  <p className="text-left leading-relaxed">Ujian selesai. Silakan klik tombol "Selesai & Keluar" di bawah ini.</p>
                 </div>
               ) : (
                 <div className="flex items-center gap-3 justify-center mb-8 px-4 py-3 bg-amber-50 text-amber-800 rounded-2xl border border-amber-100 text-xs font-bold max-w-md mx-auto">
                   <AlertCircle className="w-5 h-5 shrink-0 text-amber-600" />
-                  <p className="text-left leading-relaxed">PENTING: Jangan tutup halaman ini sebelum Guru memindai QR Code Anda dan mengonfirmasi bahwa data telah masuk!</p>
+                  <p className="text-left leading-relaxed">PENTING: Jangan tutup halaman ini sebelum Guru memindai barcode QR Anda!</p>
                 </div>
               )}
             </>

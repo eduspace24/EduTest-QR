@@ -206,7 +206,7 @@ export default function Dashboard() {
             <p className="text-slate-500 text-sm font-medium max-w-xs mb-6 px-4">
               {isSuperAdmin 
                 ? 'Kelola akun guru, cetak kartu ujian murid, dan pantau hasil ujian terpusat.' 
-                : 'Buat ujian baru dan aktifkan agar siswa dapat langsung mengerjakan.'}
+                : 'Rancang ujian baru dan publikasikan untuk siswa.'}
             </p>
             <Link 
               to={isSuperAdmin ? "/kelola-guru" : "/buat-ujian"} 
