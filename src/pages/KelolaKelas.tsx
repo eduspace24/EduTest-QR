@@ -53,7 +53,13 @@ export default function KelolaKelas() {
       ]);
 
       let clsList = (classesRes?.documents && classesRes.documents.length > 0)
-        ? classesRes.documents
+        ? classesRes.documents.map((c: any) => ({
+            ...c,
+            id: c.id || c.$id,
+            name: c.name || c.nama_kelas,
+            nama_kelas: c.nama_kelas || c.name,
+            tingkat: c.tingkat || 'X'
+          }))
         : await getCollectionData('classes');
 
       if (!clsList || clsList.length === 0) {
@@ -78,7 +84,14 @@ export default function KelolaKelas() {
         getCollectionData('classes'),
         getCollectionData('students')
       ]);
-      setClasses(localCls && localCls.length > 0 ? localCls : CLASSES_LIST);
+      const normalizedLocal = (localCls && localCls.length > 0 ? localCls : CLASSES_LIST).map((c: any) => ({
+        ...c,
+        id: c.id || c.$id,
+        name: c.name || c.nama_kelas,
+        nama_kelas: c.nama_kelas || c.name,
+        tingkat: c.tingkat || 'X'
+      }));
+      setClasses(normalizedLocal);
       setStudents(localStd && localStd.length > 0 ? localStd : MURIDS_LIST);
     } finally {
       setLoading(false);

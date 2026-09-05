@@ -97,11 +97,25 @@ export default function KelolaSiswa() {
       }
 
       if (classesRes && classesRes.documents && classesRes.documents.length > 0) {
-        setClasses(classesRes.documents as any[]);
-        saveCollection('classes', classesRes.documents);
+        const normCls = classesRes.documents.map((c: any) => ({
+          ...c,
+          id: c.id || c.$id,
+          name: c.name || c.nama_kelas,
+          nama_kelas: c.nama_kelas || c.name,
+          tingkat: c.tingkat || 'X'
+        }));
+        setClasses(normCls);
+        saveCollection('classes', normCls);
       } else {
         const localClasses = await getCollectionData('classes');
-        setClasses(localClasses && localClasses.length > 0 ? localClasses : CLASSES_LIST);
+        const normLocal = (localClasses && localClasses.length > 0 ? localClasses : CLASSES_LIST).map((c: any) => ({
+          ...c,
+          id: c.id || c.$id,
+          name: c.name || c.nama_kelas,
+          nama_kelas: c.nama_kelas || c.name,
+          tingkat: c.tingkat || 'X'
+        }));
+        setClasses(normLocal);
       }
     } catch (err) {
       console.warn('Appwrite fetch notice, using local fallback:', err);
@@ -110,7 +124,14 @@ export default function KelolaSiswa() {
         getCollectionData('classes')
       ]);
       setStudents(localStudents && localStudents.length > 0 ? localStudents : MURIDS_LIST);
-      setClasses(localClasses && localClasses.length > 0 ? localClasses : CLASSES_LIST);
+      const normFallback = (localClasses && localClasses.length > 0 ? localClasses : CLASSES_LIST).map((c: any) => ({
+        ...c,
+        id: c.id || c.$id,
+        name: c.name || c.nama_kelas,
+        nama_kelas: c.nama_kelas || c.name,
+        tingkat: c.tingkat || 'X'
+      }));
+      setClasses(normFallback);
     } finally {
       setLoading(false);
     }

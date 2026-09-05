@@ -76,27 +76,93 @@ export default function BuatUjian() {
   const [classSearch, setClassSearch] = useState('');
   const [selectedGradeTab, setSelectedGradeTab] = useState<'ALL' | 'X' | 'XI' | 'XII'>('ALL');
 
+  const normalizeClass = (c: any) => {
+    const name = String(c?.name || c?.nama_kelas || c?.className || '').trim();
+    const id = String(c?.id || c?.$id || (name ? `cls_${name.toLowerCase().replace(/[^a-z0-9]/g, '_')}` : '')).trim();
+
+    let tingkat = String(c?.tingkat || '').trim().toUpperCase();
+    if (!tingkat || tingkat === 'UMUM') {
+      const upName = name.toUpperCase();
+      if (upName.startsWith('XII-') || upName.startsWith('XII ') || upName.startsWith('12')) tingkat = 'XII';
+      else if (upName.startsWith('XI-') || upName.startsWith('XI ') || upName.startsWith('11')) tingkat = 'XI';
+      else if (upName.startsWith('X-') || upName.startsWith('X ') || upName.startsWith('10')) tingkat = 'X';
+      else tingkat = 'X';
+    }
+
+    return {
+      id: id || `cls_${Math.random().toString(36).substring(2, 8)}`,
+      name: name || 'Kelas',
+      nama_kelas: name || 'Kelas',
+      tingkat
+    };
+  };
+
+  const getTingkat = (c: any): 'X' | 'XI' | 'XII' | 'OTHER' => {
+    const t = String(c?.tingkat || '').trim().toUpperCase();
+    if (t === 'XII' || t === '12') return 'XII';
+    if (t === 'XI' || t === '11') return 'XI';
+    if (t === 'X' || t === '10') return 'X';
+
+    const n = String(c?.name || c?.nama_kelas || '').trim().toUpperCase();
+    if (n.startsWith('XII-') || n.startsWith('XII ') || n.startsWith('XII_') || n === 'XII' || n.startsWith('12-') || n.startsWith('12 ') || n.startsWith('KELAS 12') || n.startsWith('KELAS XII')) return 'XII';
+    if (n.startsWith('XI-') || n.startsWith('XI ') || n.startsWith('XI_') || n === 'XI' || n.startsWith('11-') || n.startsWith('11 ') || n.startsWith('KELAS 11') || n.startsWith('KELAS XI')) return 'XI';
+    if (n.startsWith('X-') || n.startsWith('X ') || n.startsWith('X_') || n === 'X' || n.startsWith('10-') || n.startsWith('10 ') || n.startsWith('KELAS 10') || n.startsWith('KELAS X')) return 'X';
+
+    return 'OTHER';
+  };
+
   useEffect(() => {
     const fetchData = async () => {
-      let classesData = await getCollectionData('classes', activeSchool?.id);
-      if (!classesData || classesData.length === 0) {
-        classesData = CLASSES_LIST;
-        try {
-          await saveCollection('classes', CLASSES_LIST);
-        } catch {}
-      } else if (classesData.length < CLASSES_LIST.length) {
-        // Ensure all seed classes (X-A through XII-J) are available in the list
-        const existingIds = new Set(classesData.map((c: any) => c.id || c.name));
-        const merged = [...classesData];
-        CLASSES_LIST.forEach((seedCls) => {
-          if (!existingIds.has(seedCls.id) && !existingIds.has(seedCls.name)) {
-            merged.push(seedCls);
-          }
-        });
-        classesData = merged;
+      let rawClasses: any[] = [];
+
+      // 1. Fetch live from Appwrite so classes added in KelolaKelas or cloud are always synced
+      try {
+        const { databases, COLLECTIONS, APPWRITE_DATABASE_ID, Query } = await import('../lib/appwrite');
+        const res = await databases.listDocuments(APPWRITE_DATABASE_ID, COLLECTIONS.CLASSES, [Query.limit(100)]);
+        if (res && res.documents && res.documents.length > 0) {
+          rawClasses = res.documents;
+        }
+      } catch (err) {
+        console.warn('Appwrite class fetch note:', err);
       }
-      setClasses(classesData);
+
+      // 2. If Appwrite returned empty or failed, fetch from IndexedDB & localStorage
+      if (rawClasses.length === 0) {
+        const local = await getCollectionData('classes');
+        if (local && Array.isArray(local) && local.length > 0) {
+          rawClasses = local;
+        } else {
+          const stored = localStorage.getItem('edu_classes');
+          if (stored) {
+            try { rawClasses = JSON.parse(stored); } catch {}
+          }
+        }
+      }
+
+      // 3. Merge with default CLASSES_LIST to ensure no base classes are ever missing
+      const classMap = new Map<string, any>();
+      CLASSES_LIST.forEach((sc: any) => {
+        const norm = normalizeClass(sc);
+        classMap.set(norm.name.toUpperCase(), norm);
+      });
+      rawClasses.forEach((rc: any) => {
+        const norm = normalizeClass(rc);
+        if (norm.name) {
+          classMap.set(norm.name.toUpperCase(), norm);
+        }
+      });
+
+      const finalClasses = Array.from(classMap.values()).sort((a, b) => {
+        const rank = (t: string) => (t === 'X' ? 1 : t === 'XI' ? 2 : t === 'XII' ? 3 : 4);
+        const diff = rank(a.tingkat) - rank(b.tingkat);
+        if (diff !== 0) return diff;
+        return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
+      });
+
+      setClasses(finalClasses);
+      await saveCollection('classes', finalClasses);
     };
+
     fetchData();
   }, [activeSchool?.id]);
 
@@ -122,14 +188,7 @@ export default function BuatUjian() {
       setFormData(prev => ({ ...prev, targetGrade: 'ALL', targetClasses: classes.map(c => c.id) }));
       return;
     }
-    const matched = classes.filter(c => {
-      const t = (c.tingkat || '').toUpperCase();
-      const n = (c.name || c.nama_kelas || '').toUpperCase();
-      if (grade === 'X') return t === 'X' || n.startsWith('X-') || n.startsWith('X ') || n.startsWith('X');
-      if (grade === 'XI') return t === 'XI' || n.startsWith('XI-') || n.startsWith('XI ') || n.startsWith('XI');
-      if (grade === 'XII') return t === 'XII' || n.startsWith('XII-') || n.startsWith('XII ') || n.startsWith('XII');
-      return false;
-    });
+    const matched = classes.filter(c => getTingkat(c) === grade);
     setFormData(prev => ({
       ...prev,
       targetGrade: grade,
@@ -138,14 +197,7 @@ export default function BuatUjian() {
   };
 
   const toggleGradeGroup = (gradeKey: 'X' | 'XI' | 'XII') => {
-    const gradeClasses = classes.filter(c => {
-      const t = (c.tingkat || '').toUpperCase();
-      const n = (c.name || c.nama_kelas || '').toUpperCase();
-      if (gradeKey === 'X') return t === 'X' || n.startsWith('X-') || n.startsWith('X ');
-      if (gradeKey === 'XI') return t === 'XI' || n.startsWith('XI-') || n.startsWith('XI ');
-      if (gradeKey === 'XII') return t === 'XII' || n.startsWith('XII-') || n.startsWith('XII ') || n.startsWith('XII');
-      return false;
-    });
+    const gradeClasses = classes.filter(c => getTingkat(c) === gradeKey);
     const gradeIds = gradeClasses.map(c => c.id);
     const allSelected = gradeIds.length > 0 && gradeIds.every(id => formData.targetClasses.includes(id));
 
@@ -164,14 +216,8 @@ export default function BuatUjian() {
   };
 
   const getTabClasses = (tab: 'ALL' | 'X' | 'XI' | 'XII') => {
-    return classes.filter(c => {
-      const t = (c.tingkat || '').toUpperCase();
-      const n = (c.name || c.nama_kelas || '').toUpperCase();
-      if (tab === 'X') return t === 'X' || n.startsWith('X-') || n.startsWith('X ') || n.startsWith('X');
-      if (tab === 'XI') return t === 'XI' || n.startsWith('XI-') || n.startsWith('XI ') || n.startsWith('XI');
-      if (tab === 'XII') return t === 'XII' || n.startsWith('XII-') || n.startsWith('XII ') || n.startsWith('XII');
-      return true;
-    });
+    if (tab === 'ALL') return classes;
+    return classes.filter(c => getTingkat(c) === tab);
   };
 
   const toggleCurrentTabClasses = () => {
@@ -1032,9 +1078,9 @@ export default function BuatUjian() {
                             {isChecked && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
                           </div>
                           <div className="min-w-0 flex-1">
-                            <span className="font-mono text-xs font-bold leading-none block truncate">{c.name}</span>
+                            <span className="font-mono text-xs font-bold leading-none block truncate">{c.name || c.nama_kelas}</span>
                             <span className="text-[9px] text-slate-400 font-semibold block mt-0.5">
-                              Tingkat {c.tingkat || (c.name.startsWith('XII') ? 'XII' : c.name.startsWith('XI') ? 'XI' : 'X')}
+                              Tingkat {c.tingkat || getTingkat(c)}
                             </span>
                           </div>
                         </div>
