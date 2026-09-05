@@ -112,7 +112,8 @@ export default function DaftarUjian() {
   const toggleExamStatus = async (examId: string, currentStatus: string) => {
     const nextStatus = currentStatus === 'active' ? 'draft' : 'active';
     const updated = exams.map(e => {
-      if (e.id === examId) {
+      const eId = e.id || e.$id || e.driveFileId;
+      if (eId === examId) {
         return { ...e, status: nextStatus, is_active: nextStatus === 'active' };
       }
       return e;
@@ -123,14 +124,15 @@ export default function DaftarUjian() {
     // Also update in 'exams' collection
     const rawExams = (await getCollectionData('exams')) || [];
     const updatedRaw = rawExams.map((e: any) => {
-      if (e.id === examId) {
+      const eId = e.id || e.$id || e.driveFileId;
+      if (eId === examId) {
         return { ...e, status: nextStatus, is_active: nextStatus === 'active' };
       }
       return e;
     });
     await saveCollection('exams', updatedRaw);
 
-    // Also try to update Appwrite if available
+    // Also update Appwrite cloud database
     try {
       const { databases, COLLECTIONS, APPWRITE_DATABASE_ID } = await import('../lib/appwrite');
       await databases.updateDocument(
@@ -139,7 +141,9 @@ export default function DaftarUjian() {
         examId,
         { status: nextStatus }
       );
-    } catch {}
+    } catch (appwriteErr) {
+      console.warn('Appwrite status update note:', appwriteErr);
+    }
 
     showAlert({
       title: 'Status Diperbarui',
@@ -150,24 +154,64 @@ export default function DaftarUjian() {
     });
   };
 
-  const deleteExam = (id: string, title: string) => {
+  const deleteExam = (examObj: any) => {
+    const id = examObj.id || examObj.$id || examObj.driveFileId;
+    const title = examObj.title || 'Ujian';
+
     showAlert({
       title: 'Hapus Ujian?',
-      message: `Apakah Anda yakin ingin menghapus "${title}"?`,
+      message: `Apakah Anda yakin ingin menghapus "${title}"? Ujian ini akan dihapus permanen dari sistem dan portal murid.`,
       type: 'confirm',
       confirmText: 'Ya, Hapus',
+      cancelText: 'Batal',
       onConfirm: async () => {
+        // 1. Optimistic UI update: hapus langsung dari tampilan layar
+        setExams(prev => prev.filter(e => {
+          const eId = e.id || e.$id || e.driveFileId;
+          return eId !== id;
+        }));
+
+        // 2. Hapus dari Appwrite Cloud Database
+        try {
+          const { databases, COLLECTIONS, APPWRITE_DATABASE_ID } = await import('../lib/appwrite');
+          const cloudDocId = examObj.$id || examObj.id || id;
+          await databases.deleteDocument(APPWRITE_DATABASE_ID, COLLECTIONS.EXAMS, cloudDocId);
+        } catch (cloudErr) {
+          console.warn('Appwrite deleteDocument notice:', cloudErr);
+        }
+
+        // 3. Hapus dari Supabase jika ada
         try {
           await supabase.from('exams').delete().eq('id', id);
         } catch {}
 
-        const updated = exams.filter(e => e.id !== id);
-        setExams(updated);
-        await saveCollection('exams_list', updated);
-        const rawExams = (await getCollectionData('exams')) || [];
-        await saveCollection('exams', rawExams.filter((e: any) => e.id !== id));
+        // 4. Bersihkan cache lokal IndexedDB & LocalStorage
+        try {
+          const localList = (await getCollectionData('exams_list')) || [];
+          const updatedList = localList.filter((e: any) => {
+            const eId = e.id || e.$id || e.driveFileId;
+            return eId !== id;
+          });
+          await saveCollection('exams_list', updatedList);
 
-        showAlert({ title: 'Terhapus', message: 'Ujian berhasil dihapus.', type: 'success' });
+          const rawExams = (await getCollectionData('exams')) || [];
+          const updatedRaw = rawExams.filter((e: any) => {
+            const eId = e.id || e.$id || e.driveFileId;
+            return eId !== id;
+          });
+          await saveCollection('exams', updatedRaw);
+
+          localStorage.removeItem(`edu_exam_${id}`);
+          localStorage.removeItem(`edu_exam_${id}_updated`);
+        } catch (localErr) {
+          console.error('Local cache delete error:', localErr);
+        }
+
+        showAlert({ 
+          title: 'Ujian Terhapus', 
+          message: `Ujian "${title}" telah berhasil dihapus.`, 
+          type: 'success' 
+        });
       }
     });
   };
@@ -240,7 +284,7 @@ export default function DaftarUjian() {
                       {/* Interactive Status Toggle */}
                       <button
                         type="button"
-                        onClick={() => toggleExamStatus(exam.id, exam.status || 'active')}
+                        onClick={() => toggleExamStatus(exam.id || exam.$id, exam.status || 'active')}
                         title="Klik untuk mengubah status aktif/nonaktif ujian di portal murid"
                         className={cn(
                           "px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest shrink-0 cursor-pointer transition-all border flex items-center gap-1",
@@ -329,7 +373,7 @@ export default function DaftarUjian() {
 
                     <button 
                       type="button"
-                      onClick={() => deleteExam(exam.id, exam.title)}
+                      onClick={() => deleteExam(exam)}
                       className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all cursor-pointer"
                       title="Hapus ujian"
                     >
