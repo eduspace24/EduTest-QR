@@ -69,6 +69,54 @@ export const normalizeJenjang = (val: any): string => {
   return 'X';
 };
 
+export const TEST_SEED_QUESTIONS = [
+  {
+    id: "soal_tes_folder_1",
+    text: "Soal Uji Coba 1 (Pilihan Ganda): Berapakah hasil perhitungan dari 15 + (8 × 5)?",
+    type: "Pilihan Ganda",
+    category: "Folder Tes",
+    jenjang: "X",
+    option_a: "45",
+    option_b: "55",
+    option_c: "65",
+    option_d: "75",
+    option_e: "115",
+    jawaban_benar: "b",
+    pembahasan: "Operasi perkalian didahulukan: 8 × 5 = 40. Kemudian 15 + 40 = 55.",
+    image_url: ""
+  },
+  {
+    id: "soal_tes_folder_2",
+    text: "Soal Uji Coba 2 (Pilihan Ganda Kompleks): Manakah di bawah ini yang termasuk perangkat keras (hardware) masukan (input) komputer? (Pilih semua yang benar)",
+    type: "Pilihan Ganda Kompleks",
+    category: "Folder Tes",
+    jenjang: "X",
+    option_a: "Keyboard",
+    option_b: "Mouse",
+    option_c: "Monitor",
+    option_d: "Scanner",
+    option_e: "Speaker",
+    jawaban_benar: "a,b,d",
+    pembahasan: "Keyboard, mouse, dan scanner adalah input hardware, sedangkan monitor dan speaker adalah output.",
+    image_url: ""
+  },
+  {
+    id: "soal_tes_folder_3",
+    text: "Soal Uji Coba 3 (Essay): Jelaskan fungsi dan keunggulan pengelompokan pertanyaan ke dalam Folder Bank Soal bagi guru mata pelajaran!",
+    type: "Essay",
+    category: "Folder Tes",
+    jenjang: "X",
+    option_a: "",
+    option_b: "",
+    option_c: "",
+    option_d: "",
+    option_e: "",
+    jawaban_benar: "",
+    pembahasan: "Mempermudah kategorisasi soal berdasarkan bab/KD serta memfasilitasi pembuatan ujian yang terstruktur.",
+    image_url: ""
+  }
+];
+
 export default function BankSoal() {
   const session = JSON.parse(localStorage.getItem('edu_session') || '{}');
   const userRole = session?.user?.role || 'guru';
@@ -131,6 +179,15 @@ export default function BankSoal() {
         return str;
       };
 
+      const isFolderTesDeleted = localStorage.getItem('edu_folder_tes_deleted') === 'true';
+      const withFolderTes = (list: any[]) => {
+        if (isFolderTesDeleted) return list;
+        if (!list.some((q: any) => (q.category || '').toLowerCase() === 'folder tes')) {
+          return [...list, ...TEST_SEED_QUESTIONS];
+        }
+        return list;
+      };
+
       try {
         const { databases, COLLECTIONS, APPWRITE_DATABASE_ID, Query } = await import('../lib/appwrite');
         const res = await databases.listDocuments(
@@ -146,8 +203,9 @@ export default function BankSoal() {
             category: normalizeCategory(d.category),
             jenjang: normalizeJenjang(d.jenjang || d.tingkat || d.kelas)
           }));
-          setQuestions(mapped);
-          await saveCollection('bank_soal', mapped);
+          const finalized = withFolderTes(mapped);
+          setQuestions(finalized);
+          await saveCollection('bank_soal', finalized);
           setLoading(false);
           return;
         }
@@ -163,8 +221,9 @@ export default function BankSoal() {
           category: normalizeCategory(d.category),
           jenjang: normalizeJenjang(d.jenjang || d.tingkat || d.kelas)
         }));
-        setQuestions(mapped);
-        await saveCollection('bank_soal', mapped);
+        const finalized = withFolderTes(mapped);
+        setQuestions(finalized);
+        await saveCollection('bank_soal', finalized);
       } else {
         // Fallback 2: Default seed questions from /seed_bank_soal.json
         try {
@@ -176,11 +235,13 @@ export default function BankSoal() {
               category: normalizeCategory(d.category),
               jenjang: normalizeJenjang(d.jenjang || d.tingkat || d.kelas)
             }));
-            setQuestions(mapped);
-            await saveCollection('bank_soal', mapped);
+            const finalized = withFolderTes(mapped);
+            setQuestions(finalized);
+            await saveCollection('bank_soal', finalized);
           }
         } catch {
-          setQuestions([]);
+          const finalized = withFolderTes([]);
+          setQuestions(finalized);
         }
       }
       setLoading(false);
@@ -191,16 +252,21 @@ export default function BankSoal() {
   useEffect(() => {
     const loadCustomFolders = async () => {
       try {
+        const isFolderTesDeleted = localStorage.getItem('edu_folder_tes_deleted') === 'true';
+        let names: string[] = [];
         const stored = await getCollectionData('bank_soal_custom_folders');
         if (stored && Array.isArray(stored) && stored.length > 0) {
-          const names = stored.map((f: any) => typeof f === 'string' ? f : f.name).filter(Boolean);
-          setCustomFolders(names);
+          names = stored.map((f: any) => typeof f === 'string' ? f : f.name).filter(Boolean);
         } else {
           const localStr = localStorage.getItem('edu_custom_folders');
           if (localStr) {
-            setCustomFolders(JSON.parse(localStr));
+            names = JSON.parse(localStr);
           }
         }
+        if (!isFolderTesDeleted && !names.some(n => n.toLowerCase() === 'folder tes')) {
+          names = ['Folder Tes', ...names];
+        }
+        setCustomFolders(names);
       } catch (err) {
         console.warn('Failed to load custom folders:', err);
       }
@@ -1013,6 +1079,10 @@ export default function BankSoal() {
       return;
     }
 
+    if (trimmed.toLowerCase() === 'folder tes') {
+      localStorage.removeItem('edu_folder_tes_deleted');
+    }
+
     const updated = [...customFolders, trimmed];
     await saveCustomFolders(updated);
     setNewFolderName('');
@@ -1055,6 +1125,10 @@ export default function BankSoal() {
           });
           setQuestions(updatedQuestions);
           await syncToDrive(updatedQuestions);
+        }
+
+        if (folderName.toLowerCase() === 'folder tes') {
+          localStorage.setItem('edu_folder_tes_deleted', 'true');
         }
 
         const updatedFolders = customFolders.filter(f => f.toLowerCase() !== folderName.toLowerCase());

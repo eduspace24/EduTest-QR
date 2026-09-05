@@ -373,5 +373,50 @@
     "pembahasan": "Generative AI dapat membuat konten baru, termasuk gambar, berdasarkan instruksi atau prompt dari pengguna.",
     "image_url": "",
     "jenjang": "X"
+  },
+  {
+    "id": "soal_tes_folder_1",
+    "text": "Soal Uji Coba 1 (Pilihan Ganda): Berapakah hasil perhitungan dari 15 + (8 × 5)?",
+    "type": "Pilihan Ganda",
+    "category": "Folder Tes",
+    "option_a": "45",
+    "option_b": "55",
+    "option_c": "65",
+    "option_d": "75",
+    "option_e": "115",
+    "jawaban_benar": "b",
+    "pembahasan": "Operasi perkalian didahulukan: 8 × 5 = 40. Kemudian 15 + 40 = 55.",
+    "image_url": "",
+    "jenjang": "X"
+  },
+  {
+    "id": "soal_tes_folder_2",
+    "text": "Soal Uji Coba 2 (Pilihan Ganda Kompleks): Manakah di bawah ini yang termasuk perangkat keras (hardware) masukan (input) komputer? (Pilih semua yang benar)",
+    "type": "Pilihan Ganda Kompleks",
+    "category": "Folder Tes",
+    "option_a": "Keyboard",
+    "option_b": "Mouse",
+    "option_c": "Monitor",
+    "option_d": "Scanner",
+    "option_e": "Speaker",
+    "jawaban_benar": "a,b,d",
+    "pembahasan": "Keyboard, mouse, dan scanner adalah perangkat input, sedangkan monitor dan speaker adalah perangkat output.",
+    "image_url": "",
+    "jenjang": "X"
+  },
+  {
+    "id": "soal_tes_folder_3",
+    "text": "Soal Uji Coba 3 (Essay): Jelaskan fungsi dan keunggulan pengelompokan pertanyaan ke dalam Folder Bank Soal bagi guru mata pelajaran!",
+    "type": "Essay",
+    "category": "Folder Tes",
+    "option_a": "",
+    "option_b": "",
+    "option_c": "",
+    "option_d": "",
+    "option_e": "",
+    "jawaban_benar": "",
+    "pembahasan": "Folder bank soal mempermudah kategorisasi soal berdasarkan topik/KD, memfasilitasi pembuatan ujian secara cepat, dan menjaga kerapian inventaris soal guru.",
+    "image_url": "",
+    "jenjang": "X"
   }
 ]
