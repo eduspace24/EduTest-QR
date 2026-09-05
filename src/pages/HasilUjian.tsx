@@ -15,7 +15,7 @@ import {
 import { motion } from 'framer-motion';
 import React from 'react';
 import { cn, formatStudentName } from '../lib/utils';
-import { getCollectionData } from '../lib/db';
+import { getCollectionData, saveCollection } from '../lib/db';
 import { supabase } from '../lib/supabase';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -94,11 +94,17 @@ export default function HasilUjian({ isEmbedded = false }: { isEmbedded?: boolea
       }
 
       setResults(allResults);
-      await saveCollection('results', allResults);
+      try {
+        await saveCollection('results', allResults);
+      } catch (saveErr) {
+        console.warn('Local saveCollection results note:', saveErr);
+      }
     } catch (err) {
       console.error('fetchData error:', err);
-      const localData = await getCollectionData('results');
-      setResults(localData || []);
+      try {
+        const localData = await getCollectionData('results');
+        setResults(localData || []);
+      } catch {}
     } finally {
       setLoading(false);
     }
@@ -112,7 +118,12 @@ export default function HasilUjian({ isEmbedded = false }: { isEmbedded?: boolea
 
   useEffect(() => {
     fetchData();
-  }, []);
+    // Auto-refresh setiap 10 detik agar hasil ujian murid yang baru submit langsung muncul otomatis
+    const interval = setInterval(() => {
+      fetchData();
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [fetchData]);
 
   const handleRefresh = async () => {
     await fetchData();

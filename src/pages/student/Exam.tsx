@@ -22,7 +22,8 @@ import {
   CheckSquare,
   Type,
   Maximize,
-  Minimize
+  Minimize,
+  LayoutGrid
 } from 'lucide-react';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import { cn } from '../../lib/utils';
@@ -57,6 +58,7 @@ export default function StudentExam() {
 
   const [isJoined, setIsJoined] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(Boolean(document.fullscreenElement));
+  const [showNumberGrid, setShowNumberGrid] = useState(false);
   const [studentCode, setStudentCode] = useState('');
   const [foundStudent, setFoundStudent] = useState<any>(null);
   const [studentData, setStudentData] = useState({ nama: '', kelas: '', id: '' });
@@ -101,12 +103,6 @@ export default function StudentExam() {
     };
   }, []);
 
-  // Auto request fullscreen once student is joined
-  useEffect(() => {
-    if (isJoined && !document.fullscreenElement) {
-      enterFullscreen();
-    }
-  }, [isJoined]);
   const [allDbClasses, setAllDbClasses] = useState<any[]>([]);
 
   useEffect(() => {
@@ -1038,95 +1034,160 @@ export default function StudentExam() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-20">
-      <div className="bg-white border-b border-slate-100 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="bg-indigo-950 p-2 rounded-xl text-white">
-              <GraduationCap className="w-6 h-6" />
+    <div className="min-h-screen bg-slate-50/60 pb-28 select-none">
+      {/* Top Navbar Minimalis & Fokus */}
+      <header className="bg-white/95 backdrop-blur-md border-b border-slate-100 sticky top-0 z-40 transition-all">
+        <div className="max-w-5xl mx-auto px-4 sm:px-8 py-3.5 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-2xl bg-indigo-950 text-white flex items-center justify-center font-black text-sm shrink-0 shadow-md shadow-indigo-950/15">
+              <GraduationCap className="w-5 h-5" />
             </div>
-            <div>
-              <h1 className="font-black text-indigo-950 leading-none uppercase tracking-tight">{exam?.title}</h1>
-              <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase">Murid: {studentData.nama} • {studentData.kelas}</p>
+            <div className="min-w-0">
+              <h1 className="font-black text-indigo-950 text-sm sm:text-base tracking-tight truncate">
+                {exam?.title || 'Ujian Sekolah'}
+              </h1>
+              <p className="text-[11px] font-bold text-slate-400 truncate">
+                {studentData.nama} • <span className="text-indigo-950">{studentData.kelas}</span>
+              </p>
             </div>
           </div>
-          <div className="flex items-center gap-3 sm:gap-4">
-            {/* Fullscreen Toggle */}
+
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            {/* Tombol Buka Nomor Soal Grid */}
             <button
               type="button"
-              onClick={isFullscreen ? exitFullscreen : enterFullscreen}
+              onClick={() => setShowNumberGrid(prev => !prev)}
               className={cn(
                 "flex items-center gap-1.5 px-3 py-2 rounded-xl font-bold text-xs transition-all cursor-pointer",
-                isFullscreen 
-                  ? "bg-slate-100 hover:bg-slate-200 text-slate-600" 
-                  : "bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 animate-pulse"
+                showNumberGrid 
+                  ? "bg-indigo-950 text-white shadow-md shadow-indigo-950/20" 
+                  : "bg-slate-100 hover:bg-slate-200 text-slate-700"
               )}
-              title={isFullscreen ? "Keluar Layar Penuh" : "Aktifkan Layar Penuh (Fullscreen)"}
+              title="Daftar Nomor Soal"
             >
-              {isFullscreen ? <Minimize className="w-3.5 h-3.5" /> : <Maximize className="w-3.5 h-3.5 text-amber-700" />}
-              <span className="hidden sm:inline">{isFullscreen ? 'Layar Penuh' : 'Aktifkan Fullscreen'}</span>
+              <LayoutGrid className="w-4 h-4" />
+              <span className="hidden sm:inline">Nomor Soal</span>
             </button>
 
-            <div className="flex items-center gap-2 bg-rose-50 text-rose-600 px-3 md:px-4 py-2 rounded-xl font-bold text-xs md:text-sm">
-              <Clock className="w-4 h-4" />
-              <span>{Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}</span>
+            {/* Timer Badge */}
+            <div className="flex items-center gap-1.5 bg-rose-50 border border-rose-100 text-rose-600 px-3 sm:px-4 py-2 rounded-xl font-black text-xs sm:text-sm shadow-xs">
+              <Clock className="w-4 h-4 text-rose-500 animate-pulse" />
+              <span className="font-mono font-bold tracking-tight">
+                {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
+              </span>
             </div>
+
+            {/* Selesai / Kumpulkan Button */}
             <button 
               onClick={submitExam}
               disabled={submitting}
-              className="bg-indigo-950 text-white px-5 sm:px-6 py-2 rounded-xl font-black text-xs sm:text-sm shadow-lg shadow-indigo-950/20 flex items-center gap-2 cursor-pointer active:scale-95 transition-all"
+              className="bg-indigo-950 hover:bg-indigo-900 text-white px-4 sm:px-6 py-2 rounded-xl font-black text-xs sm:text-sm shadow-lg shadow-indigo-950/20 flex items-center gap-2 cursor-pointer active:scale-95 transition-all"
             >
               {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              Selesai
+              <span>Selesai</span>
             </button>
           </div>
         </div>
-      </div>
+      </header>
 
-      {!isFullscreen && (
-        <div 
-          onClick={enterFullscreen}
-          className="bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold py-2 px-4 text-center cursor-pointer transition-all flex items-center justify-center gap-2 shadow-xs"
-        >
-          <Maximize className="w-3.5 h-3.5" />
-          <span>Klik di sini untuk mengaktifkan kembali <strong>Mode Layar Penuh (Fullscreen)</strong> agar bebas dari tab browser.</span>
-        </div>
-      )}
-
-      <main className="max-w-4xl mx-auto px-6 py-12">
-        <div className="mb-10 flex items-center justify-between">
-          <div className="flex gap-2">
-            {displayQuestions.map((q: any, idx: number) => {
-              const ansVal = answers[q.id];
-              const isAnswered = ansVal !== undefined && ansVal !== '' && 
-                (Array.isArray(ansVal) ? ansVal.length > 0 : 
-                (typeof ansVal === 'object' ? Object.keys(ansVal).length > 0 : true));
-
-              return (
-                <button
-                  key={idx}
-                  onClick={() => setCurrentQuestionIndex(idx)}
-                  className={cn(
-                    "w-10 h-10 rounded-xl font-black text-sm transition-all",
-                    currentQuestionIndex === idx 
-                      ? "bg-indigo-950 text-white shadow-lg" 
-                      : isAnswered
-                        ? "bg-emerald-50 text-emerald-600 border-2 border-emerald-100" 
-                        : "bg-white text-slate-400 border-2 border-slate-100"
-                  )}
+      {/* Popover / Panel Grid Nomor Soal */}
+      <AnimatePresence>
+        {showNumberGrid && (
+          <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 px-4 bg-indigo-950/30 backdrop-blur-xs">
+            <motion.div 
+              initial={{ opacity: 0, y: -15, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -15, scale: 0.98 }}
+              className="w-full max-w-xl bg-white rounded-3xl shadow-2xl border border-slate-100 p-6 space-y-4"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div>
+                  <h3 className="font-black text-indigo-950 text-base">Lembar Nomor Soal</h3>
+                  <p className="text-xs text-slate-400 font-medium">Klik nomor untuk langsung berpindah soal.</p>
+                </div>
+                <button 
+                  onClick={() => setShowNumberGrid(false)}
+                  className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 font-black text-xs flex items-center justify-center transition-all cursor-pointer"
                 >
-                  {idx + 1}
+                  ✕
                 </button>
-              );
-            })}
+              </div>
+
+              <div className="grid grid-cols-5 sm:grid-cols-8 gap-2.5 max-h-72 overflow-y-auto p-1">
+                {displayQuestions.map((q: any, idx: number) => {
+                  const ansVal = answers[q.id];
+                  const isAnswered = ansVal !== undefined && ansVal !== '' && 
+                    (Array.isArray(ansVal) ? ansVal.length > 0 : 
+                    (typeof ansVal === 'object' ? Object.keys(ansVal).length > 0 : true));
+
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => {
+                        setCurrentQuestionIndex(idx);
+                        setShowNumberGrid(false);
+                      }}
+                      className={cn(
+                        "h-11 rounded-2xl font-black text-xs sm:text-sm transition-all flex flex-col items-center justify-center cursor-pointer",
+                        currentQuestionIndex === idx 
+                          ? "bg-indigo-950 text-white shadow-lg shadow-indigo-950/30 ring-2 ring-indigo-950 ring-offset-2" 
+                          : isAnswered
+                            ? "bg-emerald-50 text-emerald-700 border-2 border-emerald-200 hover:bg-emerald-100" 
+                            : "bg-slate-50 text-slate-500 border border-slate-200 hover:bg-slate-100"
+                      )}
+                    >
+                      <span>{idx + 1}</span>
+                      {isAnswered && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-0.5" />}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="flex items-center justify-center gap-6 pt-3 border-t border-slate-100 text-xs text-slate-500 font-bold">
+                <div className="flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-md bg-indigo-950"></span> Soal Aktif
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-md bg-emerald-100 border border-emerald-300"></span> Terjawab
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-md bg-slate-100 border border-slate-200"></span> Belum
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <main className="max-w-3xl mx-auto px-4 sm:px-6 pt-8">
+        {/* Progress & Quick Stepper Bar */}
+        <div className="mb-6 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="bg-indigo-950 text-white text-[11px] font-black uppercase tracking-wider px-3.5 py-1.5 rounded-xl">
+              Soal {currentQuestionIndex + 1} dari {displayQuestions.length}
+            </span>
+            <span className="text-xs font-bold text-slate-400">
+              ({Object.keys(answers).filter(k => answers[k] !== undefined && answers[k] !== '').length} selesai dijawab)
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <div className="w-28 sm:w-36 h-2 bg-slate-200 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-indigo-950 rounded-full transition-all duration-300"
+                style={{ width: `${Math.round(((currentQuestionIndex + 1) / (displayQuestions.length || 1)) * 100)}%` }}
+              />
+            </div>
           </div>
         </div>
 
+        {/* Card Soal */}
         <motion.div
           key={currentQuestionIndex}
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="bg-white rounded-[2.5rem] shadow-xl shadow-indigo-950/5 border border-slate-100 p-8 sm:p-12"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.2 }}
+          className="bg-white rounded-3xl sm:rounded-[2rem] shadow-xl shadow-indigo-950/5 border border-slate-100 p-6 sm:p-10"
         >
           {(() => {
             const currentQ = displayQuestions[currentQuestionIndex];
@@ -1402,22 +1463,42 @@ export default function StudentExam() {
           })()}
         </motion.div>
 
-        <div className="mt-10 flex justify-between items-center">
+        {/* Bottom Actions Bar */}
+        <div className="mt-8 flex items-center justify-between gap-4">
           <button 
             disabled={currentQuestionIndex === 0}
             onClick={() => setCurrentQuestionIndex(prev => prev - 1)}
-            className="flex items-center gap-2 font-black text-indigo-950 disabled:opacity-30"
+            className="px-5 sm:px-6 py-3 rounded-2xl font-black text-xs sm:text-sm text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-30 disabled:hover:bg-white flex items-center gap-2 transition-all shadow-xs cursor-pointer"
           >
-            <ChevronLeft className="w-5 h-5" /> Sebelumnya
+            <ChevronLeft className="w-4 h-4" /> Soal Sebelumnya
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowNumberGrid(true)}
+            className="hidden sm:flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-slate-600 font-black text-xs hover:bg-slate-50 transition-all cursor-pointer"
+          >
+            <LayoutGrid className="w-3.5 h-3.5 text-indigo-950" />
+            <span>Semua Soal ({currentQuestionIndex + 1}/{displayQuestions.length})</span>
           </button>
           
-          <button 
-            disabled={currentQuestionIndex === displayQuestions.length - 1}
-            onClick={() => setCurrentQuestionIndex(prev => prev + 1)}
-            className="flex items-center gap-2 font-black text-indigo-950 disabled:opacity-30"
-          >
-            Selanjutnya <ChevronRight className="w-5 h-5" />
-          </button>
+          {currentQuestionIndex === displayQuestions.length - 1 ? (
+            <button 
+              onClick={submitExam}
+              disabled={submitting}
+              className="px-6 sm:px-8 py-3 rounded-2xl font-black text-xs sm:text-sm text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-600/20 flex items-center gap-2 transition-all cursor-pointer active:scale-95"
+            >
+              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+              <span>Kumpulkan Jawaban</span>
+            </button>
+          ) : (
+            <button 
+              onClick={() => setCurrentQuestionIndex(prev => prev + 1)}
+              className="px-5 sm:px-7 py-3 rounded-2xl font-black text-xs sm:text-sm text-white bg-indigo-950 hover:bg-indigo-900 shadow-lg shadow-indigo-950/20 flex items-center gap-2 transition-all cursor-pointer active:scale-95"
+            >
+              <span>Soal Berikutnya</span> <ChevronRight className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </main>
     </div>
