@@ -480,10 +480,10 @@ export default function DaftarUjian() {
     }
 
     showAlert({
-      title: nextStatus === 'active' ? 'Ujian Telah Diaktifkan' : 'Ujian Dinonaktifkan',
+      title: nextStatus === 'active' ? 'Ujian Diaktifkan' : 'Ujian Dinonaktifkan',
       message: nextStatus === 'active' 
-        ? 'Ujian sekarang berstatus AKTIF dan dapat dilihat oleh siswa di portal mereka.' 
-        : 'Ujian disimpan sebagai DRAF (tidak muncul di portal siswa).',
+        ? 'Ujian sekarang aktif di portal siswa.' 
+        : 'Ujian dinonaktifkan (disimpan sebagai draf).',
       type: 'success'
     });
   };
@@ -678,21 +678,31 @@ export default function DaftarUjian() {
                     </div>
                   </div>
 
-                  {/* Toggle Aktif / Draf */}
-                  <div className="sm:self-center shrink-0 pt-1 sm:pt-0">
+                  {/* Toggle Switch Aktif / Nonaktif */}
+                  <div className="flex items-center gap-2.5 sm:self-center shrink-0 pt-1 sm:pt-0 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200/80">
+                    <span className={cn(
+                      "text-xs font-bold transition-colors select-none",
+                      isActive ? "text-emerald-700" : "text-slate-400"
+                    )}>
+                      {isActive ? 'Aktif' : 'Nonaktif'}
+                    </span>
                     <button
                       type="button"
+                      role="switch"
+                      aria-checked={isActive}
                       onClick={() => toggleExamStatus(exam.id || exam.$id, exam.status || 'active')}
                       className={cn(
-                        "px-3 py-1 rounded-full text-xs font-bold border flex items-center gap-1.5 transition-all cursor-pointer",
-                        isActive
-                          ? "bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100"
-                          : "bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200"
+                        "w-11 h-6 rounded-full transition-colors relative p-0.5 cursor-pointer focus:outline-none shrink-0 shadow-inner",
+                        isActive ? "bg-emerald-600" : "bg-slate-300"
                       )}
-                      title="Klik untuk mengaktifkan atau menonaktifkan ujian"
+                      title={isActive ? "Klik untuk menonaktifkan ujian" : "Klik untuk mengaktifkan ujian"}
                     >
-                      <span className={cn("w-2 h-2 rounded-full", isActive ? "bg-emerald-500 animate-pulse" : "bg-slate-400")} />
-                      <span>{isActive ? 'Aktif di Siswa' : 'Draf (Nonaktif)'}</span>
+                      <div
+                        className={cn(
+                          "w-5 h-5 bg-white rounded-full shadow-md transition-transform transform duration-200",
+                          isActive ? "translate-x-5" : "translate-x-0"
+                        )}
+                      />
                     </button>
                   </div>
                 </div>
@@ -829,22 +839,35 @@ export default function DaftarUjian() {
                         Edit Ujian
                       </span>
                       {editingExam && (
-                        <button
-                          type="button"
-                          onClick={() => setEditingExam({
-                            ...editingExam,
-                            status: editingExam.status === 'active' ? 'draft' : 'active'
-                          })}
-                          className={cn(
-                            "text-[10px] font-bold px-2 py-0.5 rounded-full border flex items-center gap-1 cursor-pointer transition-all",
-                            editingExam.status === 'active' 
-                              ? "bg-emerald-50 text-emerald-800 border-emerald-200" 
-                              : "bg-slate-100 text-slate-600 border-slate-300"
-                          )}
-                        >
-                          <span className={cn("w-1.5 h-1.5 rounded-full", editingExam.status === 'active' ? "bg-emerald-500 animate-pulse" : "bg-slate-400")} />
-                          {editingExam.status === 'active' ? 'Aktif di Siswa' : 'Draf'}
-                        </button>
+                        <div className="flex items-center gap-2 bg-white px-2.5 py-1 rounded-xl border border-slate-200">
+                          <span className={cn(
+                            "text-xs font-bold select-none",
+                            editingExam.status === 'active' ? "text-emerald-700" : "text-slate-400"
+                          )}>
+                            {editingExam.status === 'active' ? 'Aktif' : 'Nonaktif'}
+                          </span>
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={editingExam.status === 'active'}
+                            onClick={() => setEditingExam({
+                              ...editingExam,
+                              status: editingExam.status === 'active' ? 'draft' : 'active'
+                            })}
+                            className={cn(
+                              "w-10 h-5 rounded-full transition-colors relative p-0.5 cursor-pointer shrink-0 shadow-inner",
+                              editingExam.status === 'active' ? "bg-emerald-600" : "bg-slate-300"
+                            )}
+                            title={editingExam.status === 'active' ? "Ujian aktif" : "Ujian nonaktif"}
+                          >
+                            <div
+                              className={cn(
+                                "w-4 h-4 bg-white rounded-full shadow-sm transition-transform transform duration-200",
+                                editingExam.status === 'active' ? "translate-x-5" : "translate-x-0"
+                              )}
+                            />
+                          </button>
+                        </div>
                       )}
                     </div>
                     <h3 className="text-base sm:text-lg font-bold text-slate-900 truncate mt-0.5">
