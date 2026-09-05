@@ -6,6 +6,7 @@ import {
   Clock, 
   CheckCircle2,
   ChevronRight,
+  ChevronLeft,
   LayoutGrid,
   Zap,
   Check,
@@ -23,7 +24,8 @@ import {
   GraduationCap,
   FileText,
   Calendar,
-  Building2
+  Building2,
+  AlertCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import React, { useRef } from 'react';
