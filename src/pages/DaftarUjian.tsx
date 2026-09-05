@@ -325,9 +325,14 @@ export default function DaftarUjian() {
                           <BookOpen className="w-3.5 h-3.5 text-indigo-600" /> {exam.subject}
                         </div>
                       )}
-                      {exam.session_name && (
+                      {exam.exam_type === 'semester' && exam.session_name ? (
                         <div className="flex items-center gap-1.5 text-slate-600 font-bold">
                           <Calendar className="w-3.5 h-3.5 text-indigo-600" /> {exam.session_name} ({exam.start_time || '07:30'} - {exam.end_time || '09:30'})
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                          Fleksibel (Kapan Saja Selagi Aktif) • 1x Pengerjaan
                         </div>
                       )}
                       <div className="flex items-center gap-1.5">

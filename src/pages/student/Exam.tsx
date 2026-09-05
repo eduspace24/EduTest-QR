@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import { cn } from '../../lib/utils';
-import { addToPendingSubmissions, getCollectionData } from '../../lib/db';
+import { addToPendingSubmissions, getCollectionData, saveCollection } from '../../lib/db';
 import { packResult } from '../../lib/hash';
 import { supabase } from '../../lib/supabase';
 
@@ -48,7 +48,8 @@ export default function StudentExam() {
   const [auditLog, setAuditLog] = useState<{time: string, action: string}[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const progressRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
+  const [alreadyCompleted, setAlreadyCompleted] = useState(false);
+  const [completionData, setCompletionData] = useState<any>(null);
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [downloadStage, setDownloadStage] = useState('Menghubungkan ke server...');
 
@@ -79,6 +80,16 @@ export default function StudentExam() {
     const session = JSON.parse(localStorage.getItem('edu_session') || '{}');
     const hasProgress = localStorage.getItem(`answers_${examId}`);
     const isStudent = session.user && (session.user.role === 'siswa' || session.user.role === 'murid');
+
+    // 1. Check direct local submission flag
+    const localSubmitted = localStorage.getItem(`submitted_${examId}`);
+    const localMeta = localStorage.getItem(`submission_meta_${examId}`);
+    if (localSubmitted) {
+      setAlreadyCompleted(true);
+      if (localMeta) {
+        try { setCompletionData(JSON.parse(localMeta)); } catch {}
+      }
+    }
     
     if (isStudent) {
       const studentName = session.user.nama || session.user.name || '';
@@ -228,6 +239,44 @@ export default function StudentExam() {
         }
 
         addAudit('Ujian Dimulai');
+
+        // Check if student has already completed this exam in IndexedDB or Appwrite
+        const studentCodeVal = session.user?.nisn || session.user?.code || session.user?.id || '';
+        const studentNameVal = session.user?.nama || session.user?.name || '';
+        
+        if (studentCodeVal || studentNameVal) {
+          try {
+            const results = (await getCollectionData('results')) || [];
+            const found = results.find((r: any) => 
+              (r.driveFileId === examId || (r.exam_title && data?.title && r.exam_title.trim().toLowerCase() === data.title.trim().toLowerCase())) &&
+              ((studentCodeVal && (r.student_code === studentCodeVal || r.student?.code === studentCodeVal)) ||
+               (studentNameVal && (r.student_name?.toLowerCase() === studentNameVal.toLowerCase() || r.student?.nama?.toLowerCase() === studentNameVal.toLowerCase())))
+            );
+            if (found) {
+              setAlreadyCompleted(true);
+              setCompletionData(found);
+            } else {
+              // Also check Appwrite Cloud
+              const { databases, COLLECTIONS, APPWRITE_DATABASE_ID, Query } = await import('../../lib/appwrite');
+              if (studentCodeVal) {
+                const cloudRes = await databases.listDocuments(
+                  APPWRITE_DATABASE_ID,
+                  COLLECTIONS.EXAM_RESULTS,
+                  [Query.equal('student_code', studentCodeVal), Query.limit(50)]
+                );
+                const cloudFound = cloudRes?.documents?.find((d: any) => 
+                  d.driveFileId === examId || (d.exam_title && data?.title && d.exam_title.trim().toLowerCase() === data.title.trim().toLowerCase())
+                );
+                if (cloudFound) {
+                  setAlreadyCompleted(true);
+                  setCompletionData(cloudFound);
+                }
+              }
+            }
+          } catch (e) {
+            console.warn('Completed check note:', e);
+          }
+        }
 
         // Complete progress immediately
         if (progressRef.current) clearInterval(progressRef.current);
@@ -432,6 +481,13 @@ export default function StudentExam() {
 
       // Simpan backup lokal & data QR
       localStorage.setItem(`submitted_${examId}`, qrString);
+      localStorage.setItem(`submission_meta_${examId}`, JSON.stringify({
+        examTitle: exam?.title || 'Ujian',
+        studentName: session.user?.nama || session.user?.name || '-',
+        studentKelas: session.user?.kelas || '-',
+        score,
+        completedAt: new Date().toISOString()
+      }));
       localStorage.setItem('edu_last_submission_qr', qrString);
       localStorage.setItem('edu_last_submission_meta', JSON.stringify({
         examTitle: exam?.title || 'Ujian',
@@ -441,6 +497,56 @@ export default function StudentExam() {
         totalQuestions: exam.questions.length,
         examLink: `/test/${teacherId}/${examId}`
       }));
+
+      // Simpan juga ke koleksi 'results' di IndexedDB
+      try {
+        const existingResults = (await getCollectionData('results')) || [];
+        const studentCodeVal = session.user?.code || session.user?.nisn || session.user?.id || '-';
+        const studentNameVal = session.user?.nama || session.user?.name || '-';
+        const newResult = {
+          id: 'res_' + Date.now(),
+          driveFileId: examId,
+          exam_title: exam?.title || 'Ujian',
+          student_name: studentNameVal,
+          student_class: session.user?.kelas || session.user?.nama_kelas || '-',
+          student_code: studentCodeVal,
+          score: Number(score) || 0,
+          answers_summary: answersString,
+          tab_switches: Number(tabSwitches) || 0,
+          start_time: auditLog[0]?.time || '-',
+          end_time: new Date().toLocaleTimeString(),
+          created_at: new Date().toISOString()
+        };
+        const updatedResults = [newResult, ...existingResults.filter((r: any) => 
+          !(r.driveFileId === examId && (r.student_code === studentCodeVal || r.student_name === studentNameVal))
+        )];
+        await saveCollection('results', updatedResults);
+      } catch (localResErr) {
+        console.warn('Local results save note:', localResErr);
+      }
+
+      // Simpan juga ke Appwrite Cloud 'exam_results'
+      try {
+        const { databases, COLLECTIONS, APPWRITE_DATABASE_ID, ID } = await import('../../lib/appwrite');
+        await databases.createDocument(
+          APPWRITE_DATABASE_ID,
+          COLLECTIONS.EXAM_RESULTS,
+          ID.unique(),
+          {
+            exam_title: exam?.title || 'Ujian',
+            student_name: session.user?.nama || session.user?.name || '-',
+            student_class: session.user?.kelas || session.user?.nama_kelas || '-',
+            student_code: session.user?.code || session.user?.nisn || session.user?.id || '-',
+            score: Number(score) || 0,
+            answers_summary: answersString,
+            tab_switches: Number(tabSwitches) || 0,
+            start_time: auditLog[0]?.time || '-',
+            end_time: new Date().toLocaleTimeString()
+          }
+        );
+      } catch (cloudErr) {
+        console.warn('Appwrite submission sync note:', cloudErr);
+      }
       
       if (timerRef.current) clearInterval(timerRef.current);
 
@@ -449,7 +555,7 @@ export default function StudentExam() {
         localStorage.removeItem(`answers_${examId}`);
         localStorage.removeItem(`audit_${examId}`);
         localStorage.removeItem(`timer_end_${examId}`);
-        localStorage.removeItem('edu_session');
+        // Jaga sesi login murid tetap aktif!
         navigate(`/exam/result/finish`);
       }
     } catch (err: any) {
@@ -613,6 +719,67 @@ export default function StudentExam() {
       </motion.div>
     </div>
   );
+
+  if (alreadyCompleted) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 sm:p-6">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl border border-slate-100 p-8 text-center"
+        >
+          <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-3xl mx-auto mb-4 flex items-center justify-center shadow-xs">
+            <CheckCircle2 className="w-8 h-8" />
+          </div>
+          <span className="bg-emerald-100 text-emerald-800 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider">
+            Sudah Selesai Dikerjakan
+          </span>
+          <h2 className="text-xl sm:text-2xl font-black text-indigo-950 mt-3 mb-2">{exam?.title || 'Ujian'}</h2>
+          <p className="text-xs text-slate-500 font-bold mb-6 leading-relaxed">
+            Anda telah menyelesaikan ujian ini. Setiap murid hanya diperbolehkan mengerjakan satu kali saja dan jawaban Anda telah tercatat rapi di sistem.
+          </p>
+
+          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-xs space-y-2 mb-6 text-left">
+            <div className="flex justify-between">
+              <span className="text-slate-400 font-medium">Nama Peserta:</span>
+              <span className="font-bold text-indigo-950">{completionData?.student_name || completionData?.studentName || studentData.nama || 'Peserta'}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-400 font-medium">Kelas:</span>
+              <span className="font-bold text-indigo-950">{completionData?.student_class || completionData?.studentKelas || studentData.kelas || '-'}</span>
+            </div>
+            {completionData?.score !== undefined && (
+              <div className="flex justify-between">
+                <span className="text-slate-400 font-medium">Nilai Akhir:</span>
+                <span className="font-black text-emerald-600 text-sm">
+                  {completionData.score} / 100
+                </span>
+              </div>
+            )}
+            <div className="flex justify-between">
+              <span className="text-slate-400 font-medium">Status Pengerjaan:</span>
+              <span className="font-bold text-emerald-600">1x (Terkunci)</span>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2.5">
+            <button
+              onClick={() => navigate('/student/dashboard')}
+              className="w-full py-3.5 bg-indigo-950 hover:bg-indigo-900 text-white rounded-2xl font-black text-xs shadow-lg shadow-indigo-950/20 active:scale-95 transition-all cursor-pointer"
+            >
+              Kembali ke Beranda Murid
+            </button>
+            <button
+              onClick={() => navigate('/exam/result/finish')}
+              className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl font-bold text-xs active:scale-95 transition-all cursor-pointer"
+            >
+              Lihat Bukti QR Hasil Ujian
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
 
   if (!isJoined) {
     const isLoggedInStudent = Boolean(studentData.nama && studentData.kelas);

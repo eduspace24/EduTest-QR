@@ -565,8 +565,18 @@ export default function BuatUjian() {
         ? Array.from(selectedGradeSet)[0]
         : 'CUSTOM';
 
+      const isSemester = formData.exam_type === 'semester';
+      const cleanSessionName = isSemester ? (formData.session_name || 'Sesi 1') : '';
+      const cleanStartTime = isSemester ? (formData.start_time || '07:30') : '';
+      const cleanEndTime = isSemester ? (formData.end_time || '09:30') : '';
+      const cleanRoomCapacity = isSemester ? (formData.room_capacity || 20) : 0;
+
       const examPayload = {
         ...formData,
+        session_name: cleanSessionName,
+        start_time: cleanStartTime,
+        end_time: cleanEndTime,
+        room_capacity: cleanRoomCapacity,
         subject: formData.subject || teacherSubjects[0] || 'Informatika',
         id: examId,
         driveFileId: examId,
@@ -621,10 +631,10 @@ export default function BuatUjian() {
         title: formData.title,
         subject: formData.subject || teacherSubjects[0] || 'Informatika',
         exam_type: formData.exam_type || 'semester',
-        session_name: formData.session_name || 'Sesi 1',
-        start_time: formData.start_time || '07:30',
-        end_time: formData.end_time || '09:30',
-        room_capacity: formData.room_capacity || 20,
+        session_name: cleanSessionName,
+        start_time: cleanStartTime,
+        end_time: cleanEndTime,
+        room_capacity: cleanRoomCapacity,
         targetGrade: computedGrade,
         targetClasses: formData.targetClasses,
         targetClassNames: targetClassLabels,
@@ -891,6 +901,20 @@ export default function BuatUjian() {
                     />
                     <span className="text-xs font-medium text-slate-400 shrink-0">murid</span>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {formData.exam_type === 'harian' && (
+              <div className="flex items-center gap-3 bg-emerald-50/60 p-4 rounded-2xl border border-emerald-100 text-xs text-emerald-900 font-bold">
+                <span className="p-2 rounded-xl bg-emerald-100 text-emerald-700 shrink-0">
+                  <Check className="w-4 h-4" />
+                </span>
+                <div>
+                  <p className="font-black text-emerald-950">Ulangan Harian: Bebas Sesi & Jam (1x Pengerjaan)</p>
+                  <p className="text-emerald-700 font-medium text-[11px] mt-0.5">
+                    Ujian biasa tidak dibatasi jam atau sesi tertentu. Murid di kelas target dapat langsung mengerjakan kapan saja selagi status ujian Aktif, dan sistem otomatis mengunci agar murid hanya bisa mengerjakan 1 kali.
+                  </p>
                 </div>
               </div>
             )}
