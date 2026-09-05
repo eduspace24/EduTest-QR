@@ -384,6 +384,8 @@ export default function BuatUjian() {
 
     loadExamForEdit();
   }, [editExamId]);
+
+  const [showBankModal, setShowBankModal] = useState(false);
   const [bankSoal, setBankSoal] = useState<any[]>([]);
   const [selectedBankSoal, setSelectedBankSoal] = useState<string[]>([]);
   const [loadingBank, setLoadingBank] = useState(false);
