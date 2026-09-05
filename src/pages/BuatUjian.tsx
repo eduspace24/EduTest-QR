@@ -122,10 +122,23 @@ export default function BuatUjian() {
       ...q,
       jenjang: q.jenjang || 'X'
     }));
+    let customFolders: string[] = [];
+    try {
+      const stored = await getCollectionData('bank_soal_custom_folders');
+      if (stored && Array.isArray(stored)) {
+        customFolders = stored.map((f: any) => typeof f === 'string' ? f : f.name).filter(Boolean);
+      } else {
+        const localStr = localStorage.getItem('edu_custom_folders');
+        if (localStr) customFolders = JSON.parse(localStr);
+      }
+    } catch {}
+
     if (!isSuperAdmin && teacherSubjects.length > 0) {
       const filtered = normalized.filter((q: any) => {
         const cat = (q.category || '').toLowerCase().trim();
-        return teacherSubjects.some(ts => cat.includes(ts.toLowerCase()) || ts.toLowerCase().includes(cat));
+        const matchSubject = teacherSubjects.some(ts => cat.includes(ts.toLowerCase()) || ts.toLowerCase().includes(cat));
+        const matchCustom = customFolders.some((cf: string) => cat.includes(cf.toLowerCase()) || cf.toLowerCase().includes(cat));
+        return matchSubject || matchCustom;
       });
       setBankSoal(filtered);
     } else {
