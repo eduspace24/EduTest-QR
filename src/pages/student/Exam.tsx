@@ -20,7 +20,9 @@ import {
   Layers,
   Sparkles,
   CheckSquare,
-  Type
+  Type,
+  Maximize,
+  Minimize
 } from 'lucide-react';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import { cn } from '../../lib/utils';
@@ -54,10 +56,57 @@ export default function StudentExam() {
   const [downloadStage, setDownloadStage] = useState('Menghubungkan ke server...');
 
   const [isJoined, setIsJoined] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(Boolean(document.fullscreenElement));
   const [studentCode, setStudentCode] = useState('');
   const [foundStudent, setFoundStudent] = useState<any>(null);
   const [studentData, setStudentData] = useState({ nama: '', kelas: '', id: '' });
   const [allDbStudents, setAllDbStudents] = useState<any[]>([]);
+
+  const enterFullscreen = () => {
+    try {
+      const docEl = document.documentElement;
+      if (docEl.requestFullscreen) {
+        docEl.requestFullscreen().catch(() => {});
+      } else if ((docEl as any).webkitRequestFullscreen) {
+        (docEl as any).webkitRequestFullscreen();
+      } else if ((docEl as any).msRequestFullscreen) {
+        (docEl as any).msRequestFullscreen();
+      }
+    } catch (e) {
+      console.warn('Fullscreen error:', e);
+    }
+  };
+
+  const exitFullscreen = () => {
+    try {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      } else if ((document as any).webkitExitFullscreen) {
+        (document as any).webkitExitFullscreen();
+      }
+    } catch (e) {
+      console.warn('Exit fullscreen error:', e);
+    }
+  };
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
+  // Auto request fullscreen once student is joined
+  useEffect(() => {
+    if (isJoined && !document.fullscreenElement) {
+      enterFullscreen();
+    }
+  }, [isJoined]);
   const [allDbClasses, setAllDbClasses] = useState<any[]>([]);
 
   useEffect(() => {
@@ -679,6 +728,7 @@ export default function StudentExam() {
       user: { ...finalData, role: 'siswa' }
     };
     localStorage.setItem('edu_session', JSON.stringify(session));
+    enterFullscreen();
     setIsJoined(true);
     addAudit('Ujian Dimulai (Identitas Diisi)');
   };
@@ -912,6 +962,7 @@ export default function StudentExam() {
                     user: { ...studentData, role: 'siswa', code: studentCode || studentData.id }
                   };
                   localStorage.setItem('edu_session', JSON.stringify(session));
+                  enterFullscreen();
                   setIsJoined(true);
                   addAudit('Ujian Dimulai (Portal Siswa)');
                 }}
@@ -999,7 +1050,23 @@ export default function StudentExam() {
               <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase">Murid: {studentData.nama} • {studentData.kelas}</p>
             </div>
           </div>
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-3 sm:gap-4">
+            {/* Fullscreen Toggle */}
+            <button
+              type="button"
+              onClick={isFullscreen ? exitFullscreen : enterFullscreen}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-2 rounded-xl font-bold text-xs transition-all cursor-pointer",
+                isFullscreen 
+                  ? "bg-slate-100 hover:bg-slate-200 text-slate-600" 
+                  : "bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 animate-pulse"
+              )}
+              title={isFullscreen ? "Keluar Layar Penuh" : "Aktifkan Layar Penuh (Fullscreen)"}
+            >
+              {isFullscreen ? <Minimize className="w-3.5 h-3.5" /> : <Maximize className="w-3.5 h-3.5 text-amber-700" />}
+              <span className="hidden sm:inline">{isFullscreen ? 'Layar Penuh' : 'Aktifkan Fullscreen'}</span>
+            </button>
+
             <div className="flex items-center gap-2 bg-rose-50 text-rose-600 px-3 md:px-4 py-2 rounded-xl font-bold text-xs md:text-sm">
               <Clock className="w-4 h-4" />
               <span>{Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}</span>
@@ -1007,7 +1074,7 @@ export default function StudentExam() {
             <button 
               onClick={submitExam}
               disabled={submitting}
-              className="bg-indigo-950 text-white px-6 py-2.5 rounded-xl font-black text-sm shadow-lg shadow-indigo-950/20 flex items-center gap-2"
+              className="bg-indigo-950 text-white px-5 sm:px-6 py-2 rounded-xl font-black text-xs sm:text-sm shadow-lg shadow-indigo-950/20 flex items-center gap-2 cursor-pointer active:scale-95 transition-all"
             >
               {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
               Selesai
@@ -1015,6 +1082,16 @@ export default function StudentExam() {
           </div>
         </div>
       </div>
+
+      {!isFullscreen && (
+        <div 
+          onClick={enterFullscreen}
+          className="bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold py-2 px-4 text-center cursor-pointer transition-all flex items-center justify-center gap-2 shadow-xs"
+        >
+          <Maximize className="w-3.5 h-3.5" />
+          <span>Klik di sini untuk mengaktifkan kembali <strong>Mode Layar Penuh (Fullscreen)</strong> agar bebas dari tab browser.</span>
+        </div>
+      )}
 
       <main className="max-w-4xl mx-auto px-6 py-12">
         <div className="mb-10 flex items-center justify-between">

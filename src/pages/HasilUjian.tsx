@@ -31,25 +31,72 @@ export default function HasilUjian({ isEmbedded = false }: { isEmbedded?: boolea
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const { databases, COLLECTIONS, APPWRITE_DATABASE_ID, Query } = await import('../lib/appwrite');
-      const res = await databases.listDocuments(
-        APPWRITE_DATABASE_ID,
-        COLLECTIONS.EXAM_RESULTS,
-        [Query.orderDesc('$createdAt'), Query.limit(100)]
-      );
+      const localData = (await getCollectionData('results')) || [];
+      const normalizedLocal = (localData || []).map((d: any) => ({
+        ...d,
+        id: d.id || d.$id || `loc_${Math.random()}`,
+        student_name: d.student_name || d.student?.nama || d.student?.name || 'Murid',
+        student_class: d.student_class || d.student?.kelas || '-',
+        student_code: d.student_code || d.student?.code || '-',
+        exam_title: d.exam_title || d.examTitle || 'Ujian',
+        examTitle: d.exam_title || d.examTitle || 'Ujian',
+        score: Number(d.score) || 0,
+        created_at: d.created_at || d.timestamp || d.$createdAt || new Date().toISOString(),
+        timestamp: d.timestamp || d.created_at || d.$createdAt || new Date().toISOString(),
+        student: {
+          nama: d.student_name || d.student?.nama || d.student?.name || 'Murid',
+          name: d.student_name || d.student?.nama || d.student?.name || 'Murid',
+          kelas: d.student_class || d.student?.kelas || '-'
+        }
+      }));
 
-      if (res && res.documents && res.documents.length > 0) {
-        const mapped = res.documents.map(d => ({
-          ...d,
-          id: d.$id,
-          created_at: d.$createdAt
-        }));
-        setResults(mapped);
-      } else {
-        const localData = await getCollectionData('results');
-        setResults(localData || []);
+      let allResults: any[] = [];
+
+      try {
+        const { databases, COLLECTIONS, APPWRITE_DATABASE_ID, Query } = await import('../lib/appwrite');
+        const res = await databases.listDocuments(
+          APPWRITE_DATABASE_ID,
+          COLLECTIONS.EXAM_RESULTS,
+          [Query.orderDesc('$createdAt'), Query.limit(200)]
+        );
+
+        if (res && res.documents && res.documents.length > 0) {
+          allResults = res.documents.map(d => ({
+            ...d,
+            id: d.$id,
+            student_name: d.student_name || d.student?.nama || d.student?.name || 'Murid',
+            student_class: d.student_class || d.student?.kelas || '-',
+            student_code: d.student_code || d.student?.code || '-',
+            exam_title: d.exam_title || d.examTitle || 'Ujian',
+            examTitle: d.exam_title || d.examTitle || 'Ujian',
+            score: Number(d.score) || 0,
+            created_at: d.$createdAt,
+            timestamp: d.$createdAt,
+            student: {
+              nama: d.student_name || d.student?.nama || d.student?.name || 'Murid',
+              name: d.student_name || d.student?.nama || d.student?.name || 'Murid',
+              kelas: d.student_class || d.student?.kelas || '-'
+            }
+          }));
+        }
+      } catch (cloudErr) {
+        console.warn('Appwrite listDocuments exam_results note:', cloudErr);
       }
-    } catch {
+
+      // Gabungkan data cloud dan data lokal tanpa duplikasi
+      const seen = new Set(allResults.map(r => `${(r.student_code || r.student_name).toLowerCase()}_${(r.exam_title || r.examTitle).toLowerCase()}`));
+      for (const loc of normalizedLocal) {
+        const key = `${(loc.student_code || loc.student_name).toLowerCase()}_${(loc.exam_title || loc.examTitle).toLowerCase()}`;
+        if (!seen.has(key)) {
+          allResults.push(loc);
+          seen.add(key);
+        }
+      }
+
+      setResults(allResults);
+      await saveCollection('results', allResults);
+    } catch (err) {
+      console.error('fetchData error:', err);
       const localData = await getCollectionData('results');
       setResults(localData || []);
     } finally {
@@ -73,10 +120,10 @@ export default function HasilUjian({ isEmbedded = false }: { isEmbedded?: boolea
 
   const exportToExcel = () => {
     const dataToExport = filteredResults.map(res => ({
-      Murid: formatStudentName(res.student?.nama || res.student?.name || res.student_name || 'Murid'),
-      Kelas: res.student?.kelas,
-      Ujian: res.examTitle,
-      Waktu: new Date(res.timestamp).toLocaleString(),
+      Murid: formatStudentName(res.student_name || res.student?.nama || res.student?.name || 'Murid'),
+      Kelas: res.student_class || res.student?.kelas || '-',
+      Ujian: res.exam_title || res.examTitle || 'Ujian',
+      Waktu: res.timestamp || res.created_at ? new Date(res.timestamp || res.created_at).toLocaleString('id-ID') : '-',
       Skor: res.score || 0
     }));
 
@@ -91,10 +138,10 @@ export default function HasilUjian({ isEmbedded = false }: { isEmbedded?: boolea
     doc.text("Laporan Hasil Ujian - EduTest", 14, 15);
     
     const tableData = filteredResults.map(res => [
-      formatStudentName(res.student?.nama || res.student?.name || res.student_name || 'Murid'),
-      res.student?.kelas,
-      res.examTitle,
-      new Date(res.timestamp).toLocaleString(),
+      formatStudentName(res.student_name || res.student?.nama || res.student?.name || 'Murid'),
+      res.student_class || res.student?.kelas || '-',
+      res.exam_title || res.examTitle || 'Ujian',
+      res.timestamp || res.created_at ? new Date(res.timestamp || res.created_at).toLocaleString('id-ID') : '-',
       res.score || 0
     ]);
 
@@ -107,10 +154,14 @@ export default function HasilUjian({ isEmbedded = false }: { isEmbedded?: boolea
     doc.save(`Hasil_Ujian_${new Date().getTime()}.pdf`);
   };
 
-  const filteredResults = results.filter(r => 
-    r.student?.nama?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    r.examTitle?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredResults = results.filter(r => {
+    const sName = (r.student_name || r.student?.nama || r.student?.name || '').toLowerCase();
+    const eTitle = (r.exam_title || r.examTitle || '').toLowerCase();
+    const sClass = (r.student_class || r.student?.kelas || '').toLowerCase();
+    const term = searchTerm.toLowerCase().trim();
+    if (!term) return true;
+    return sName.includes(term) || eTitle.includes(term) || sClass.includes(term);
+  });
 
   if (loading) return (
     <div className="animate-pulse space-y-10">
@@ -195,30 +246,38 @@ export default function HasilUjian({ isEmbedded = false }: { isEmbedded?: boolea
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {filteredResults.map((res, i) => (
-                <tr key={res.timestamp || i} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-8 py-5">
-                    <div>
-                      <p className="font-bold text-indigo-950">{formatStudentName(res.student?.nama || res.student?.name || res.student_name || 'Murid')}</p>
-                      <p className="text-xs text-slate-400 font-bold uppercase">{res.student?.kelas}</p>
-                    </div>
-                  </td>
-                  <td className="px-8 py-5">
-                    <p className="font-bold text-indigo-950">{res.examTitle || 'Ujian Tak Bernama'}</p>
-                  </td>
-                  <td className="px-8 py-5">
-                    <p className="text-sm font-semibold text-slate-500">{new Date(res.timestamp).toLocaleString()}</p>
-                  </td>
-                  <td className="px-8 py-5">
-                    <div className="flex items-center gap-2 text-emerald-600 bg-emerald-50 px-3 py-1 rounded-lg w-fit text-xs font-black">
-                      <CheckCircle2 className="w-4 h-4" /> SELESAI
-                    </div>
-                  </td>
-                  <td className="px-8 py-5 text-right font-black text-xl text-indigo-950">
-                    {res.score || 0}
-                  </td>
-                </tr>
-              ))}
+              {filteredResults.map((res, i) => {
+                const sName = res.student_name || res.student?.nama || res.student?.name || 'Murid';
+                const sClass = res.student_class || res.student?.kelas || '-';
+                const eTitle = res.exam_title || res.examTitle || 'Ujian';
+                const dateVal = res.timestamp || res.created_at || res.$createdAt;
+                const formattedDate = dateVal ? new Date(dateVal).toLocaleString('id-ID') : '-';
+
+                return (
+                  <tr key={res.id || res.$id || i} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-8 py-5">
+                      <div>
+                        <p className="font-bold text-indigo-950">{formatStudentName(sName)}</p>
+                        <p className="text-xs text-slate-400 font-bold uppercase">{sClass}</p>
+                      </div>
+                    </td>
+                    <td className="px-8 py-5">
+                      <p className="font-bold text-indigo-950">{eTitle}</p>
+                    </td>
+                    <td className="px-8 py-5">
+                      <p className="text-sm font-semibold text-slate-500">{formattedDate}</p>
+                    </td>
+                    <td className="px-8 py-5">
+                      <div className="flex items-center gap-2 text-emerald-600 bg-emerald-50 px-3 py-1 rounded-lg w-fit text-xs font-black">
+                        <CheckCircle2 className="w-4 h-4" /> SELESAI
+                      </div>
+                    </td>
+                    <td className="px-8 py-5 text-right font-black text-xl text-indigo-950">
+                      {res.score ?? 0}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
           

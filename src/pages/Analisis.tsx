@@ -34,17 +34,57 @@ export default function Analisis() {
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      const [resultsData, schoolStudents] = await Promise.all([
-        getCollectionData('results'),
-        getCollectionData('students', activeSchool?.id)
-      ]);
-      
-      // Filter results: only include students from the active school
-      const schoolStudentCodes = new Set(schoolStudents.map(s => s.code));
-      const filtered = resultsData.filter(r => schoolStudentCodes.has(r.student?.code));
-      
-      setResults(filtered);
-      setLoading(false);
+      try {
+        const [localResults, schoolStudents] = await Promise.all([
+          getCollectionData('results'),
+          getCollectionData('students', activeSchool?.id)
+        ]);
+
+        let combined = Array.isArray(localResults) ? [...localResults] : [];
+
+        try {
+          const { databases, COLLECTIONS, APPWRITE_DATABASE_ID, Query } = await import('../lib/appwrite');
+          const res = await databases.listDocuments(
+            APPWRITE_DATABASE_ID,
+            COLLECTIONS.EXAM_RESULTS,
+            [Query.orderDesc('$createdAt'), Query.limit(200)]
+          );
+          if (res && res.documents && res.documents.length > 0) {
+            const seen = new Set(combined.map((c: any) => `${(c.student_code || c.student?.code || '').toLowerCase()}_${(c.exam_title || c.examTitle || '').toLowerCase()}`));
+            for (const doc of res.documents) {
+              const key = `${(doc.student_code || '').toLowerCase()}_${(doc.exam_title || '').toLowerCase()}`;
+              if (!seen.has(key)) {
+                combined.push(doc);
+                seen.add(key);
+              }
+            }
+          }
+        } catch (err) {
+          console.warn('Appwrite exam_results for Analisis note:', err);
+        }
+
+        const normalized = combined.map((r: any) => ({
+          ...r,
+          score: Number(r.score) || 0,
+          student: {
+            nama: r.student_name || r.student?.nama || r.student?.name || 'Murid',
+            name: r.student_name || r.student?.nama || r.student?.name || 'Murid',
+            code: r.student_code || r.student?.code || '',
+            kelas: r.student_class || r.student?.kelas || '-'
+          }
+        }));
+
+        const schoolStudentCodes = new Set((schoolStudents || []).map((s: any) => s.code || s.nisn));
+        const filtered = (schoolStudentCodes.size > 0)
+          ? normalized.filter(r => schoolStudentCodes.has(r.student?.code) || schoolStudentCodes.has(r.student_code))
+          : normalized;
+
+        setResults(filtered.length > 0 ? filtered : normalized);
+      } catch (e) {
+        console.error('Analisis fetchData error:', e);
+      } finally {
+        setLoading(false);
+      }
     };
     fetchData();
   }, [activeSchool?.id]);

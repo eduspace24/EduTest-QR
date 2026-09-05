@@ -25,7 +25,6 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import React from 'react';
-import { QRCodeSVG } from 'qrcode.react';
 import * as XLSX from 'xlsx';
 import { useAlert } from '../context/AlertContext';
 import { supabase } from '../lib/supabase';
@@ -561,7 +560,7 @@ export default function KelolaSiswa() {
                             className="px-3 py-1.5 bg-indigo-50 text-indigo-950 hover:bg-indigo-100 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all"
                             title="Lihat Kartu Ujian Murid"
                           >
-                            <QrCode className="w-3.5 h-3.5 text-indigo-600" />
+                            <FileText className="w-3.5 h-3.5 text-indigo-600" />
                             Kartu Ujian
                           </button>
 
@@ -764,18 +763,13 @@ export default function KelolaSiswa() {
                 <p className="text-xs text-slate-400 font-medium">SMAN 19 Bandung</p>
               </div>
 
-              {/* QR Code Container */}
-              <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 flex flex-col items-center justify-center">
-                <QRCodeSVG
-                  value={JSON.stringify({
-                    nisn: activeStudentForCard.nisn || activeStudentForCard.code,
-                    nama: formatStudentName(activeStudentForCard.nama || activeStudentForCard.name),
-                    kelas: activeStudentForCard.nama_kelas || activeStudentForCard.classId
-                  })}
-                  size={150}
-                  level="M"
-                />
-                <p className="font-mono text-xs font-black text-indigo-950 mt-3">
+              {/* Profile Badge Container (Tanpa QR Code) */}
+              <div className="bg-gradient-to-br from-indigo-50 to-blue-50/50 p-6 rounded-3xl border border-indigo-100 flex flex-col items-center justify-center">
+                <div className="w-20 h-20 rounded-2xl bg-indigo-950 text-white flex items-center justify-center font-black text-2xl shadow-md shadow-indigo-950/20 mb-3">
+                  {(activeStudentForCard.nama || activeStudentForCard.name || 'S').charAt(0).toUpperCase()}
+                </div>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Nomor Induk / NISN</span>
+                <p className="font-mono text-sm font-black text-indigo-950 mt-0.5">
                   {activeStudentForCard.nisn || activeStudentForCard.code}
                 </p>
               </div>

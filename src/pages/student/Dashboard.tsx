@@ -4,7 +4,6 @@ import {
   Clock, 
   ArrowRight,
   BookOpen,
-  QrCode,
   GraduationCap,
   Sparkles,
   CheckCircle2,
@@ -15,7 +14,6 @@ import {
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { QRCodeSVG } from 'qrcode.react';
 import { supabase } from '../../lib/supabase';
 import { getCollectionData } from '../../lib/db';
 import { cn, formatStudentName, formatTeacherName } from '../../lib/utils';
@@ -259,20 +257,17 @@ export default function StudentDashboard() {
               </span>
             </div>
 
-            {/* QR ID Box */}
-            <div className="bg-white p-4 rounded-3xl shadow-inner flex flex-col items-center justify-center">
-              <QRCodeSVG
-                value={JSON.stringify({
-                  nisn: sessionUser?.nisn || sessionUser?.code || '242510311',
-                  nama: formatStudentName(sessionUser?.nama || sessionUser?.name || 'Murid'),
-                  kelas: sessionUser?.kelas || sessionUser?.nama_kelas || 'XII'
-                })}
-                size={130}
-                level="M"
-              />
-              <p className="font-mono text-xs font-black text-indigo-950 mt-2 tracking-wider">
-                {sessionUser?.nisn || sessionUser?.code || '242510311'}
-              </p>
+            {/* Student ID Badge (Tanpa QR Code) */}
+            <div className="bg-white/10 backdrop-blur-md p-6 rounded-3xl border border-white/15 flex flex-col items-center justify-center text-center space-y-3 shadow-inner">
+              <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-blue-500 to-indigo-500 text-white flex items-center justify-center font-black text-2xl shadow-lg shadow-blue-500/30 border-2 border-white/20">
+                {(sessionUser?.nama || sessionUser?.name || 'M').charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <span className="text-[10px] font-bold text-blue-300 uppercase tracking-widest block">Nomor Induk / NISN</span>
+                <p className="font-mono text-sm font-black text-white tracking-widest mt-0.5">
+                  {sessionUser?.nisn || sessionUser?.code || '242510311'}
+                </p>
+              </div>
             </div>
 
             {/* Details */}
