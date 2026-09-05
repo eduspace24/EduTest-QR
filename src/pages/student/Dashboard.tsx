@@ -434,19 +434,24 @@ export default function StudentDashboard() {
                 <div>
                   <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700">Ujian Terakhir Selesai</span>
                   <h4 className="text-sm font-black text-indigo-950">{recentSubmission.examTitle}</h4>
-                  <p className="text-xs text-slate-500 font-medium">Skor Pengerjaan: <strong className="text-emerald-700 font-black text-sm">{recentSubmission.score}</strong> / 100</p>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">
+                    {recentSubmission.show_score === false ? (
+                      <span className="text-rose-700 bg-rose-50 border border-rose-100 px-2 py-0.5 rounded text-[10px] font-bold">
+                        🔒 Nilai Dirahasiakan oleh Guru
+                      </span>
+                    ) : (
+                      <>Skor Pengerjaan: <strong className="text-emerald-700 font-black text-sm">{recentSubmission.score}</strong> / 100</>
+                    )}
+                  </p>
                 </div>
               </div>
               <button
                 onClick={() => {
-                  const qr = localStorage.getItem('edu_last_submission_qr');
-                  if (qr) {
-                    navigate('/exam/result/last');
-                  }
+                  navigate('/exam/result/finish');
                 }}
-                className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold shrink-0 hover:bg-emerald-700 transition-all"
+                className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold shrink-0 hover:bg-emerald-700 transition-all cursor-pointer"
               >
-                Lihat Barcode
+                {recentSubmission.submission_mode === 'direct' ? 'Bukti Selesai' : 'Lihat Barcode'}
               </button>
             </div>
           )}

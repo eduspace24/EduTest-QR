@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { 
   Settings, 
   BookOpen, 
@@ -25,7 +25,13 @@ import {
   FileText,
   Calendar,
   Building2,
-  AlertCircle
+  AlertCircle,
+  Edit3,
+  Send,
+  QrCode,
+  Eye,
+  EyeOff,
+  RefreshCw
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import React, { useRef } from 'react';
@@ -39,10 +45,15 @@ import { CLASSES_LIST } from '../lib/seedAccounts';
 
 export default function BuatUjian() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const editExamId = searchParams.get('edit');
+  const isEditMode = Boolean(editExamId);
+
   const { showAlert } = useAlert();
   const { activeSchool } = useSchool();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [loadingEdit, setLoadingEdit] = useState(false);
   const [generatedLink, setGeneratedLink] = useState('');
 
   const session = JSON.parse(localStorage.getItem('edu_session') || '{}');
@@ -70,6 +81,7 @@ export default function BuatUjian() {
     unlock_code: '',
     strict_mode: true,
     show_score: true,
+    submission_mode: 'hybrid' as 'hybrid' | 'direct' | 'qr',
     targetClasses: [] as string[]
   });
   const [classes, setClasses] = useState<any[]>(CLASSES_LIST);
@@ -257,7 +269,121 @@ export default function BuatUjian() {
 
   const [questions, setQuestions] = useState<any[]>([]);
 
-  const [showBankModal, setShowBankModal] = useState(false);
+  // Load existing exam for Edit Mode
+  useEffect(() => {
+    if (!editExamId) return;
+
+    const loadExamForEdit = async () => {
+      try {
+        setLoadingEdit(true);
+        let examDoc: any = null;
+
+        // 1. Coba ambil dari Appwrite Cloud
+        try {
+          const { databases, COLLECTIONS, APPWRITE_DATABASE_ID } = await import('../lib/appwrite');
+          const doc = await databases.getDocument(
+            APPWRITE_DATABASE_ID,
+            COLLECTIONS.EXAMS,
+            editExamId
+          );
+          if (doc) examDoc = doc;
+        } catch (err) {
+          console.warn('Appwrite getDocument for edit note:', err);
+        }
+
+        // 2. Fallback ke IndexedDB
+        if (!examDoc) {
+          examDoc = await getCollectionData('exam_' + editExamId);
+        }
+        if (!examDoc) {
+          const list = (await getCollectionData('exams_list')) || [];
+          examDoc = list.find((e: any) => (e.id === editExamId || e.$id === editExamId || e.driveFileId === editExamId));
+        }
+
+        if (!examDoc) {
+          showAlert({ title: 'Tidak Ditemukan', message: 'Data ujian tidak ditemukan untuk diedit.', type: 'error' });
+          navigate('/daftar-ujian');
+          return;
+        }
+
+        // Parse questions payload
+        let parsedQuestions: any[] = [];
+        let rawConfig: any = {};
+
+        if (typeof examDoc.questions === 'string') {
+          try {
+            const parsed = JSON.parse(examDoc.questions);
+            if (Array.isArray(parsed)) {
+              parsedQuestions = parsed;
+            } else if (parsed && typeof parsed === 'object') {
+              rawConfig = parsed;
+              parsedQuestions = parsed.questions || [];
+            }
+          } catch (e) {
+            console.error('Failed to parse examDoc.questions string:', e);
+          }
+        } else if (Array.isArray(examDoc.questions)) {
+          parsedQuestions = examDoc.questions;
+        } else if (examDoc.questions && typeof examDoc.questions === 'object') {
+          rawConfig = examDoc.questions;
+          parsedQuestions = examDoc.questions.questions || [];
+        }
+
+        // Restore correct answers from _answer_key jika ada
+        const answerKey = rawConfig._answer_key || examDoc._answer_key;
+        if (Array.isArray(answerKey)) {
+          const keyMap = new Map(answerKey.map((k: any) => [k.id, k.answer]));
+          parsedQuestions = parsedQuestions.map(q => ({
+            ...q,
+            correct_answer: (q.correct_answer !== undefined && q.correct_answer !== '') ? q.correct_answer : (keyMap.get(q.id) || 'a')
+          }));
+        }
+
+        // Ambil target classes
+        const targetCls = examDoc.targetClasses || rawConfig.targetClasses || [];
+
+        // Set form data
+        setFormData(prev => ({
+          ...prev,
+          title: examDoc.title || rawConfig.title || prev.title,
+          subject: examDoc.subject || rawConfig.subject || prev.subject,
+          exam_type: examDoc.exam_type || rawConfig.exam_type || prev.exam_type,
+          targetGrade: examDoc.targetGrade || rawConfig.targetGrade || prev.targetGrade,
+          session_name: examDoc.session_name || rawConfig.session_name || prev.session_name,
+          start_time: examDoc.start_time || rawConfig.start_time || prev.start_time,
+          end_time: examDoc.end_time || rawConfig.end_time || prev.end_time,
+          room_capacity: examDoc.room_capacity || rawConfig.room_capacity || prev.room_capacity,
+          duration: Number(examDoc.duration || rawConfig.duration) || prev.duration,
+          randomized: examDoc.randomized !== undefined ? examDoc.randomized : (rawConfig.randomized !== undefined ? rawConfig.randomized : prev.randomized),
+          randomize_options: examDoc.randomize_options !== undefined ? examDoc.randomize_options : (rawConfig.randomize_options !== undefined ? rawConfig.randomize_options : prev.randomize_options),
+          anti_cheat: examDoc.anti_cheat !== undefined ? examDoc.anti_cheat : (rawConfig.anti_cheat !== undefined ? rawConfig.anti_cheat : prev.anti_cheat),
+          cheat_tolerance: examDoc.cheat_tolerance !== undefined ? Number(examDoc.cheat_tolerance) : (rawConfig.cheat_tolerance !== undefined ? Number(rawConfig.cheat_tolerance) : prev.cheat_tolerance),
+          unlock_code: examDoc.unlock_code || rawConfig.unlock_code || prev.unlock_code,
+          strict_mode: examDoc.strict_mode !== undefined ? examDoc.strict_mode : (rawConfig.strict_mode !== undefined ? rawConfig.strict_mode : prev.strict_mode),
+          show_score: examDoc.show_score !== undefined ? examDoc.show_score : (rawConfig.show_score !== undefined ? rawConfig.show_score : true),
+          submission_mode: examDoc.submission_mode || rawConfig.submission_mode || 'hybrid',
+          targetClasses: Array.isArray(targetCls) ? targetCls : []
+        }));
+
+        if (parsedQuestions && parsedQuestions.length > 0) {
+          setQuestions(parsedQuestions);
+        }
+
+        showAlert({ 
+          title: 'Mode Edit Ujian', 
+          message: `Memuat data ujian "${examDoc.title || 'Ujian'}". Anda dapat mengubah nama, waktu, target kelas, pengaturan, dan butir soal.`, 
+          type: 'info' 
+        });
+      } catch (err: any) {
+        console.error('Error loading exam for edit:', err);
+        showAlert({ title: 'Gagal Memuat', message: err.message || 'Terjadi kesalahan memuat data ujian.', type: 'error' });
+      } finally {
+        setLoadingEdit(false);
+      }
+    };
+
+    loadExamForEdit();
+  }, [editExamId]);
   const [bankSoal, setBankSoal] = useState<any[]>([]);
   const [selectedBankSoal, setSelectedBankSoal] = useState<string[]>([]);
   const [loadingBank, setLoadingBank] = useState(false);
@@ -515,7 +641,7 @@ export default function BuatUjian() {
     setLoading(true);
 
     try {
-      const examId = generateExamCode();
+      const examId = isEditMode ? editExamId! : generateExamCode();
       const sessionData = JSON.parse(localStorage.getItem('edu_session') || '{}');
       const teacherId = sessionData.user?.id || 'guru';
       const teacherName = sessionData.user?.name || sessionData.user?.nama || 'Guru Mata Pelajaran';
@@ -595,7 +721,7 @@ export default function BuatUjian() {
         created_at: new Date().toISOString()
       };
 
-      // Save locally
+      // Save locally to exam_<id>
       await saveCollection('exam_' + examId, examPayload);
 
       // Save to Appwrite
@@ -603,21 +729,32 @@ export default function BuatUjian() {
         const { databases, COLLECTIONS, APPWRITE_DATABASE_ID } = await import('../lib/appwrite');
         // Exclude heavy student dump from cloud questions payload to prevent truncation
         const { allowedStudents: _ignoredStudents, ...lightCloudPayload } = examPayload;
-        await databases.createDocument(
-          APPWRITE_DATABASE_ID,
-          COLLECTIONS.EXAMS,
-          examId,
-          {
-            title: formData.title,
-            subject: formData.subject || teacherSubjects[0] || 'Informatika',
-            duration: Number(formData.duration) || 60,
-            status: 'active',
-            driveFileId: examId,
-            questions: JSON.stringify(lightCloudPayload),
-            unlock_code: formData.unlock_code || '',
-            cheat_tolerance: Number(formData.cheat_tolerance) || 3
-          }
-        );
+        const examCloudPayload = {
+          title: formData.title,
+          subject: formData.subject || teacherSubjects[0] || 'Informatika',
+          duration: Number(formData.duration) || 60,
+          status: 'active',
+          driveFileId: examId,
+          questions: JSON.stringify(lightCloudPayload),
+          unlock_code: formData.unlock_code || '',
+          cheat_tolerance: Number(formData.cheat_tolerance) || 3
+        };
+
+        if (isEditMode) {
+          await databases.updateDocument(
+            APPWRITE_DATABASE_ID,
+            COLLECTIONS.EXAMS,
+            examId,
+            examCloudPayload
+          );
+        } else {
+          await databases.createDocument(
+            APPWRITE_DATABASE_ID,
+            COLLECTIONS.EXAMS,
+            examId,
+            examCloudPayload
+          );
+        }
       } catch (sErr) {
         console.warn('Appwrite exam sync note:', sErr);
       }
@@ -656,7 +793,8 @@ export default function BuatUjian() {
         cheat_tolerance: formData.cheat_tolerance,
         unlock_code: formData.unlock_code,
         strict_mode: formData.strict_mode,
-        show_score: formData.show_score
+        show_score: formData.show_score,
+        submission_mode: formData.submission_mode
       };
       
       const savedExams = (await getCollectionData('exams_list')) || [];
@@ -670,10 +808,17 @@ export default function BuatUjian() {
       
       const shareUrl = `${window.location.origin}/test/${teacherId}/${examId}`;
       setGeneratedLink(shareUrl);
+      if (isEditMode) {
+        showAlert({
+          title: 'Berhasil!',
+          message: 'Perubahan ujian berhasil disimpan.',
+          type: 'success'
+        });
+      }
       setStep(3);
     } catch (err: any) {
       console.error(err);
-      showAlert({ title: 'Gagal', message: err.message || 'Terjadi kesalahan saat membuat ujian.', type: 'error' });
+      showAlert({ title: 'Gagal', message: err.message || 'Terjadi kesalahan saat menyimpan ujian.', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -689,27 +834,61 @@ export default function BuatUjian() {
     <div className="space-y-6 pb-20">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="tracking-tight">Buat Ujian Baru</h2>
-          <p className="text-slate-500 text-sm font-medium">Selesaikan 3 langkah untuk merilis ujian dan simpan ke Cloud.</p>
+          <div className="flex items-center gap-2.5">
+            <h2 className="tracking-tight">{isEditMode ? 'Edit Ujian' : 'Buat Ujian Baru'}</h2>
+            {isEditMode && (
+              <span className="bg-amber-100 text-amber-900 border border-amber-200 text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1.5 shadow-xs">
+                <Edit3 className="w-3 h-3 text-amber-700" /> Mode Edit: {editExamId}
+              </span>
+            )}
+            {loadingEdit && (
+              <span className="text-xs text-slate-400 font-bold flex items-center gap-1">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" /> Memuat data...
+              </span>
+            )}
+          </div>
+          <p className="text-slate-500 text-sm font-medium">
+            {isEditMode 
+              ? 'Perbarui judul, durasi, target kelas, soal, kunci jawaban, dan opsi teknis ujian.' 
+              : 'Selesaikan 3 langkah untuk merilis ujian dan simpan ke Cloud.'}
+          </p>
         </div>
-        {step === 1 && (
-          <button 
-            onClick={handleNextToStep2}
-            className="w-full sm:w-auto bg-indigo-950 hover:bg-indigo-900 text-white px-5 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-indigo-950/15 text-xs transition-all cursor-pointer"
-          >
-            <span>Lanjut ke Soal</span>
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        )}
-        {step === 2 && (
-          <button 
-            onClick={handleCreateExam}
-            disabled={loading}
-            className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 text-xs transition-all cursor-pointer"
-          >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><CheckCircle2 className="w-4 h-4" /> Terbitkan Ujian</>}
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {isEditMode && (
+            <button
+              type="button"
+              onClick={() => navigate('/daftar-ujian')}
+              className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100 font-bold text-xs transition-all cursor-pointer"
+            >
+              Batal Edit
+            </button>
+          )}
+          {step === 1 && (
+            <button 
+              onClick={handleNextToStep2}
+              className="w-full sm:w-auto bg-indigo-950 hover:bg-indigo-900 text-white px-5 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-indigo-950/15 text-xs transition-all cursor-pointer"
+            >
+              <span>Lanjut ke Soal</span>
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          )}
+          {step === 2 && (
+            <button 
+              onClick={handleCreateExam}
+              disabled={loading || questions.length === 0}
+              className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 text-xs transition-all cursor-pointer disabled:opacity-50"
+            >
+              {loading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <>
+                  <CheckCircle2 className="w-4 h-4" /> 
+                  {isEditMode ? 'Simpan Perubahan Ujian' : 'Terbitkan Ujian'}
+                </>
+              )}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Stepper */}
@@ -1216,6 +1395,140 @@ export default function BuatUjian() {
                   </div>
                 </div>
               )}
+
+              {/* Toggle Sembunyikan / Tampilkan Nilai */}
+              <div className="flex items-center gap-4 p-3 rounded-xl border border-slate-100 bg-slate-50/50">
+                <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-950 flex items-center justify-center shrink-0">
+                  {formData.show_score ? <Eye className="text-emerald-600 w-4 h-4" /> : <EyeOff className="text-rose-500 w-4 h-4" />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-[11px] font-bold text-indigo-950">
+                      {formData.show_score ? 'Nilai Ditampilkan ke Murid' : 'Nilai Dirahasiakan dari Murid'}
+                    </p>
+                    <span className={cn(
+                      "text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider",
+                      formData.show_score ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"
+                    )}>
+                      {formData.show_score ? 'Terbuka' : 'Rahasia'}
+                    </span>
+                  </div>
+                  <p className="text-[9px] text-slate-500 line-clamp-1">
+                    {formData.show_score ? 'Murid dapat melihat skor akhir setelah ujian selesai.' : 'Skor disembunyikan guru, murid hanya melihat tanda selesai.'}
+                  </p>
+                </div>
+                <input 
+                  type="checkbox" 
+                  checked={formData.show_score}
+                  onChange={(e) => setFormData({...formData, show_score: e.target.checked})}
+                  className="w-4 h-4 accent-indigo-950 cursor-pointer"
+                />
+              </div>
+
+              {/* Metode Pengumpulan Hasil Ujian */}
+              <div className="col-span-1 md:col-span-2 space-y-2 pt-2 border-t border-slate-100">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-indigo-950 flex items-center gap-1.5">
+                    <Send className="w-3.5 h-3.5 text-indigo-600" /> Metode Pengumpulan Hasil Ujian:
+                  </label>
+                  <span className="text-[10px] font-bold text-slate-400">Pilih alur penyerahan lembar jawaban</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {/* Hybrid */}
+                  <div 
+                    onClick={() => setFormData({...formData, submission_mode: 'hybrid'})}
+                    className={cn(
+                      "p-3.5 rounded-2xl border-2 cursor-pointer transition-all flex flex-col justify-between text-left relative overflow-hidden",
+                      formData.submission_mode === 'hybrid'
+                        ? "border-indigo-950 bg-indigo-50/60 shadow-sm ring-2 ring-indigo-950/10"
+                        : "border-slate-200/80 bg-white hover:border-slate-300"
+                    )}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="w-7 h-7 rounded-xl bg-indigo-100 text-indigo-950 flex items-center justify-center text-xs font-black shadow-xs">
+                          ⚡
+                        </span>
+                        {formData.submission_mode === 'hybrid' && (
+                          <div className="w-5 h-5 rounded-full bg-indigo-950 text-white flex items-center justify-center">
+                            <Check className="w-3 h-3" />
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-xs font-black text-indigo-950">Mode Hybrid</p>
+                      <p className="text-[10px] text-slate-500 leading-relaxed mt-1">
+                        Kirim otomatis via cloud & tetap sediakan QR offline sebagai bukti verifikasi cadangan.
+                      </p>
+                    </div>
+                    <span className="mt-3 text-[9px] font-black uppercase tracking-wider text-indigo-800 bg-indigo-100 px-2 py-0.5 rounded-md w-fit">
+                      ⭐ Rekomendasi
+                    </span>
+                  </div>
+
+                  {/* Direct Online */}
+                  <div 
+                    onClick={() => setFormData({...formData, submission_mode: 'direct'})}
+                    className={cn(
+                      "p-3.5 rounded-2xl border-2 cursor-pointer transition-all flex flex-col justify-between text-left relative overflow-hidden",
+                      formData.submission_mode === 'direct'
+                        ? "border-blue-600 bg-blue-50/60 shadow-sm ring-2 ring-blue-600/10"
+                        : "border-slate-200/80 bg-white hover:border-slate-300"
+                    )}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="w-7 h-7 rounded-xl bg-blue-100 text-blue-900 flex items-center justify-center text-xs font-black shadow-xs">
+                          🚀
+                        </span>
+                        {formData.submission_mode === 'direct' && (
+                          <div className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center">
+                            <Check className="w-3 h-3" />
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-xs font-black text-indigo-950">Kirim Langsung</p>
+                      <p className="text-[10px] text-slate-500 leading-relaxed mt-1">
+                        Hasil langsung terkirim ke Guru/Admin. Murid tidak perlu memindai QR Code sama sekali.
+                      </p>
+                    </div>
+                    <span className="mt-3 text-[9px] font-black uppercase tracking-wider text-blue-800 bg-blue-100 px-2 py-0.5 rounded-md w-fit">
+                      Cepat & Otomatis
+                    </span>
+                  </div>
+
+                  {/* QR Only */}
+                  <div 
+                    onClick={() => setFormData({...formData, submission_mode: 'qr'})}
+                    className={cn(
+                      "p-3.5 rounded-2xl border-2 cursor-pointer transition-all flex flex-col justify-between text-left relative overflow-hidden",
+                      formData.submission_mode === 'qr'
+                        ? "border-emerald-600 bg-emerald-50/60 shadow-sm ring-2 ring-emerald-600/10"
+                        : "border-slate-200/80 bg-white hover:border-slate-300"
+                    )}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="w-7 h-7 rounded-xl bg-emerald-100 text-emerald-900 flex items-center justify-center text-xs font-black shadow-xs">
+                          📱
+                        </span>
+                        {formData.submission_mode === 'qr' && (
+                          <div className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center">
+                            <Check className="w-3 h-3" />
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-xs font-black text-indigo-950">Scan QR Saja</p>
+                      <p className="text-[10px] text-slate-500 leading-relaxed mt-1">
+                        CBT offline tanpa internet. Hasil dienkripsi jadi kartu QR untuk dipindai oleh pengawas.
+                      </p>
+                    </div>
+                    <span className="mt-3 text-[9px] font-black uppercase tracking-wider text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md w-fit">
+                      100% Offline CBT
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
             <button 
               type="button"
@@ -1656,9 +1969,13 @@ export default function BuatUjian() {
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 Status: Ujian Aktif
               </span>
-              <h3 className="text-2xl font-black text-indigo-950 tracking-tight">Ujian Berhasil Diterbitkan!</h3>
+              <h3 className="text-2xl font-black text-indigo-950 tracking-tight">
+                {isEditMode ? 'Perubahan Ujian Berhasil Disimpan!' : 'Ujian Berhasil Diterbitkan!'}
+              </h3>
               <p className="text-slate-500 text-sm max-w-md mx-auto">
-                Ujian sudah otomatis <strong>aktif di Portal Murid</strong> untuk kelas yang Anda tentukan. Murid cukup masuk ke akun dan mengklik tombol <strong>"Mulai Ujian"</strong>.
+                {isEditMode
+                  ? 'Data ujian, butir soal, target kelas, dan konfigurasi baru telah berhasil diperbarui dan disinkronkan ke server.'
+                  : 'Ujian sudah otomatis aktif di Portal Murid untuk kelas yang Anda tentukan. Murid cukup masuk ke akun dan mengklik tombol "Mulai Ujian".'}
               </p>
             </div>
 
@@ -1688,6 +2005,21 @@ export default function BuatUjian() {
               <div className="flex items-center justify-between border-b border-slate-200/60 pb-2.5">
                 <span className="text-xs font-medium text-slate-500">Durasi Pengerjaan</span>
                 <span className="text-xs font-bold text-indigo-950">{formData.duration} Menit</span>
+              </div>
+              <div className="flex items-center justify-between border-b border-slate-200/60 pb-2.5">
+                <span className="text-xs font-medium text-slate-500">Visibilitas Nilai</span>
+                <span className={cn(
+                  "text-xs font-bold px-2 py-0.5 rounded",
+                  formData.show_score ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"
+                )}>
+                  {formData.show_score ? '👁️ Tampil ke Murid' : '🔒 Dirahasiakan'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between border-b border-slate-200/60 pb-2.5">
+                <span className="text-xs font-medium text-slate-500">Metode Pengumpulan</span>
+                <span className="text-xs font-bold text-indigo-950 bg-slate-200/70 px-2 py-0.5 rounded">
+                  {formData.submission_mode === 'hybrid' ? '⚡ Hybrid (Online + QR)' : formData.submission_mode === 'direct' ? '🚀 Kirim Langsung' : '📱 Scan QR Saja'}
+                </span>
               </div>
               {formData.unlock_code && (
                 <div className="flex items-center justify-between border-b border-slate-200/60 pb-2.5">

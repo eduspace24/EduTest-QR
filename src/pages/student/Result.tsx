@@ -62,20 +62,57 @@ export default function StudentResult() {
           
           {qrString ? (
             <>
-              <p className="text-slate-500 text-sm font-bold mb-6 max-w-md mx-auto">
-                Jawaban Anda telah tersimpan secara aman di HP Anda. Tunjukkan QR Code di bawah ini kepada Guru/Pengawas untuk dipindai.
-              </p>
+              {meta?.submission_mode === 'direct' ? (
+                <div className="mb-6 space-y-2">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-800 rounded-full border border-blue-100 text-xs font-black uppercase tracking-wider">
+                    <CheckCircle2 className="w-4 h-4 text-blue-600" /> Mode Kirim Langsung (Online CBT)
+                  </div>
+                  <p className="text-slate-500 text-sm font-bold max-w-md mx-auto">
+                    Lembar jawaban Anda telah berhasil <strong>terkirim langsung ke Guru/Admin</strong>. Anda tidak perlu memindai QR Code!
+                  </p>
+                </div>
+              ) : meta?.submission_mode === 'qr' ? (
+                <div className="mb-6 space-y-2">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-800 rounded-full border border-emerald-100 text-xs font-black uppercase tracking-wider">
+                    <QrCode className="w-4 h-4 text-emerald-600" /> Mode Scan QR Saja (Offline CBT)
+                  </div>
+                  <p className="text-slate-500 text-sm font-bold max-w-md mx-auto">
+                    Jawaban tersimpan aman di perangkat Anda. Tunjukkan QR Code di bawah ini kepada Pengawas untuk dipindai.
+                  </p>
+                </div>
+              ) : (
+                <div className="mb-6 space-y-2">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-50 text-indigo-950 rounded-full border border-indigo-100 text-xs font-black uppercase tracking-wider">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Mode Hybrid (Online & QR Cadangan)
+                  </div>
+                  <p className="text-slate-500 text-sm font-bold max-w-md mx-auto">
+                    Jawaban otomatis terkirim secara online. QR Code di bawah ini dapat dipindai oleh pengawas sebagai bukti kehadiran & cadangan darurat.
+                  </p>
+                </div>
+              )}
 
               <div className="bg-indigo-950/5 border border-indigo-950/10 rounded-3xl p-6 mb-8 flex flex-col items-center justify-center">
-                <div className="bg-white p-4 rounded-3xl shadow-md border border-slate-100 mb-4">
-                  <QRCodeSVG
-                    value={qrString}
-                    size={240}
-                    level="M"
-                    includeMargin={true}
-                    className="mx-auto"
-                  />
-                </div>
+                {meta?.submission_mode === 'direct' ? (
+                  <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 mb-4 max-w-xs text-center space-y-3">
+                    <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto">
+                      <CheckCircle2 className="w-8 h-8" />
+                    </div>
+                    <h4 className="text-base font-black text-indigo-950">Jawaban Terkirim</h4>
+                    <p className="text-[11px] text-slate-500 font-medium">
+                      Data pengerjaan Anda telah tersimpan di server.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="bg-white p-4 rounded-3xl shadow-md border border-slate-100 mb-4">
+                    <QRCodeSVG
+                      value={qrString}
+                      size={240}
+                      level="M"
+                      includeMargin={true}
+                      className="mx-auto"
+                    />
+                  </div>
+                )}
                 
                 {meta && (
                   <div className="text-center w-full max-w-sm">
@@ -90,32 +127,45 @@ export default function StudentResult() {
                       </div>
                       <div>
                         <p className="text-[8px] font-black text-slate-400 uppercase tracking-wider">Skor Akhir</p>
-                        <p className="text-sm font-black text-indigo-950">{meta.score}</p>
+                        {meta.show_score === false ? (
+                          <span className="text-[10px] font-black text-rose-700 bg-rose-50 border border-rose-100 px-2 py-0.5 rounded mt-0.5 inline-block">
+                            🔒 Dirahasiakan
+                          </span>
+                        ) : (
+                          <p className="text-sm font-black text-indigo-950">{meta.score} / 100</p>
+                        )}
                       </div>
                     </div>
                   </div>
                 )}
               </div>
               
-              <div className="flex items-center gap-3 justify-center mb-8 px-4 py-3 bg-amber-50 text-amber-800 rounded-2xl border border-amber-100 text-xs font-bold max-w-md mx-auto">
-                <AlertCircle className="w-5 h-5 shrink-0 text-amber-600" />
-                <p className="text-left leading-relaxed">PENTING: Jangan tutup halaman ini sebelum Guru memindai QR Code Anda dan mengonfirmasi bahwa data telah masuk!</p>
-              </div>
+              {meta?.submission_mode === 'direct' ? (
+                <div className="flex items-center gap-3 justify-center mb-8 px-4 py-3 bg-emerald-50 text-emerald-800 rounded-2xl border border-emerald-100 text-xs font-bold max-w-md mx-auto">
+                  <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-600" />
+                  <p className="text-left leading-relaxed">Pengerjaan Anda tuntas. Anda dapat langsung mengklik tombol "Selesai & Keluar" di bawah ini.</p>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3 justify-center mb-8 px-4 py-3 bg-amber-50 text-amber-800 rounded-2xl border border-amber-100 text-xs font-bold max-w-md mx-auto">
+                  <AlertCircle className="w-5 h-5 shrink-0 text-amber-600" />
+                  <p className="text-left leading-relaxed">PENTING: Jangan tutup halaman ini sebelum Guru memindai QR Code Anda dan mengonfirmasi bahwa data telah masuk!</p>
+                </div>
+              )}
             </>
           ) : (
             <div className="bg-slate-50 rounded-[2rem] p-10 mb-8 border border-slate-100 text-center">
               <h3 className="text-xl font-bold text-indigo-950 mb-2">Pemberitahuan</h3>
-              <p className="text-slate-500 font-medium text-sm">Tidak ada QR Code pengerjaan terakhir yang ditemukan. Pastikan Anda telah menyelesaikan ujian lewat link resmi.</p>
+              <p className="text-slate-500 font-medium text-sm">Tidak ada lembar pengerjaan terakhir yang ditemukan. Pastikan Anda telah menyelesaikan ujian lewat link resmi.</p>
             </div>
           )}
 
           <Link 
-            to={meta?.examLink || '/exam'}
+            to={meta?.examLink || '/student/dashboard'}
             onClick={() => {
               localStorage.removeItem('edu_last_submission_qr');
               localStorage.removeItem('edu_last_submission_meta');
             }}
-            className="inline-flex items-center justify-center gap-2 bg-indigo-950 text-white px-10 py-4 rounded-xl font-black text-sm hover:bg-indigo-900 transition-all shadow-md active:scale-95"
+            className="inline-flex items-center justify-center gap-2 bg-indigo-950 text-white px-10 py-4 rounded-xl font-black text-sm hover:bg-indigo-900 transition-all shadow-md active:scale-95 cursor-pointer"
           >
             Selesai & Keluar
             <ChevronRight className="w-5 h-5" />

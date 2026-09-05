@@ -190,7 +190,8 @@ export default function StudentExam() {
               if (parsed.unlock_code && !data.unlock_code) data.unlock_code = parsed.unlock_code;
               if (parsed.cheat_tolerance !== undefined && data.cheat_tolerance === undefined) data.cheat_tolerance = parsed.cheat_tolerance;
               if (parsed.anti_cheat !== undefined && data.anti_cheat === undefined) data.anti_cheat = parsed.anti_cheat;
-              if (parsed.show_score !== undefined && data.show_score === undefined) data.show_score = parsed.show_score;
+              if (parsed.show_score !== undefined) data.show_score = parsed.show_score;
+              if (parsed.submission_mode !== undefined) data.submission_mode = parsed.submission_mode;
               if (parsed.duration && !data.duration) data.duration = parsed.duration;
             }
           } catch (jsonErr) {
@@ -207,6 +208,8 @@ export default function StudentExam() {
             if (!data._answer_key && singleObj._answer_key) {
               data._answer_key = singleObj._answer_key;
             }
+            if (singleObj.show_score !== undefined && data.show_score === undefined) data.show_score = singleObj.show_score;
+            if (singleObj.submission_mode !== undefined && data.submission_mode === undefined) data.submission_mode = singleObj.submission_mode;
           }
         }
 
@@ -523,6 +526,8 @@ export default function StudentExam() {
         studentName: session.user?.nama || session.user?.name || '-',
         studentKelas: session.user?.kelas || '-',
         score,
+        show_score: exam?.show_score !== false,
+        submission_mode: exam?.submission_mode || 'hybrid',
         completedAt: new Date().toISOString()
       }));
       localStorage.setItem('edu_last_submission_qr', qrString);
@@ -531,6 +536,8 @@ export default function StudentExam() {
         studentName: session.user?.nama || session.user?.name || '-',
         studentKelas: session.user?.kelas || '-',
         score,
+        show_score: exam?.show_score !== false,
+        submission_mode: exam?.submission_mode || 'hybrid',
         totalQuestions: exam.questions.length,
         examLink: `/test/${teacherId}/${examId}`
       }));
@@ -786,11 +793,17 @@ export default function StudentExam() {
               <span className="font-bold text-indigo-950">{completionData?.student_class || completionData?.studentKelas || studentData.kelas || '-'}</span>
             </div>
             {completionData?.score !== undefined && (
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center">
                 <span className="text-slate-400 font-medium">Nilai Akhir:</span>
-                <span className="font-black text-emerald-600 text-sm">
-                  {completionData.score} / 100
-                </span>
+                {(completionData?.show_score === false || exam?.show_score === false) ? (
+                  <span className="font-bold text-rose-700 bg-rose-50 border border-rose-100 px-2.5 py-0.5 rounded text-[11px]">
+                    🔒 Dirahasiakan oleh Guru
+                  </span>
+                ) : (
+                  <span className="font-black text-emerald-600 text-sm">
+                    {completionData.score} / 100
+                  </span>
+                )}
               </div>
             )}
             <div className="flex justify-between">
@@ -810,7 +823,9 @@ export default function StudentExam() {
               onClick={() => navigate('/exam/result/finish')}
               className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl font-bold text-xs active:scale-95 transition-all cursor-pointer"
             >
-              Lihat Bukti QR Hasil Ujian
+              {(completionData?.submission_mode === 'direct' || exam?.submission_mode === 'direct')
+                ? 'Lihat Bukti Pengiriman Langsung'
+                : 'Lihat Bukti QR Hasil Ujian'}
             </button>
           </div>
         </motion.div>

@@ -16,7 +16,8 @@ import {
   Link as LinkIcon,
   Copy,
   KeyRound,
-  BookOpen
+  BookOpen,
+  Edit3
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
@@ -73,15 +74,26 @@ export default function DaftarUjian() {
           if (res && res.documents && res.documents.length > 0) {
             allExams = res.documents.map(d => {
               const local = localMap.get(d.$id) || {};
+              let parsedCloudConfig: any = {};
+              if (typeof d.questions === 'string') {
+                try {
+                  const p = JSON.parse(d.questions);
+                  if (p && typeof p === 'object' && !Array.isArray(p)) {
+                    parsedCloudConfig = p;
+                  }
+                } catch {}
+              }
               return {
                 ...local,
                 ...d,
                 id: d.$id,
                 created_at: d.$createdAt,
-                targetClasses: local.targetClasses || d.targetClasses || [],
-                targetClassNames: local.targetClassNames || d.targetClassNames || [],
-                exam_type: local.exam_type || d.exam_type || 'semester',
-                session_name: local.session_name || d.session_name || ''
+                targetClasses: local.targetClasses || parsedCloudConfig.targetClasses || d.targetClasses || [],
+                targetClassNames: local.targetClassNames || parsedCloudConfig.targetClassNames || d.targetClassNames || [],
+                exam_type: local.exam_type || parsedCloudConfig.exam_type || d.exam_type || 'semester',
+                session_name: local.session_name || parsedCloudConfig.session_name || d.session_name || '',
+                show_score: local.show_score !== undefined ? local.show_score : (parsedCloudConfig.show_score !== undefined ? parsedCloudConfig.show_score : true),
+                submission_mode: local.submission_mode || parsedCloudConfig.submission_mode || 'hybrid'
               };
             });
           }
@@ -347,6 +359,20 @@ export default function DaftarUjian() {
                       <div className="flex items-center gap-1.5">
                         <Shield className="w-3.5 h-3.5" /> {exam.anti_cheat ? 'Anti Curang' : 'Reguler'}
                       </div>
+                      {exam.show_score === false ? (
+                        <div className="flex items-center gap-1 text-rose-700 font-bold bg-rose-50 px-2 py-0.5 rounded-md border border-rose-100 text-[10px]" title="Nilai dirahasiakan oleh guru">
+                          <span>🔒 Nilai Dirahasiakan</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1 text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100 text-[10px]" title="Nilai ditampilkan ke murid">
+                          <span>👁️ Nilai Tampil</span>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-1 text-indigo-900 font-bold bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100 text-[10px]" title="Metode pengumpulan hasil">
+                        <span>
+                          {exam.submission_mode === 'direct' ? '🚀 Kirim Langsung' : exam.submission_mode === 'qr' ? '📱 Scan QR' : '⚡ Hybrid'}
+                        </span>
+                      </div>
                     </div>
                   </div>
 
@@ -357,6 +383,15 @@ export default function DaftarUjian() {
                         <span className="font-mono tracking-widest text-[10px] font-black">{exam.unlock_code}</span>
                       </div>
                     )}
+
+                    <button 
+                      type="button"
+                      onClick={() => navigate(`/buat-ujian?edit=${exam.id || exam.$id || exam.driveFileId}`)}
+                      className="bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 px-3.5 py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                      title="Edit judul, target kelas, durasi, dan butir soal ujian ini"
+                    >
+                      <Edit3 className="w-3.5 h-3.5 text-amber-700" /> Edit
+                    </button>
 
                     <button 
                       type="button"
