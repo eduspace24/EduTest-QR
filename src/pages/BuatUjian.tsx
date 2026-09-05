@@ -72,6 +72,8 @@ export default function BuatUjian() {
   });
   const [classes, setClasses] = useState<any[]>([]);
 
+  const [classSearch, setClassSearch] = useState('');
+
   useEffect(() => {
     const fetchData = async () => {
       let classesData = await getCollectionData('classes', activeSchool?.id);
@@ -80,6 +82,16 @@ export default function BuatUjian() {
         try {
           await saveCollection('classes', CLASSES_LIST);
         } catch {}
+      } else if (classesData.length < CLASSES_LIST.length) {
+        // Ensure all seed classes (X-A through XII-J) are available in the list
+        const existingIds = new Set(classesData.map((c: any) => c.id || c.name));
+        const merged = [...classesData];
+        CLASSES_LIST.forEach((seedCls) => {
+          if (!existingIds.has(seedCls.id) && !existingIds.has(seedCls.name)) {
+            merged.push(seedCls);
+          }
+        });
+        classesData = merged;
       }
       setClasses(classesData);
     };
@@ -111,8 +123,8 @@ export default function BuatUjian() {
     const matched = classes.filter(c => {
       const t = (c.tingkat || '').toUpperCase();
       const n = (c.name || c.nama_kelas || '').toUpperCase();
-      if (grade === 'X') return t === 'X' || n.startsWith('X-') || n.startsWith('X ');
-      if (grade === 'XI') return t === 'XI' || n.startsWith('XI-') || n.startsWith('XI ');
+      if (grade === 'X') return t === 'X' || n.startsWith('X-') || n.startsWith('X ') || n.startsWith('X');
+      if (grade === 'XI') return t === 'XI' || n.startsWith('XI-') || n.startsWith('XI ') || n.startsWith('XI');
       if (grade === 'XII') return t === 'XII' || n.startsWith('XII-') || n.startsWith('XII ') || n.startsWith('XII');
       return false;
     });
@@ -121,6 +133,32 @@ export default function BuatUjian() {
       targetGrade: grade,
       targetClasses: matched.map(c => c.id)
     }));
+  };
+
+  const toggleGradeGroup = (gradeKey: 'X' | 'XI' | 'XII') => {
+    const gradeClasses = classes.filter(c => {
+      const t = (c.tingkat || '').toUpperCase();
+      const n = (c.name || c.nama_kelas || '').toUpperCase();
+      if (gradeKey === 'X') return t === 'X' || n.startsWith('X-') || n.startsWith('X ');
+      if (gradeKey === 'XI') return t === 'XI' || n.startsWith('XI-') || n.startsWith('XI ');
+      if (gradeKey === 'XII') return t === 'XII' || n.startsWith('XII-') || n.startsWith('XII ') || n.startsWith('XII');
+      return false;
+    });
+    const gradeIds = gradeClasses.map(c => c.id);
+    const allSelected = gradeIds.length > 0 && gradeIds.every(id => formData.targetClasses.includes(id));
+
+    if (allSelected) {
+      setFormData(prev => ({
+        ...prev,
+        targetClasses: prev.targetClasses.filter(id => !gradeIds.includes(id))
+      }));
+    } else {
+      const set = new Set([...formData.targetClasses, ...gradeIds]);
+      setFormData(prev => ({
+        ...prev,
+        targetClasses: Array.from(set)
+      }));
+    }
   };
 
   const clearAllClasses = () => {
@@ -729,173 +767,266 @@ export default function BuatUjian() {
             )}
 
             <div className="space-y-4 p-5 bg-slate-50/70 rounded-2xl border border-slate-200/80">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                   <label className="text-xs font-bold text-indigo-950 flex items-center gap-1.5">
-                    <GraduationCap className="w-4 h-4 text-indigo-600" /> Target Kelas Peserta Ujian
+                    <GraduationCap className="w-4 h-4 text-indigo-600" /> Daftar Target Kelas Peserta Ujian
                   </label>
                   <p className="text-[10px] text-slate-500 mt-0.5">
-                    Tentukan kelas mana saja yang dapat mengakses & mengerjakan ujian ini di portal murid.
+                    Centang kelas mana saja (X-A, X-B, dst.) yang menjadi target peserta ujian ini.
                   </p>
                 </div>
-                
+
                 {/* Quick Selection Buttons */}
                 <div className="flex flex-wrap items-center gap-1.5">
                   <button
                     type="button"
-                    onClick={() => selectGradeClasses('ALL')}
+                    onClick={toggleAllClasses}
                     className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-indigo-950 text-white hover:bg-indigo-900 transition-all shadow-xs"
                   >
-                    Pilih Semua ({classes.length})
+                    {formData.targetClasses.length === classes.length ? 'Batal Centang Semua' : `Centang Semua (${classes.length})`}
                   </button>
                   <button
                     type="button"
-                    onClick={() => selectGradeClasses('X')}
+                    onClick={() => toggleGradeGroup('X')}
                     className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white text-slate-700 border border-slate-200 hover:border-indigo-950 transition-all"
                   >
-                    Semua Kelas X
+                    Kelas X
                   </button>
                   <button
                     type="button"
-                    onClick={() => selectGradeClasses('XI')}
+                    onClick={() => toggleGradeGroup('XI')}
                     className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white text-slate-700 border border-slate-200 hover:border-indigo-950 transition-all"
                   >
-                    Semua Kelas XI
+                    Kelas XI
                   </button>
                   <button
                     type="button"
-                    onClick={() => selectGradeClasses('XII')}
+                    onClick={() => toggleGradeGroup('XII')}
                     className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white text-slate-700 border border-slate-200 hover:border-indigo-950 transition-all"
                   >
-                    Semua Kelas XII
+                    Kelas XII
                   </button>
                   <button
                     type="button"
                     onClick={clearAllClasses}
                     className="px-2 py-1 rounded-lg text-[10px] font-bold text-rose-600 hover:bg-rose-50 transition-all"
                   >
-                    Kosongkan
+                    Hapus Pilihan
                   </button>
                 </div>
               </div>
 
-              {/* Status Counter */}
-              <div className="flex items-center justify-between text-xs bg-white px-3.5 py-2 rounded-xl border border-slate-200">
-                <span className="font-medium text-slate-500 text-[11px]">
-                  Status Target:
-                </span>
-                <span className={cn(
-                  "font-bold text-[11px] px-2.5 py-0.5 rounded-full",
-                  formData.targetClasses.length > 0
-                    ? "bg-emerald-100 text-emerald-800"
-                    : "bg-rose-100 text-rose-700"
-                )}>
-                  {formData.targetClasses.length > 0 
-                    ? `✓ ${formData.targetClasses.length} kelas dipilih (${classes.filter(c => formData.targetClasses.includes(c.id)).map(c => c.name).slice(0, 4).join(', ')}${formData.targetClasses.length > 4 ? '...' : ''})`
-                    : '⚠️ Belum ada kelas dipilih (Wajib pilih minimal 1)'}
-                </span>
+              {/* Search & Selection Summary Bar */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <input
+                  type="text"
+                  placeholder="🔍 Cari nama kelas (misal: X-A, XI-B)..."
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-xs font-medium text-indigo-950 outline-none focus:ring-2 focus:ring-indigo-950/10 placeholder:text-slate-400"
+                  value={classSearch}
+                  onChange={(e) => setClassSearch(e.target.value)}
+                />
+                <div className="flex items-center justify-between text-xs bg-white px-3.5 py-2 rounded-xl border border-slate-200">
+                  <span className="font-medium text-slate-500 text-[11px]">
+                    Status Centang:
+                  </span>
+                  <span className={cn(
+                    "font-bold text-[11px] px-2.5 py-0.5 rounded-full",
+                    formData.targetClasses.length > 0
+                      ? "bg-emerald-100 text-emerald-800"
+                      : "bg-rose-100 text-rose-700"
+                  )}>
+                    {formData.targetClasses.length > 0 
+                      ? `✓ ${formData.targetClasses.length} kelas dicentang`
+                      : '⚠️ Belum ada kelas dicentang'}
+                  </span>
+                </div>
               </div>
 
-              {/* Grouped Class Pills */}
+              {/* Checkable List Grouped by Tingkat */}
               <div className="space-y-3 pt-1">
                 {/* Tingkat X */}
-                {classes.filter(c => (c.tingkat === 'X' || (c.name || '').startsWith('X-'))).length > 0 && (
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Kelas X</span>
-                      <button
-                        type="button"
-                        onClick={() => selectGradeClasses('X')}
-                        className="text-[9px] font-bold text-blue-600 hover:underline"
-                      >
-                        Pilih Tingkat X Saja
-                      </button>
-                    </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {classes.filter(c => (c.tingkat === 'X' || (c.name || '').startsWith('X-'))).map(c => (
+                {(() => {
+                  const filteredX = classes
+                    .filter(c => (c.tingkat === 'X' || (c.name || '').startsWith('X-') || (c.name || '').startsWith('X ')))
+                    .filter(c => !classSearch.trim() || (c.name || '').toLowerCase().includes(classSearch.toLowerCase().trim()));
+                  if (filteredX.length === 0) return null;
+                  const allXChecked = filteredX.every(c => formData.targetClasses.includes(c.id));
+                  return (
+                    <div className="space-y-2 bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs">
+                      <div className="flex items-center justify-between pb-1.5 border-b border-slate-100">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-blue-600" />
+                          <h4 className="text-xs font-black text-indigo-950 uppercase tracking-wider">
+                            Tingkat X ({filteredX.length} Kelas)
+                          </h4>
+                          <span className="text-[10px] font-bold text-slate-400">
+                            ({filteredX.filter(c => formData.targetClasses.includes(c.id)).length} dipilih)
+                          </span>
+                        </div>
                         <button
-                          key={c.id}
                           type="button"
-                          onClick={() => toggleClass(c.id)}
-                          className={cn(
-                            "px-2.5 py-1.5 rounded-lg text-[11px] font-bold border transition-all",
-                            formData.targetClasses.includes(c.id)
-                              ? "bg-indigo-950 text-white border-indigo-950 shadow-xs"
-                              : "bg-white text-slate-600 border-slate-200 hover:border-indigo-400"
-                          )}
+                          onClick={() => toggleGradeGroup('X')}
+                          className="text-[10px] font-bold text-blue-600 hover:text-blue-800 hover:underline"
                         >
-                          {c.name}
+                          {allXChecked ? 'Batal Centang Semua X' : 'Centang Semua Kelas X'}
                         </button>
-                      ))}
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 pt-1">
+                        {filteredX.map(c => {
+                          const isChecked = formData.targetClasses.includes(c.id);
+                          return (
+                            <label
+                              key={c.id}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                toggleClass(c.id);
+                              }}
+                              className={cn(
+                                "flex items-center gap-2.5 px-3 py-2 rounded-xl border-2 cursor-pointer transition-all select-none",
+                                isChecked
+                                  ? "border-indigo-950 bg-indigo-50/80 text-indigo-950 font-black shadow-xs ring-1 ring-indigo-950/20"
+                                  : "border-slate-200 bg-slate-50/40 text-slate-700 hover:border-slate-300 hover:bg-white"
+                              )}
+                            >
+                              <div className={cn(
+                                "w-4 h-4 rounded-md border flex items-center justify-center transition-all shrink-0",
+                                isChecked
+                                  ? "bg-indigo-950 border-indigo-950 text-white"
+                                  : "border-slate-300 bg-white"
+                              )}>
+                                {isChecked && <Check className="w-3 h-3 text-white stroke-[3]" />}
+                              </div>
+                              <span className="font-mono text-xs font-bold leading-none">{c.name}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {/* Tingkat XI */}
-                {classes.filter(c => (c.tingkat === 'XI' || (c.name || '').startsWith('XI-'))).length > 0 && (
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Kelas XI</span>
-                      <button
-                        type="button"
-                        onClick={() => selectGradeClasses('XI')}
-                        className="text-[9px] font-bold text-blue-600 hover:underline"
-                      >
-                        Pilih Tingkat XI Saja
-                      </button>
-                    </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {classes.filter(c => (c.tingkat === 'XI' || (c.name || '').startsWith('XI-'))).map(c => (
+                {(() => {
+                  const filteredXI = classes
+                    .filter(c => (c.tingkat === 'XI' || (c.name || '').startsWith('XI-') || (c.name || '').startsWith('XI ')))
+                    .filter(c => !classSearch.trim() || (c.name || '').toLowerCase().includes(classSearch.toLowerCase().trim()));
+                  if (filteredXI.length === 0) return null;
+                  const allXIChecked = filteredXI.every(c => formData.targetClasses.includes(c.id));
+                  return (
+                    <div className="space-y-2 bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs">
+                      <div className="flex items-center justify-between pb-1.5 border-b border-slate-100">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-purple-600" />
+                          <h4 className="text-xs font-black text-indigo-950 uppercase tracking-wider">
+                            Tingkat XI ({filteredXI.length} Kelas)
+                          </h4>
+                          <span className="text-[10px] font-bold text-slate-400">
+                            ({filteredXI.filter(c => formData.targetClasses.includes(c.id)).length} dipilih)
+                          </span>
+                        </div>
                         <button
-                          key={c.id}
                           type="button"
-                          onClick={() => toggleClass(c.id)}
-                          className={cn(
-                            "px-2.5 py-1.5 rounded-lg text-[11px] font-bold border transition-all",
-                            formData.targetClasses.includes(c.id)
-                              ? "bg-indigo-950 text-white border-indigo-950 shadow-xs"
-                              : "bg-white text-slate-600 border-slate-200 hover:border-indigo-400"
-                          )}
+                          onClick={() => toggleGradeGroup('XI')}
+                          className="text-[10px] font-bold text-blue-600 hover:text-blue-800 hover:underline"
                         >
-                          {c.name}
+                          {allXIChecked ? 'Batal Centang Semua XI' : 'Centang Semua Kelas XI'}
                         </button>
-                      ))}
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 pt-1">
+                        {filteredXI.map(c => {
+                          const isChecked = formData.targetClasses.includes(c.id);
+                          return (
+                            <label
+                              key={c.id}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                toggleClass(c.id);
+                              }}
+                              className={cn(
+                                "flex items-center gap-2.5 px-3 py-2 rounded-xl border-2 cursor-pointer transition-all select-none",
+                                isChecked
+                                  ? "border-indigo-950 bg-indigo-50/80 text-indigo-950 font-black shadow-xs ring-1 ring-indigo-950/20"
+                                  : "border-slate-200 bg-slate-50/40 text-slate-700 hover:border-slate-300 hover:bg-white"
+                              )}
+                            >
+                              <div className={cn(
+                                "w-4 h-4 rounded-md border flex items-center justify-center transition-all shrink-0",
+                                isChecked
+                                  ? "bg-indigo-950 border-indigo-950 text-white"
+                                  : "border-slate-300 bg-white"
+                              )}>
+                                {isChecked && <Check className="w-3 h-3 text-white stroke-[3]" />}
+                              </div>
+                              <span className="font-mono text-xs font-bold leading-none">{c.name}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {/* Tingkat XII */}
-                {classes.filter(c => (c.tingkat === 'XII' || (c.name || '').startsWith('XII'))).length > 0 && (
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Kelas XII</span>
-                      <button
-                        type="button"
-                        onClick={() => selectGradeClasses('XII')}
-                        className="text-[9px] font-bold text-blue-600 hover:underline"
-                      >
-                        Pilih Tingkat XII Saja
-                      </button>
-                    </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {classes.filter(c => (c.tingkat === 'XII' || (c.name || '').startsWith('XII'))).map(c => (
+                {(() => {
+                  const filteredXII = classes
+                    .filter(c => (c.tingkat === 'XII' || (c.name || '').startsWith('XII-') || (c.name || '').startsWith('XII ') || (c.name || '').startsWith('XII')))
+                    .filter(c => !classSearch.trim() || (c.name || '').toLowerCase().includes(classSearch.toLowerCase().trim()));
+                  if (filteredXII.length === 0) return null;
+                  const allXIIChecked = filteredXII.every(c => formData.targetClasses.includes(c.id));
+                  return (
+                    <div className="space-y-2 bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs">
+                      <div className="flex items-center justify-between pb-1.5 border-b border-slate-100">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-emerald-600" />
+                          <h4 className="text-xs font-black text-indigo-950 uppercase tracking-wider">
+                            Tingkat XII ({filteredXII.length} Kelas)
+                          </h4>
+                          <span className="text-[10px] font-bold text-slate-400">
+                            ({filteredXII.filter(c => formData.targetClasses.includes(c.id)).length} dipilih)
+                          </span>
+                        </div>
                         <button
-                          key={c.id}
                           type="button"
-                          onClick={() => toggleClass(c.id)}
-                          className={cn(
-                            "px-2.5 py-1.5 rounded-lg text-[11px] font-bold border transition-all",
-                            formData.targetClasses.includes(c.id)
-                              ? "bg-indigo-950 text-white border-indigo-950 shadow-xs"
-                              : "bg-white text-slate-600 border-slate-200 hover:border-indigo-400"
-                          )}
+                          onClick={() => toggleGradeGroup('XII')}
+                          className="text-[10px] font-bold text-blue-600 hover:text-blue-800 hover:underline"
                         >
-                          {c.name}
+                          {allXIIChecked ? 'Batal Centang Semua XII' : 'Centang Semua Kelas XII'}
                         </button>
-                      ))}
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 pt-1">
+                        {filteredXII.map(c => {
+                          const isChecked = formData.targetClasses.includes(c.id);
+                          return (
+                            <label
+                              key={c.id}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                toggleClass(c.id);
+                              }}
+                              className={cn(
+                                "flex items-center gap-2.5 px-3 py-2 rounded-xl border-2 cursor-pointer transition-all select-none",
+                                isChecked
+                                  ? "border-indigo-950 bg-indigo-50/80 text-indigo-950 font-black shadow-xs ring-1 ring-indigo-950/20"
+                                  : "border-slate-200 bg-slate-50/40 text-slate-700 hover:border-slate-300 hover:bg-white"
+                              )}
+                            >
+                              <div className={cn(
+                                "w-4 h-4 rounded-md border flex items-center justify-center transition-all shrink-0",
+                                isChecked
+                                  ? "bg-indigo-950 border-indigo-950 text-white"
+                                  : "border-slate-300 bg-white"
+                              )}>
+                                {isChecked && <Check className="w-3 h-3 text-white stroke-[3]" />}
+                              </div>
+                              <span className="font-mono text-xs font-bold leading-none">{c.name}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {classes.length === 0 && (
                   <p className="text-xs text-amber-700 font-bold bg-amber-50 px-4 py-2.5 rounded-xl border border-amber-200">
