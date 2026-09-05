@@ -614,117 +614,158 @@ export default function StudentExam() {
     </div>
   );
 
-  if (!isJoined) return (
-    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6">
-      <motion.div 
-        initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-lg bg-white rounded-[2.5rem] shadow-xl border border-slate-100 p-10"
-      >
-        <div className="text-center mb-6">
-          <div className="bg-indigo-950 w-16 h-16 rounded-2xl flex items-center justify-center text-white mx-auto mb-4 shadow-lg">
-            <GraduationCap className="w-8 h-8" />
-          </div>
-          <h2 className="text-2xl font-black text-indigo-950">{exam?.title || 'Memuat Judul...'}</h2>
-          <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-2 px-6 py-2 bg-slate-50 rounded-xl inline-block">
-            {exam?.subject ? `${exam.subject} • ` : ''}Konfirmasi Masuk Ujian
-          </p>
-        </div>
+  if (!isJoined) {
+    const isLoggedInStudent = Boolean(studentData.nama && studentData.kelas);
 
-        {studentData.nama && studentData.kelas && (
-          <div className="mb-6 p-4 rounded-2xl bg-indigo-50/80 border border-indigo-100 flex items-center gap-3 text-left">
-            <div className="w-10 h-10 rounded-xl bg-indigo-950 text-white flex items-center justify-center font-black text-sm shrink-0 shadow-sm">
-              {studentData.nama.charAt(0).toUpperCase()}
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4 sm:p-6">
+        <motion.div 
+          initial={{ opacity: 0, y: 25 }} animate={{ opacity: 1, y: 0 }}
+          className="w-full max-w-lg bg-white rounded-[2.5rem] shadow-xl border border-slate-100 p-6 sm:p-10 space-y-6"
+        >
+          {/* Header */}
+          <div className="text-center space-y-2">
+            <div className="bg-indigo-950 w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center text-white mx-auto shadow-lg shadow-indigo-950/20">
+              <GraduationCap className="w-7 h-7 sm:w-8 sm:h-8" />
             </div>
-            <div className="flex-1 min-w-0">
-              <span className="text-[10px] font-black uppercase tracking-wider text-indigo-500">Peserta Terdaftar</span>
-              <p className="text-sm font-black text-indigo-950 truncate">{studentData.nama}</p>
-              <p className="text-xs text-slate-500">Kelas: <strong className="text-indigo-950">{studentData.kelas}</strong> {studentCode ? `• NISN: ${studentCode}` : ''}</p>
+            <div className="flex items-center justify-center gap-2 flex-wrap pt-1">
+              <span className="bg-indigo-100 text-indigo-950 text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider">
+                {exam?.subject || 'Mata Pelajaran'}
+              </span>
+              <span className="bg-emerald-100 text-emerald-800 text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider flex items-center gap-1">
+                <ShieldCheck className="w-3 h-3" /> CBT Siap
+              </span>
             </div>
+            <h2 className="text-xl sm:text-2xl font-black text-indigo-950 tracking-tight">{exam?.title || 'Memuat Lembar Ujian...'}</h2>
+            <p className="text-slate-400 text-xs font-semibold">
+              Pastikan identitas Anda sudah sesuai sebelum menekan tombol mulai.
+            </p>
           </div>
-        )}
 
-        <form onSubmit={handleJoin} className="space-y-6">
-          <div className="space-y-2">
-            <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Kode Unik Murid / NISN</label>
-            <div className="relative">
-              <input 
-                type="text" required
-                className={cn(
-                  "w-full px-5 py-4 rounded-2xl border-2 outline-none transition-all font-mono text-lg font-black tracking-widest uppercase",
-                  foundStudent || studentCode ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-slate-100 bg-slate-50 text-indigo-950 focus:border-indigo-950"
-                )}
-                placeholder="CONTOH: ADL-123"
-                value={studentCode}
-                onChange={(e) => handleCheckCode(e.target.value)}
-              />
-              {(foundStudent || studentCode) && (
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 bg-emerald-500 text-white p-1 rounded-full">
-                  <Check className="w-4 h-4" />
+          {/* If Logged In as Student */}
+          {isLoggedInStudent ? (
+            <div className="space-y-5">
+              {/* Verified Identity Card */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-indigo-50/90 to-blue-50/50 border border-indigo-100 flex items-center gap-4 text-left">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-950 text-white flex items-center justify-center font-black text-base shrink-0 shadow-md shadow-indigo-950/15">
+                  {studentData.nama.charAt(0).toUpperCase()}
                 </div>
-              )}
-            </div>
-            {studentCode && !foundStudent && !studentData.nama && (
-              <p className="text-[10px] font-bold text-rose-500 mt-1 ml-1 uppercase tracking-wider">Kode tidak terdaftar untuk ujian ini!</p>
-            )}
-          </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" /> Terverifikasi
+                    </span>
+                  </div>
+                  <h4 className="text-sm sm:text-base font-black text-indigo-950 truncate mt-0.5">{studentData.nama}</h4>
+                  <div className="flex items-center gap-2 text-xs text-slate-500 font-medium flex-wrap mt-0.5">
+                    <span>Kelas: <strong className="text-indigo-950">{studentData.kelas}</strong></span>
+                    {studentCode && <span>• NISN: <strong className="font-mono text-indigo-950">{studentCode}</strong></span>}
+                  </div>
+                </div>
+              </div>
 
-          <AnimatePresence>
-            {foundStudent && (
-              <motion.div 
-                initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
-                className="bg-indigo-50 border border-indigo-100 p-5 rounded-2xl space-y-1"
+              {/* Exam Specs Box */}
+              <div className="grid grid-cols-3 gap-2 bg-slate-50 p-3.5 rounded-2xl border border-slate-100 text-center">
+                <div className="space-y-0.5">
+                  <p className="text-[10px] text-slate-400 font-bold uppercase">Durasi</p>
+                  <p className="text-xs sm:text-sm font-black text-indigo-950 flex items-center justify-center gap-1">
+                    <Clock className="w-3.5 h-3.5 text-indigo-600" /> {exam?.duration || 60}m
+                  </p>
+                </div>
+                <div className="space-y-0.5 border-x border-slate-200">
+                  <p className="text-[10px] text-slate-400 font-bold uppercase">Jumlah Soal</p>
+                  <p className="text-xs sm:text-sm font-black text-indigo-950">
+                    {displayQuestions.length || exam?.questions?.length || 0} Butir
+                  </p>
+                </div>
+                <div className="space-y-0.5">
+                  <p className="text-[10px] text-slate-400 font-bold uppercase">Anti-Curang</p>
+                  <p className="text-xs sm:text-sm font-black text-emerald-700">
+                    {exam?.anti_cheat ? `${exam.cheat_tolerance || 3}x Max` : 'Standar'}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const session = {
+                    user: { ...studentData, role: 'siswa', code: studentCode || studentData.id }
+                  };
+                  localStorage.setItem('edu_session', JSON.stringify(session));
+                  setIsJoined(true);
+                  addAudit('Ujian Dimulai (Portal Siswa)');
+                }}
+                className="w-full py-4 rounded-2xl font-black text-base sm:text-lg bg-indigo-950 hover:bg-indigo-900 text-white transition-all flex items-center justify-center gap-3 shadow-xl shadow-indigo-950/20 active:scale-[0.98] cursor-pointer"
               >
-                <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Identitas Terbaca:</p>
-                <p className="text-lg font-black text-indigo-950">{foundStudent.name}</p>
-                <p className="text-xs font-bold text-indigo-400 uppercase">KELAS: {studentData.kelas}</p>
-              </motion.div>
-            )}
-          </AnimatePresence>
+                <span>Mulai Kerjakan Ujian Sekarang</span>
+                <ArrowRight className="w-5 h-5" />
+              </button>
 
-          {!foundStudent && (
-            <div className="pt-2 text-center">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Konfirmasi Data Murid</p>
-              <div className="mt-3 space-y-3 text-left">
+              <p className="text-[11px] text-center text-slate-400 font-medium">
+                Waktu pengerjaan akan mulai dihitung mundur begitu Anda menekan tombol di atas.
+              </p>
+            </div>
+          ) : (
+            /* If Guest / Direct Link */
+            <form onSubmit={handleJoin} className="space-y-4 text-left">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700">Nama Lengkap Murid</label>
+                <input 
+                  type="text" 
+                  required
+                  placeholder="Masukkan nama lengkap Anda..."
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 font-bold text-sm text-indigo-950 outline-none focus:ring-2 focus:ring-indigo-950/10 focus:border-indigo-950"
+                  value={studentData.nama}
+                  onChange={(e) => setStudentData({ ...studentData, nama: e.target.value })}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nama Lengkap</label>
+                  <label className="text-xs font-bold text-slate-700">Kelas / Rombel</label>
                   <input 
                     type="text" 
-                    className="w-full px-5 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-indigo-950"
-                    placeholder="Contoh: Budi Santoso"
-                    value={studentData.nama}
-                    onChange={(e) => setStudentData({ ...studentData, nama: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-1.5 text-left">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Kelas</label>
-                  <input 
-                    type="text" 
-                    className="w-full px-5 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-indigo-950"
-                    placeholder="Contoh: XII IPA 1"
+                    required
+                    placeholder="Contoh: X-A atau XII-IPA"
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 font-bold text-sm text-indigo-950 outline-none focus:ring-2 focus:ring-indigo-950/10 focus:border-indigo-950"
                     value={studentData.kelas}
                     onChange={(e) => setStudentData({ ...studentData, kelas: e.target.value })}
                   />
                 </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-700">NISN / No. Peserta</label>
+                  <input 
+                    type="text" 
+                    placeholder="Contoh: 242510311"
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 font-bold text-sm text-indigo-950 outline-none focus:ring-2 focus:ring-indigo-950/10 focus:border-indigo-950 font-mono"
+                    value={studentCode}
+                    onChange={(e) => {
+                      setStudentCode(e.target.value);
+                      handleCheckCode(e.target.value);
+                    }}
+                  />
+                </div>
               </div>
-            </div>
+
+              <button 
+                type="submit" 
+                disabled={!studentData.nama || !studentData.kelas}
+                className={cn(
+                  "w-full py-4 rounded-2xl font-black text-base sm:text-lg transition-all flex items-center justify-center gap-3 shadow-lg mt-2",
+                  studentData.nama && studentData.kelas
+                    ? "bg-indigo-950 text-white shadow-indigo-950/20 hover:bg-indigo-900 cursor-pointer active:scale-[0.98]" 
+                    : "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
+                )}
+              >
+                Masuk & Mulai Ujian <ArrowRight className="w-5 h-5" />
+              </button>
+            </form>
           )}
-          
-          <button 
-            type="submit" 
-            disabled={!foundStudent && (!studentData.nama || !studentData.kelas)}
-            className={cn(
-              "w-full py-4 rounded-2xl font-black text-lg transition-all flex items-center justify-center gap-3 shadow-lg",
-              foundStudent || (studentData.nama && studentData.kelas)
-                ? "bg-indigo-950 text-white shadow-indigo-950/20 hover:bg-indigo-900 cursor-pointer" 
-                : "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
-            )}
-          >
-            Mulai Ujian <ArrowRight className="w-5 h-5" />
-          </button>
-        </form>
-      </motion.div>
-    </div>
-  );
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 pb-20">

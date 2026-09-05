@@ -67,9 +67,36 @@ export default function StudentDashboard() {
         ]);
 
         const combinedLocal = [...(localExamsList || []), ...(localRawExams || [])];
+        const localMap = new Map<string, any>();
         for (const item of combinedLocal) {
-          if (item && item.id && !allExams.some(e => e.id === item.id)) {
-            allExams.push(item);
+          if (item && item.id) {
+            localMap.set(item.id, { ...(localMap.get(item.id) || {}), ...item });
+          }
+        }
+
+        // Merge Appwrite with local rich fields (targetClasses, targetClassNames, etc.)
+        if (allExams.length > 0) {
+          allExams = allExams.map((appwriteExam: any) => {
+            const local = localMap.get(appwriteExam.id) || {};
+            return {
+              ...local,
+              ...appwriteExam,
+              targetClasses: local.targetClasses || appwriteExam.targetClasses || [],
+              targetClassNames: local.targetClassNames || appwriteExam.targetClassNames || [],
+              exam_type: local.exam_type || appwriteExam.exam_type || 'semester',
+              session_name: local.session_name || appwriteExam.session_name || '',
+              start_time: local.start_time || appwriteExam.start_time || '',
+              end_time: local.end_time || appwriteExam.end_time || ''
+            };
+          });
+        }
+
+        // Add any local exams not in Appwrite
+        const existingIds = new Set(allExams.map((e: any) => e.id));
+        for (const [id, localItem] of localMap.entries()) {
+          if (!existingIds.has(id)) {
+            allExams.push(localItem);
+            existingIds.add(id);
           }
         }
 
@@ -80,51 +107,54 @@ export default function StudentDashboard() {
           return status === 'active';
         });
 
-        // 4. Target Class Filtering based on current student's class
+        // 4. Accurate Target Class Filtering based on current student's class
         const studentClass = (user.kelas || user.nama_kelas || '').trim();
         const studentGrade = studentClass.startsWith('XII') ? 'XII' : studentClass.startsWith('XI') ? 'XI' : studentClass.startsWith('X') ? 'X' : '';
 
         const targeted = activeOnly.filter((exam: any) => {
-          // If no specific class requirement is set or exam is for all grades
-          if (!exam.targetClasses && !exam.targetClassNames && !exam.targetGrade) return true;
-          if (exam.targetGrade === 'ALL') return true;
+          const hasTargetClasses = Array.isArray(exam.targetClasses) && exam.targetClasses.length > 0;
+          const hasTargetClassNames = Array.isArray(exam.targetClassNames) && exam.targetClassNames.length > 0;
 
-          // Check targetClassNames array
-          if (Array.isArray(exam.targetClassNames) && exam.targetClassNames.length > 0) {
-            const hasMatchName = exam.targetClassNames.some((cnStr: string) => {
-              const cnNorm = String(cnStr).trim().toLowerCase();
-              const stNorm = studentClass.toLowerCase();
-              return cnNorm === stNorm || cnNorm.replace(/-/g, ' ') === stNorm.replace(/-/g, ' ');
-            });
-            if (hasMatchName) return true;
+          // If specific target classes are defined, student MUST belong to one of those classes
+          if (hasTargetClasses || hasTargetClassNames) {
+            if (hasTargetClassNames) {
+              const hasMatchName = exam.targetClassNames.some((cnStr: string) => {
+                const cnNorm = String(cnStr).trim().toLowerCase();
+                const stNorm = studentClass.toLowerCase();
+                return cnNorm === stNorm || cnNorm.replace(/[\s-]+/g, '') === stNorm.replace(/[\s-]+/g, '');
+              });
+              if (hasMatchName) return true;
+            }
+
+            if (hasTargetClasses) {
+              const hasMatchId = exam.targetClasses.some((tcId: string) => {
+                const tcNorm = String(tcId).toLowerCase().replace(/^(cls_|class_)/, '').replace(/[\s-]+/g, '_');
+                const stNorm = studentClass.toLowerCase().replace(/[\s-]+/g, '_');
+                return tcNorm === stNorm || tcNorm.includes(stNorm) || String(tcId).toLowerCase() === studentClass.toLowerCase();
+              });
+              if (hasMatchId) return true;
+            }
+
+            // Also check allowedStudents array if available
+            if (Array.isArray(exam.allowedStudents) && exam.allowedStudents.length > 0) {
+              const isListed = exam.allowedStudents.some((s: any) => 
+                (s.nisn && s.nisn === user.nisn) || 
+                (s.code && (s.code === user.nisn || s.code === user.code)) ||
+                (s.nama && s.nama.toLowerCase() === (user.nama || user.name || '').toLowerCase())
+              );
+              if (isListed) return true;
+            }
+
+            return false;
           }
 
-          // Check targetClasses ID array
-          if (Array.isArray(exam.targetClasses) && exam.targetClasses.length > 0) {
-            const hasMatchId = exam.targetClasses.some((tcId: string) => {
-              const tcNorm = String(tcId).toLowerCase().replace(/^(cls_|class_)/, '').replace(/-/g, '_');
-              const stNorm = studentClass.toLowerCase().replace(/[\s-]+/g, '_');
-              return tcNorm === stNorm || tcNorm.includes(stNorm) || String(tcId).toLowerCase() === studentClass.toLowerCase();
-            });
-            if (hasMatchId) return true;
+          // If no specific classes are chosen, check grade restriction
+          if (exam.targetGrade && exam.targetGrade !== 'ALL') {
+            return Boolean(studentGrade && exam.targetGrade.toUpperCase() === studentGrade.toUpperCase());
           }
 
-          // Check targetGrade match (e.g. grade 'X' matches class 'X-A')
-          if (exam.targetGrade && studentGrade && exam.targetGrade.toUpperCase() === studentGrade.toUpperCase()) {
-            return true;
-          }
-
-          // Check allowedStudents list if explicitly listed
-          if (Array.isArray(exam.allowedStudents) && exam.allowedStudents.length > 0) {
-            const isListed = exam.allowedStudents.some((s: any) => 
-              (s.nisn && s.nisn === user.nisn) || 
-              (s.code && (s.code === user.nisn || s.code === user.code)) ||
-              (s.nama && s.nama.toLowerCase() === (user.nama || user.name || '').toLowerCase())
-            );
-            if (isListed) return true;
-          }
-
-          return false;
+          // Open to all if neither targetClasses nor targetGrade is set
+          return true;
         });
 
         setActiveExams(targeted);
