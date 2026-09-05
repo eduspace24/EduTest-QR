@@ -6,20 +6,20 @@ import {
   Search, 
   Calendar, 
   Plus, 
-  BarChart3, 
-  Activity,
   ChevronRight,
   Shield,
-  Shuffle,
   Eye,
   AlertCircle,
   Link as LinkIcon,
-  Copy,
-  KeyRound,
   BookOpen,
-  Edit3
+  Edit3,
+  Users,
+  Send,
+  Lock,
+  EyeOff,
+  CheckCircle2
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useAlert } from '../context/AlertContext';
 import { TableSkeleton } from '../components/Skeleton';
@@ -32,6 +32,7 @@ export default function DaftarUjian() {
   const [exams, setExams] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeTab, setActiveTab] = useState<'all' | 'active' | 'draft' | 'semester' | 'daily'>('all');
   const { showAlert } = useAlert();
 
   const showShareLink = (exam: any) => {
@@ -42,8 +43,8 @@ export default function DaftarUjian() {
     navigator.clipboard.writeText(link);
     
     showAlert({
-      title: 'Link Ujian',
-      message: `Link: ${link}\n\nLink telah disalin ke clipboard. Bagikan ke murid Anda.`,
+      title: 'Link Ujian Disalin',
+      message: `Tautan ujian berhasil disalin ke clipboard:\n${link}\n\nAnda dapat membagikan tautan ini langsung kepada siswa.`,
       type: 'success'
     });
   };
@@ -158,10 +159,10 @@ export default function DaftarUjian() {
     }
 
     showAlert({
-      title: 'Status Diperbarui',
+      title: nextStatus === 'active' ? 'Ujian Telah Diaktifkan' : 'Ujian Dinonaktifkan',
       message: nextStatus === 'active' 
-        ? 'Ujian sekarang AKTIF dan muncul di portal murid sesuai target kelas.' 
-        : 'Ujian dinonaktifkan sementara (disembunyikan dari murid).',
+        ? 'Ujian sekarang berstatus AKTIF dan dapat dilihat oleh siswa di portal mereka.' 
+        : 'Ujian disimpan sebagai DRAF (tidak muncul di portal siswa).',
       type: 'success'
     });
   };
@@ -172,12 +173,12 @@ export default function DaftarUjian() {
 
     showAlert({
       title: 'Hapus Ujian?',
-      message: `Apakah Anda yakin ingin menghapus "${title}"? Ujian ini akan dihapus permanen dari sistem dan portal murid.`,
+      message: `Apakah Anda yakin ingin menghapus "${title}"? Tindakan ini tidak dapat dibatalkan.`,
       type: 'confirm',
       confirmText: 'Ya, Hapus',
       cancelText: 'Batal',
       onConfirm: async () => {
-        // 1. Optimistic UI update: hapus langsung dari tampilan layar
+        // 1. Optimistic UI update
         setExams(prev => prev.filter(e => {
           const eId = e.id || e.$id || e.driveFileId;
           return eId !== id;
@@ -220,7 +221,7 @@ export default function DaftarUjian() {
         }
 
         showAlert({ 
-          title: 'Ujian Terhapus', 
+          title: 'Ujian Dihapus', 
           message: `Ujian "${title}" telah berhasil dihapus.`, 
           type: 'success' 
         });
@@ -228,194 +229,249 @@ export default function DaftarUjian() {
     });
   };
 
-  const filteredExams = (Array.isArray(exams) ? exams : []).filter(e => 
-    e.title.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Filter logic
+  const activeCount = exams.filter(e => (e.status || 'active') === 'active').length;
+  const draftCount = exams.filter(e => (e.status || 'active') !== 'active').length;
+  const semesterCount = exams.filter(e => (e.exam_type || 'semester') === 'semester').length;
+  const dailyCount = exams.filter(e => e.exam_type === 'harian').length;
+
+  const filteredExams = (Array.isArray(exams) ? exams : []).filter(e => {
+    const matchesSearch = (e.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          (e.subject || '').toLowerCase().includes(searchTerm.toLowerCase());
+    
+    if (!matchesSearch) return false;
+
+    const isActive = (e.status || 'active') === 'active';
+    if (activeTab === 'active') return isActive;
+    if (activeTab === 'draft') return !isActive;
+    if (activeTab === 'semester') return (e.exam_type || 'semester') === 'semester';
+    if (activeTab === 'daily') return e.exam_type === 'harian';
+
+    return true;
+  });
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="space-y-6 pb-16">
+      {/* Header Utama */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="tracking-tight">Daftar Ujian</h2>
-          <p className="text-slate-500 text-sm font-medium">Kelola status aktif, target kelas, dan pantau ujian Anda.</p>
+          <h2 className="text-2xl font-bold tracking-tight text-slate-900">Daftar Ujian</h2>
+          <p className="text-slate-500 text-sm mt-0.5">Kelola status, jadwal, dan pelaksanaan ujian sekolah dengan mudah.</p>
         </div>
         <button 
           onClick={() => navigate('/buat-ujian')}
-          className="bg-indigo-950 hover:bg-indigo-900 text-white px-6 py-2.5 rounded-xl font-black flex items-center justify-center gap-2 shadow-lg shadow-indigo-950/20 active:scale-95 transition-all text-sm cursor-pointer"
+          className="bg-indigo-950 hover:bg-indigo-900 text-white px-5 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 shadow-md shadow-indigo-950/15 active:scale-95 transition-all text-sm cursor-pointer shrink-0"
         >
           <Plus className="w-4 h-4" />
           Buat Ujian Baru
         </button>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-4">
-        <div className="relative flex-1 group">
+      {/* Bar Pencarian & Tab Filter */}
+      <div className="space-y-3">
+        <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
           <input 
-            type="text" placeholder="Cari judul ujian..."
-            className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-white outline-none focus:ring-4 focus:ring-indigo-950/5 transition-all font-medium text-sm"
+            type="text" 
+            placeholder="Cari berdasarkan judul ujian atau mata pelajaran..."
+            className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-slate-200 bg-white outline-none focus:border-indigo-950 focus:ring-2 focus:ring-indigo-950/10 transition-all font-medium text-sm text-slate-800 placeholder:text-slate-400"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
+
+        {/* Tab Filter Cepat */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
+          {[
+            { id: 'all', label: 'Semua Ujian', count: exams.length },
+            { id: 'active', label: '🟢 Aktif di Siswa', count: activeCount },
+            { id: 'draft', label: '⚪ Draf (Tersimpan)', count: draftCount },
+            { id: 'semester', label: 'Ujian Semester', count: semesterCount },
+            { id: 'daily', label: 'Ulangan Harian', count: dailyCount },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={cn(
+                "px-3.5 py-1.5 rounded-lg font-semibold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 border",
+                activeTab === tab.id
+                  ? "bg-indigo-950 text-white border-indigo-950 shadow-xs"
+                  : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:text-slate-900"
+              )}
+            >
+              <span>{tab.label}</span>
+              <span className={cn(
+                "px-1.5 py-0.2 rounded-full text-[10px]",
+                activeTab === tab.id ? "bg-white/20 text-white font-bold" : "bg-slate-100 text-slate-500 font-medium"
+              )}>
+                {tab.count}
+              </span>
+            </button>
+          ))}
+        </div>
       </div>
 
+      {/* Konten Kartu Ujian */}
       {loading && exams.length === 0 ? (
         <TableSkeleton rows={3} />
       ) : (
-        <div className="grid gap-4">
+        <div className="space-y-4">
           {filteredExams.map((exam) => {
             const isActive = (exam.status || 'active') === 'active';
+
+            // Target kelas string ringkas
+            const classNames = Array.isArray(exam.targetClassNames) && exam.targetClassNames.length > 0
+              ? exam.targetClassNames.slice(0, 3).join(', ') + (exam.targetClassNames.length > 3 ? ` (+${exam.targetClassNames.length - 3})` : '')
+              : 'Semua Kelas';
+
+            // Jadwal ringkas
+            const scheduleText = exam.exam_type === 'semester' && exam.session_name
+              ? `${exam.session_name} (${exam.start_time || '07:30'} - ${exam.end_time || '09:30'})`
+              : 'Kapan saja • 1x Pengerjaan';
+
+            // Metode pengumpulan ringkas
+            const modeText = exam.submission_mode === 'direct'
+              ? 'Kirim Otomatis'
+              : exam.submission_mode === 'qr'
+                ? 'Scan Barcode QR'
+                : 'Otomatis + Barcode';
 
             return (
               <motion.div 
                 layout
-                initial={{ opacity: 0, y: 10 }}
+                initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 key={exam.id}
-                className="group bg-white rounded-3xl border border-slate-100 p-5 sm:p-6 hover:border-indigo-950/20 hover:shadow-xl hover:shadow-indigo-950/5 transition-all"
+                className="bg-white rounded-2xl border border-slate-200/80 p-5 hover:border-indigo-900/40 hover:shadow-md transition-all space-y-4 text-left"
               >
-                <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
-                  <div className="bg-slate-50 w-12 h-12 rounded-2xl flex items-center justify-center text-indigo-950 group-hover:bg-indigo-950 group-hover:text-white transition-colors shrink-0">
-                    <FileText className="w-6 h-6" />
-                  </div>
-                  
-                  <div className="flex-1 min-w-0 space-y-1.5">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <h3 className="text-base sm:text-lg font-black text-indigo-950 truncate">{exam.title}</h3>
-                      {exam.exam_type === 'semester' ? (
-                        <span className="bg-indigo-100 text-indigo-900 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider shrink-0 border border-indigo-200">
-                          Ujian Semester
-                        </span>
-                      ) : (
-                        <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider shrink-0 border border-blue-200">
-                          Ulangan Harian
-                        </span>
-                      )}
-                      
-                      {/* Interactive Status Toggle */}
-                      <button
-                        type="button"
-                        onClick={() => toggleExamStatus(exam.id || exam.$id, exam.status || 'active')}
-                        title="Klik untuk mengubah status aktif/nonaktif ujian di portal murid"
-                        className={cn(
-                          "px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest shrink-0 cursor-pointer transition-all border flex items-center gap-1",
-                          isActive
-                            ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
-                            : "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100"
-                        )}
-                      >
-                        <span className={cn("w-1.5 h-1.5 rounded-full", isActive ? "bg-emerald-500 animate-pulse" : "bg-amber-500")} />
-                        {isActive ? 'Aktif di Murid' : 'Nonaktif (Draft)'}
-                      </button>
+                {/* Bagian Atas: Ikon, Judul, Label, dan Switch Status */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-start gap-3.5 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-slate-100 text-indigo-950 flex items-center justify-center shrink-0 mt-0.5 border border-slate-200">
+                      <FileText className="w-5 h-5 text-indigo-900" />
                     </div>
+                    
+                    <div className="min-w-0 space-y-1">
+                      <h3 className="text-base font-bold text-slate-900 leading-snug break-words">
+                        {exam.title}
+                      </h3>
 
-                    {/* Target Class Badges */}
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-[10px] font-bold text-slate-400">Target Kelas:</span>
-                      {Array.isArray(exam.targetClassNames) && exam.targetClassNames.length > 0 ? (
-                        exam.targetClassNames.slice(0, 6).map((cnStr: string) => (
-                          <span key={cnStr} className="bg-indigo-50 text-indigo-950 text-[10px] font-bold px-2 py-0.5 rounded-md border border-indigo-100">
-                            {cnStr}
+                      {/* Label Ringkas & Bersih */}
+                      <div className="flex items-center gap-2 flex-wrap text-xs">
+                        {exam.subject && (
+                          <span className="font-semibold text-indigo-900 bg-indigo-50 px-2.5 py-0.5 rounded-md border border-indigo-100 flex items-center gap-1">
+                            <BookOpen className="w-3 h-3 text-indigo-600" />
+                            {exam.subject}
                           </span>
-                        ))
-                      ) : (
-                        <span className="bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded-md">
-                          Semua Kelas
-                        </span>
-                      )}
-                      {Array.isArray(exam.targetClassNames) && exam.targetClassNames.length > 6 && (
-                        <span className="text-[10px] font-bold text-slate-400">
-                          +{exam.targetClassNames.length - 6} kelas lainnya
-                        </span>
-                      )}
-                    </div>
+                        )}
 
-                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] sm:text-xs text-slate-400 font-bold items-center pt-0.5">
-                      {exam.subject && (
-                        <div className="flex items-center gap-1.5 text-indigo-950 font-black">
-                          <BookOpen className="w-3.5 h-3.5 text-indigo-600" /> {exam.subject}
-                        </div>
-                      )}
-                      {exam.exam_type === 'semester' && exam.session_name ? (
-                        <div className="flex items-center gap-1.5 text-slate-600 font-bold">
-                          <Calendar className="w-3.5 h-3.5 text-indigo-600" /> {exam.session_name} ({exam.start_time || '07:30'} - {exam.end_time || '09:30'})
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1.5 text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                          Fleksibel (Kapan Saja Selagi Aktif) • 1x Pengerjaan
-                        </div>
-                      )}
-                      <div className="flex items-center gap-1.5">
-                        <Clock className="w-3.5 h-3.5" /> {exam.duration} Menit
-                      </div>
-                      <div className="flex items-center gap-1.5 text-indigo-950/40">
-                        <Shield className="w-3.5 h-3.5" /> {exam.strict_mode ? 'Mode Ketat' : 'Reguler'}
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <Shuffle className="w-3.5 h-3.5 text-indigo-950/40" /> {exam.randomized ? 'Acak' : 'Urut'}
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <Shield className="w-3.5 h-3.5" /> {exam.anti_cheat ? 'Anti Curang' : 'Reguler'}
-                      </div>
-                      {exam.show_score === false ? (
-                        <div className="flex items-center gap-1 text-rose-700 font-bold bg-rose-50 px-2 py-0.5 rounded-md border border-rose-100 text-[10px]" title="Nilai dirahasiakan oleh guru">
-                          <span>🔒 Nilai Dirahasiakan</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1 text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100 text-[10px]" title="Nilai ditampilkan ke murid">
-                          <span>👁️ Nilai Tampil</span>
-                        </div>
-                      )}
-                      <div className="flex items-center gap-1 text-indigo-900 font-bold bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100 text-[10px]" title="Metode pengumpulan hasil">
-                        <span>
-                          {exam.submission_mode === 'direct' ? '🚀 Kirim Langsung' : exam.submission_mode === 'qr' ? '📱 Scan QR' : '⚡ Hybrid'}
+                        <span className="font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md text-[11px]">
+                          {exam.exam_type === 'semester' ? 'Ujian Semester' : 'Ulangan Harian'}
+                        </span>
+
+                        <span className="text-slate-500 font-medium text-[11px] flex items-center gap-1">
+                          <Users className="w-3 h-3 text-slate-400" />
+                          {classNames}
                         </span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 mt-2 sm:mt-0 flex-wrap">
-                    {exam.anti_cheat && exam.unlock_code && (
-                      <div className="flex items-center gap-1.5 px-3 py-2 bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-100">
-                        <KeyRound className="w-3.5 h-3.5" />
-                        <span className="font-mono tracking-widest text-[10px] font-black">{exam.unlock_code}</span>
-                      </div>
+                  {/* Tombol Pengubah Status: Aktif / Draf */}
+                  <div className="sm:self-center shrink-0 pt-1 sm:pt-0">
+                    <button
+                      type="button"
+                      onClick={() => toggleExamStatus(exam.id || exam.$id, exam.status || 'active')}
+                      className={cn(
+                        "px-3 py-1 rounded-full text-xs font-bold border flex items-center gap-1.5 transition-all cursor-pointer",
+                        isActive
+                          ? "bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100"
+                          : "bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200"
+                      )}
+                      title="Klik untuk mengaktifkan atau menonaktifkan ujian"
+                    >
+                      <span className={cn("w-2 h-2 rounded-full", isActive ? "bg-emerald-500 animate-pulse" : "bg-slate-400")} />
+                      <span>{isActive ? 'Aktif di Siswa' : 'Draf (Nonaktif)'}</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Garis Pembatas Halus */}
+                <div className="border-t border-slate-100" />
+
+                {/* Bagian Bawah: Informasi Utama & Tombol Aksi */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                  {/* Parameter Utama */}
+                  <div className="flex items-center gap-x-4 gap-y-1.5 flex-wrap text-slate-500 font-medium">
+                    <div className="flex items-center gap-1.5 text-slate-700">
+                      <Clock className="w-3.5 h-3.5 text-slate-400" />
+                      <span>{exam.duration || 60} Menit</span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 text-slate-700">
+                      <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                      <span>{scheduleText}</span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 text-slate-700">
+                      <Send className="w-3.5 h-3.5 text-slate-400" />
+                      <span>{modeText}</span>
+                    </div>
+
+                    {exam.anti_cheat && (
+                      <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded text-[10px] font-bold border border-emerald-100 flex items-center gap-1">
+                        <Lock className="w-3 h-3" /> Cegah Curang
+                      </span>
                     )}
 
+                    {exam.show_score === false ? (
+                      <span className="text-amber-700 bg-amber-50 px-2 py-0.5 rounded text-[10px] font-bold border border-amber-100 flex items-center gap-1">
+                        <EyeOff className="w-3 h-3" /> Nilai Disembunyikan
+                      </span>
+                    ) : (
+                      <span className="text-slate-500 text-[10px] flex items-center gap-1">
+                        <Eye className="w-3 h-3 text-slate-400" /> Nilai Tampil
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Tombol Aksi */}
+                  <div className="flex items-center gap-2 pt-1 sm:pt-0 shrink-0">
                     <button 
                       type="button"
                       onClick={() => navigate(`/buat-ujian?edit=${exam.id || exam.$id || exam.driveFileId}`)}
-                      className="bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 px-3.5 py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs"
-                      title="Edit judul, target kelas, durasi, dan butir soal ujian ini"
+                      className="px-3 py-1.5 rounded-lg border border-amber-200 bg-amber-50/80 hover:bg-amber-100 text-amber-900 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                      title="Edit ujian"
                     >
-                      <Edit3 className="w-3.5 h-3.5 text-amber-700" /> Edit
+                      <Edit3 className="w-3.5 h-3.5 text-amber-700" />
+                      <span>Edit</span>
                     </button>
 
                     <button 
                       type="button"
                       onClick={() => navigate(`/test/${exam.teacher_id || 'teacher'}/${exam.driveFileId || exam.id}`)}
-                      className="bg-indigo-950 text-white px-3.5 py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-indigo-900 transition-all cursor-pointer shadow-xs"
-                      title="Lihat lembar ujian di portal"
+                      className="px-3 py-1.5 rounded-lg border border-indigo-900 bg-indigo-950 hover:bg-indigo-900 text-white font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                      title="Pratinjau lembar ujian"
                     >
-                      <Eye className="w-3.5 h-3.5" /> Uji Coba
+                      <Eye className="w-3.5 h-3.5" />
+                      <span>Uji Coba</span>
                     </button>
 
                     <button 
                       type="button"
                       onClick={() => showShareLink(exam)}
-                      className="bg-blue-50 text-blue-700 px-3.5 py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-blue-100 transition-all border border-blue-100 cursor-pointer"
-                      title="Salin link langsung ujian"
+                      className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                      title="Salin link ujian"
                     >
-                      <LinkIcon className="w-3.5 h-3.5" /> Link
+                      <LinkIcon className="w-3.5 h-3.5 text-slate-500" />
+                      <span>Salin Link</span>
                     </button>
 
                     <button 
                       type="button"
                       onClick={() => deleteExam(exam)}
-                      className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all cursor-pointer"
-                      title="Hapus ujian"
+                      className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all cursor-pointer ml-1"
+                      title="Hapus ujian ini"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -426,12 +482,25 @@ export default function DaftarUjian() {
           })}
 
           {filteredExams.length === 0 && (
-            <div className="py-12 sm:py-20 text-center bg-white rounded-3xl border-2 border-dashed border-slate-100">
-              <div className="bg-slate-50 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <AlertCircle className="w-8 h-8 text-slate-200" />
+            <div className="py-16 text-center bg-white rounded-2xl border-2 border-dashed border-slate-200 p-6 space-y-3">
+              <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center mx-auto text-slate-400">
+                <AlertCircle className="w-6 h-6" />
               </div>
-              <h3 className="text-lg font-bold text-indigo-950">Tidak Ada Ujian</h3>
-              <p className="text-slate-400 mt-2 text-sm font-medium">Belum ada ujian yang dibuat atau hasil pencarian kosong.</p>
+              <div>
+                <h3 className="text-base font-bold text-slate-800">Tidak Ada Ujian</h3>
+                <p className="text-slate-400 text-xs mt-1 max-w-sm mx-auto font-medium">
+                  {searchTerm 
+                    ? 'Tidak ditemukan ujian yang cocok dengan pencarian Anda.' 
+                    : 'Belum ada ujian dalam kategori ini. Klik "Buat Ujian Baru" untuk mulai membuat ujian.'}
+                </p>
+              </div>
+              <button 
+                onClick={() => navigate('/buat-ujian')}
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-950 bg-indigo-50 hover:bg-indigo-100 px-4 py-2 rounded-lg transition-all cursor-pointer mt-2"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Buat Ujian Sekarang
+              </button>
             </div>
           )}
         </div>

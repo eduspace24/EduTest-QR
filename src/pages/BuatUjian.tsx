@@ -1458,9 +1458,9 @@ export default function BuatUjian() {
                           </div>
                         )}
                       </div>
-                      <p className="text-xs font-black text-indigo-950">Mode Hybrid</p>
+                      <p className="text-xs font-black text-indigo-950">Otomatis + Barcode QR</p>
                       <p className="text-[10px] text-slate-500 leading-relaxed mt-1">
-                        Kirim otomatis via cloud & tetap sediakan QR offline sebagai bukti verifikasi cadangan.
+                        Kirim otomatis ke server guru & tetap sediakan Barcode QR offline sebagai cadangan.
                       </p>
                     </div>
                     <span className="mt-3 text-[9px] font-black uppercase tracking-wider text-indigo-800 bg-indigo-100 px-2 py-0.5 rounded-md w-fit">
@@ -1489,13 +1489,13 @@ export default function BuatUjian() {
                           </div>
                         )}
                       </div>
-                      <p className="text-xs font-black text-indigo-950">Kirim Langsung</p>
+                      <p className="text-xs font-black text-indigo-950">Kirim Langsung (Otomatis)</p>
                       <p className="text-[10px] text-slate-500 leading-relaxed mt-1">
-                        Hasil langsung terkirim ke Guru/Admin. Murid tidak perlu memindai QR Code sama sekali.
+                        Hasil ujian otomatis tersimpan saat murid klik selesai. Murid tidak perlu scan barcode sama sekali.
                       </p>
                     </div>
                     <span className="mt-3 text-[9px] font-black uppercase tracking-wider text-blue-800 bg-blue-100 px-2 py-0.5 rounded-md w-fit">
-                      Cepat & Otomatis
+                      Praktis & Cepat
                     </span>
                   </div>
 
@@ -1520,13 +1520,13 @@ export default function BuatUjian() {
                           </div>
                         )}
                       </div>
-                      <p className="text-xs font-black text-indigo-950">Scan QR Saja</p>
+                      <p className="text-xs font-black text-indigo-950">Scan Barcode QR</p>
                       <p className="text-[10px] text-slate-500 leading-relaxed mt-1">
-                        CBT offline tanpa internet. Hasil dienkripsi jadi kartu QR untuk dipindai oleh pengawas.
+                        Ujian dapat dikerjakan tanpa kuota internet. Murid cukup menunjukkan barcode QR hasil untuk discan guru.
                       </p>
                     </div>
                     <span className="mt-3 text-[9px] font-black uppercase tracking-wider text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md w-fit">
-                      100% Offline CBT
+                      Hemat Kuota (Offline)
                     </span>
                   </div>
                 </div>
@@ -2020,12 +2020,12 @@ export default function BuatUjian() {
               <div className="flex items-center justify-between border-b border-slate-200/60 pb-2.5">
                 <span className="text-xs font-medium text-slate-500">Metode Pengumpulan</span>
                 <span className="text-xs font-bold text-indigo-950 bg-slate-200/70 px-2 py-0.5 rounded">
-                  {formData.submission_mode === 'hybrid' ? '⚡ Hybrid (Online + QR)' : formData.submission_mode === 'direct' ? '🚀 Kirim Langsung' : '📱 Scan QR Saja'}
+                  {formData.submission_mode === 'hybrid' ? '⚡ Otomatis + Barcode' : formData.submission_mode === 'direct' ? '🚀 Kirim Langsung' : '📱 Scan Barcode QR'}
                 </span>
               </div>
               {formData.unlock_code && (
                 <div className="flex items-center justify-between border-b border-slate-200/60 pb-2.5">
-                  <span className="text-xs font-medium text-slate-500">Token Masuk Ujian</span>
+                  <span className="text-xs font-medium text-slate-500">Kunci Masuk Ujian</span>
                   <span className="text-xs font-mono font-bold bg-amber-100 text-amber-900 px-2 py-0.5 rounded">
                     {formData.unlock_code}
                   </span>

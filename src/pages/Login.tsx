@@ -287,10 +287,10 @@ export default function Login() {
           {/* Big Title & Tagline */}
           <div className="space-y-4">
             <h1 className="text-4xl xl:text-5xl font-black leading-tight text-white">
-              Platform Ujian Digital <span className="text-blue-400">CBT Modern</span> & Offline-First.
+              Platform Ujian Sekolah <span className="text-blue-400">Modern & Praktis</span>.
             </h1>
             <p className="text-slate-300 text-base leading-relaxed font-medium">
-              Sistem evaluasi pembelajaran terintegrasi. Ujian berjalan lancar tanpa hambatan koneksi internet dengan pengumpulan hasil berbasis enkripsi QR Code.
+              Sistem evaluasi pembelajaran digital sekolah. Ujian dapat berjalan lancar baik secara online maupun offline dengan verifikasi hasil berbasis Barcode QR.
             </p>
           </div>
 
@@ -414,7 +414,7 @@ export default function Login() {
 
           <div className="text-center pt-2">
             <p className="text-[11px] text-slate-400 font-medium">
-              Aplikasi Ujian CBT Terproteksi • © Nineteen Exam
+              Aplikasi Ujian Sekolah Digital • © Nineteen Exam
             </p>
           </div>
         </motion.div>

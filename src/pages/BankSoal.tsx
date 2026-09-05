@@ -1688,15 +1688,15 @@ export default function BankSoal() {
                       <option value="Pilihan Ganda">Pilihan Ganda (5 Opsi)</option>
                       <option value="Essay">Essay (Uraian)</option>
                     </optgroup>
-                    <optgroup label="── TKA Klasik (SBMPTN/UTBK) ──">
-                      <option value="Pilihan Ganda Asosiatif (TKA)">Pilihan Ganda Asosiatif (1, 2, 3, 4)</option>
-                      <option value="Hubungan Sebab Akibat (TKA)">Hubungan Sebab Akibat (TKA)</option>
+                    <optgroup label="── Variasi Pilihan Pernyataan ──">
+                      <option value="Pilihan Ganda Asosiatif (TKA)">Pernyataan Pilihan (1, 2, 3, 4)</option>
+                      <option value="Hubungan Sebab Akibat (TKA)">Sebab - Akibat (Pernyataan & Alasan)</option>
                     </optgroup>
-                    <optgroup label="── TKA Modern & AKM ──">
-                      <option value="Pilihan Ganda Kompleks">Pilihan Ganda Kompleks (Centang Banyak)</option>
-                      <option value="Menjodohkan">Menjodohkan (Matching Pairs)</option>
-                      <option value="Isian Singkat">Isian Singkat (Rumpang / Angka)</option>
-                      <option value="Drag and Drop">Drag and Drop (Mengurutkan)</option>
+                    <optgroup label="── Model Soal Interaktif & AKM ──">
+                      <option value="Pilihan Ganda Kompleks">Pilihan Ganda Kompleks (Centang Banyak Jawaban)</option>
+                      <option value="Menjodohkan">Menjodohkan (Pasangan Kiri & Kanan)</option>
+                      <option value="Isian Singkat">Isian Singkat (Kata / Angka)</option>
+                      <option value="Drag and Drop">Mengurutkan Urutan (Drag & Drop)</option>
                     </optgroup>
                   </select>
                 </div>

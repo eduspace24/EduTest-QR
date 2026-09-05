@@ -294,7 +294,7 @@ export default function StudentDashboard() {
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400 font-medium">Mode Ujian:</span>
-                <span className="font-bold text-emerald-400">Offline-First CBT</span>
+                <span className="font-bold text-emerald-400">Digital Praktis & Bebas Kuota</span>
               </div>
             </div>
           </div>

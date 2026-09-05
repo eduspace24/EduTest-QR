@@ -65,28 +65,28 @@ export default function StudentResult() {
               {meta?.submission_mode === 'direct' ? (
                 <div className="mb-6 space-y-2">
                   <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-800 rounded-full border border-blue-100 text-xs font-black uppercase tracking-wider">
-                    <CheckCircle2 className="w-4 h-4 text-blue-600" /> Mode Kirim Langsung (Online CBT)
+                    <CheckCircle2 className="w-4 h-4 text-blue-600" /> Terkirim Otomatis
                   </div>
                   <p className="text-slate-500 text-sm font-bold max-w-md mx-auto">
-                    Lembar jawaban Anda telah berhasil <strong>terkirim langsung ke Guru/Admin</strong>. Anda tidak perlu memindai QR Code!
+                    Lembar jawaban Anda telah berhasil <strong>terkirim langsung ke Guru/Admin</strong>. Anda tidak perlu memindai Barcode QR!
                   </p>
                 </div>
               ) : meta?.submission_mode === 'qr' ? (
                 <div className="mb-6 space-y-2">
                   <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-800 rounded-full border border-emerald-100 text-xs font-black uppercase tracking-wider">
-                    <QrCode className="w-4 h-4 text-emerald-600" /> Mode Scan QR Saja (Offline CBT)
+                    <QrCode className="w-4 h-4 text-emerald-600" /> Scan Barcode QR (Tanpa Internet)
                   </div>
                   <p className="text-slate-500 text-sm font-bold max-w-md mx-auto">
-                    Jawaban tersimpan aman di perangkat Anda. Tunjukkan QR Code di bawah ini kepada Pengawas untuk dipindai.
+                    Jawaban tersimpan aman di perangkat Anda. Tunjukkan Barcode QR di bawah ini kepada Pengawas/Guru untuk dipindai.
                   </p>
                 </div>
               ) : (
                 <div className="mb-6 space-y-2">
                   <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-50 text-indigo-950 rounded-full border border-indigo-100 text-xs font-black uppercase tracking-wider">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Mode Hybrid (Online & QR Cadangan)
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Otomatis + Barcode QR Cadangan
                   </div>
                   <p className="text-slate-500 text-sm font-bold max-w-md mx-auto">
-                    Jawaban otomatis terkirim secara online. QR Code di bawah ini dapat dipindai oleh pengawas sebagai bukti kehadiran & cadangan darurat.
+                    Jawaban otomatis terkirim. Barcode QR di bawah ini dapat dipindai oleh pengawas sebagai bukti kehadiran dan cadangan.
                   </p>
                 </div>
               )}

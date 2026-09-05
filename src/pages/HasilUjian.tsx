@@ -358,7 +358,7 @@ export default function HasilUjian({ isEmbedded = false }: { isEmbedded?: boolea
               </div>
               <h3 className="text-xl font-bold text-indigo-950">Belum Ada Hasil</h3>
               <p className="text-slate-400 mt-2 max-w-xs mx-auto font-medium">
-                Hasil pengerjaan murid akan muncul di sini setelah sinkronisasi Drive berhasil.
+                Hasil pengerjaan murid akan muncul di sini secara otomatis setelah murid menyelesaikan ujian atau barcode QR discan.
               </p>
             </div>
           )}

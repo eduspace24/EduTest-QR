@@ -898,7 +898,7 @@ export default function StudentExam() {
                 {exam?.subject || 'Mata Pelajaran'}
               </span>
               <span className="bg-emerald-100 text-emerald-800 text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider flex items-center gap-1">
-                <ShieldCheck className="w-3 h-3" /> CBT Siap
+                <ShieldCheck className="w-3 h-3" /> Siap Dimulai
               </span>
             </div>
             <h2 className="text-xl sm:text-2xl font-black text-indigo-950 tracking-tight">{exam?.title || 'Memuat Lembar Ujian...'}</h2>
