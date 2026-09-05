@@ -24,6 +24,7 @@ import { useAlert } from '../context/AlertContext';
 import { TableSkeleton } from '../components/Skeleton';
 import { getCollectionData, saveCollection } from '../lib/db';
 import { supabase } from '../lib/supabase';
+import { cn } from '../lib/utils';
 
 export default function DaftarUjian() {
   const navigate = useNavigate();
