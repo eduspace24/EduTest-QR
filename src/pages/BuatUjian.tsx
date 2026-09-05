@@ -601,6 +601,8 @@ export default function BuatUjian() {
       // Save to Appwrite
       try {
         const { databases, COLLECTIONS, APPWRITE_DATABASE_ID } = await import('../lib/appwrite');
+        // Exclude heavy student dump from cloud questions payload to prevent truncation
+        const { allowedStudents: _ignoredStudents, ...lightCloudPayload } = examPayload;
         await databases.createDocument(
           APPWRITE_DATABASE_ID,
           COLLECTIONS.EXAMS,
@@ -611,7 +613,7 @@ export default function BuatUjian() {
             duration: Number(formData.duration) || 60,
             status: 'active',
             driveFileId: examId,
-            questions: JSON.stringify(examPayload).substring(0, 65000),
+            questions: JSON.stringify(lightCloudPayload),
             unlock_code: formData.unlock_code || '',
             cheat_tolerance: Number(formData.cheat_tolerance) || 3
           }

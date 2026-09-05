@@ -125,42 +125,84 @@ export default function StudentExam() {
 
         setDownloadStage('Mengunduh soal ujian...');
         let data: any = null;
-        try {
-          const { data: supaExam, error: sErr } = await supabase.from('exams').select('*').eq('id', examId).single();
-          if (!sErr && supaExam) {
-            data = supaExam;
-          }
-        } catch {}
 
-        // 1. Check direct exam payload (stored as exam_<id>)
-        if (!data) {
+        // 1. Fetch from Appwrite Cloud (Primary online CBT source)
+        try {
+          const { databases, COLLECTIONS, APPWRITE_DATABASE_ID } = await import('../../lib/appwrite');
+          const cloudDoc = await databases.getDocument(
+            APPWRITE_DATABASE_ID,
+            COLLECTIONS.EXAMS,
+            examId
+          );
+          if (cloudDoc) {
+            data = cloudDoc;
+          }
+        } catch (appwriteErr) {
+          console.warn('Appwrite direct getDocument note:', appwriteErr);
+        }
+
+        // 2. Fallback: Check local exam payload (offline cache)
+        if (!data || !data.questions) {
           const single = await getCollectionData('exam_' + examId);
           if (single) {
-            data = Array.isArray(single) ? single[0] : single;
+            const singleObj = Array.isArray(single) ? single[0] : single;
+            data = { ...(data || {}), ...singleObj };
           }
         }
 
-        // 2. Check local exams list
+        // 3. Fallback: Check local exams list
         if (!data) {
           const localExams = await getCollectionData('exams_list');
           data = localExams?.find((e: any) => e.id === examId || e.driveFileId === examId);
         }
 
-        // 3. Check local raw exams
+        // 4. Fallback: Check local raw exams
         if (!data) {
           const rawExams = await getCollectionData('exams');
           data = rawExams?.find((e: any) => e.id === examId || e.driveFileId === examId);
+        }
+
+        // 5. Fallback: Check Supabase
+        if (!data) {
+          try {
+            const { data: supaExam, error: sErr } = await supabase.from('exams').select('*').eq('id', examId).single();
+            if (!sErr && supaExam) {
+              data = supaExam;
+            }
+          } catch {}
         }
 
         if (!data) {
           throw new Error('Soal ujian tidak ditemukan atau telah ditutup oleh guru.');
         }
 
-        // If data was retrieved from exams_list or exams (metadata only), pull full questions from exam_<id>
-        if (!data.questions || data.questions.length === 0) {
+        // If questions is a string (from Appwrite or serialized payload), parse it
+        if (data && typeof data.questions === 'string') {
+          try {
+            const parsed = JSON.parse(data.questions);
+            if (Array.isArray(parsed)) {
+              data.questions = parsed;
+            } else if (parsed && typeof parsed === 'object') {
+              data.questions = parsed.questions || [];
+              if (parsed._answer_key && !data._answer_key) data._answer_key = parsed._answer_key;
+              if (parsed.targetClasses && !data.targetClasses) data.targetClasses = parsed.targetClasses;
+              if (parsed.targetClassNames && !data.targetClassNames) data.targetClassNames = parsed.targetClassNames;
+              if (parsed.unlock_code && !data.unlock_code) data.unlock_code = parsed.unlock_code;
+              if (parsed.cheat_tolerance !== undefined && data.cheat_tolerance === undefined) data.cheat_tolerance = parsed.cheat_tolerance;
+              if (parsed.anti_cheat !== undefined && data.anti_cheat === undefined) data.anti_cheat = parsed.anti_cheat;
+              if (parsed.show_score !== undefined && data.show_score === undefined) data.show_score = parsed.show_score;
+              if (parsed.duration && !data.duration) data.duration = parsed.duration;
+            }
+          } catch (jsonErr) {
+            console.error('Error parsing cloud questions JSON:', jsonErr);
+          }
+        }
+
+        // If data still has no questions, try getting questions from local exam_<id>
+        if (!data.questions || !Array.isArray(data.questions) || data.questions.length === 0) {
           const single = await getCollectionData('exam_' + examId);
           const singleObj = Array.isArray(single) ? single[0] : single;
-          if (singleObj && singleObj.questions && singleObj.questions.length > 0) {
+          if (singleObj && singleObj.questions && Array.isArray(singleObj.questions) && singleObj.questions.length > 0) {
             data.questions = singleObj.questions;
             if (!data._answer_key && singleObj._answer_key) {
               data._answer_key = singleObj._answer_key;
@@ -168,13 +210,8 @@ export default function StudentExam() {
           }
         }
 
-        // If questions is string (from Appwrite or serialized payload), parse it
-        if (data && typeof data.questions === 'string') {
-          try {
-            const parsed = JSON.parse(data.questions);
-            data.questions = parsed.questions || parsed;
-            if (parsed._answer_key) data._answer_key = parsed._answer_key;
-          } catch {}
+        if (!data.questions || !Array.isArray(data.questions) || data.questions.length === 0) {
+          throw new Error('Soal ujian kosong atau tidak dapat diuraikan.');
         }
 
         // Advance progress after data received
