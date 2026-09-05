@@ -1597,7 +1597,7 @@ export default function BankSoal() {
 
       {showAddModal && (
         <div 
-          className="fixed inset-0 bg-black/75 backdrop-blur-xs z-[100] flex items-center justify-center p-4 animate-in fade-in duration-150"
+          className="fixed inset-0 bg-black/75 z-[100] flex items-center justify-center p-4 animate-in fade-in duration-150"
         >
           <motion.div 
             initial={{ scale: 0.95 }} animate={{ scale: 1 }}
@@ -1942,7 +1942,7 @@ export default function BankSoal() {
 
       {showTemplateModal && (
         <div 
-          className="fixed inset-0 bg-black/75 backdrop-blur-xs z-[100] flex items-center justify-center p-4 animate-in fade-in duration-150"
+          className="fixed inset-0 bg-black/75 z-[100] flex items-center justify-center p-4 animate-in fade-in duration-150"
         >
           <motion.div 
             initial={{ scale: 0.95, y: 10 }} animate={{ scale: 1, y: 0 }}
@@ -1989,7 +1989,7 @@ export default function BankSoal() {
 
       {showImportModal && (
         <div 
-          className="fixed inset-0 bg-black/75 backdrop-blur-xs z-[100] flex items-center justify-center p-4 animate-in fade-in duration-150"
+          className="fixed inset-0 bg-black/75 z-[100] flex items-center justify-center p-4 animate-in fade-in duration-150"
         >
           <motion.div 
             initial={{ scale: 0.95, y: 10 }} animate={{ scale: 1, y: 0 }}
@@ -2062,7 +2062,7 @@ export default function BankSoal() {
 
       {showBatchMoveModal && (
         <div 
-          className="fixed inset-0 bg-black/75 backdrop-blur-xs z-[100] flex items-center justify-center p-4 animate-in fade-in duration-150"
+          className="fixed inset-0 bg-black/75 z-[100] flex items-center justify-center p-4 animate-in fade-in duration-150"
         >
           <motion.div 
             initial={{ scale: 0.95, y: 10 }} animate={{ scale: 1, y: 0 }}
@@ -2115,7 +2115,7 @@ export default function BankSoal() {
       {/* Modal Buat Folder Bank Soal Baru */}
       {showCreateFolderModal && (
         <div 
-          className="fixed inset-0 bg-black/75 backdrop-blur-xs z-[100] flex items-center justify-center p-4 animate-in fade-in duration-150"
+          className="fixed inset-0 bg-black/75 z-[100] flex items-center justify-center p-4 animate-in fade-in duration-150"
         >
           <motion.div 
             initial={{ scale: 0.95, y: 10 }} animate={{ scale: 1, y: 0 }}

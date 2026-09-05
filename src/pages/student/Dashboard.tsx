@@ -244,7 +244,7 @@ export default function StudentDashboard() {
             
             <div className="flex items-center justify-between border-b border-white/10 pb-4">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/10">
+                <div className="w-9 h-9 rounded-xl bg-indigo-900/70 flex items-center justify-center border border-white/10">
                   <GraduationCap className="w-5 h-5 text-blue-400" />
                 </div>
                 <div>
@@ -258,7 +258,7 @@ export default function StudentDashboard() {
             </div>
 
             {/* Student ID Badge (Tanpa QR Code) */}
-            <div className="bg-white/10 backdrop-blur-md p-6 rounded-3xl border border-white/15 flex flex-col items-center justify-center text-center space-y-3 shadow-inner">
+            <div className="bg-indigo-900/60 p-6 rounded-3xl border border-white/15 flex flex-col items-center justify-center text-center space-y-3 shadow-inner">
               <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-blue-500 to-indigo-500 text-white flex items-center justify-center font-black text-2xl shadow-lg shadow-blue-500/30 border-2 border-white/20">
                 {(sessionUser?.nama || sessionUser?.name || 'M').charAt(0).toUpperCase()}
               </div>
@@ -381,7 +381,7 @@ export default function StudentDashboard() {
 
                         <h4 className="text-base font-black text-indigo-950">{exam.title}</h4>
                         <p className="text-xs text-slate-400 font-medium">
-                          Oleh: {formatTeacherName(exam.teacher_name || 'Guru Pengampu')} • Token: <span className="font-mono font-bold text-indigo-950">{exam.token || exam.unlock_code || '-'}</span>
+                          Oleh: {formatTeacherName(exam.teacher_name || 'Guru Pengampu')}
                           {exam.exam_type === 'semester'
                             ? (exam.start_time ? ` • Pkl ${exam.start_time} - ${exam.end_time || ''}` : '')
                             : ' • Waktu Bebas (1x Pengerjaan)'}

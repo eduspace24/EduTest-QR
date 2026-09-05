@@ -271,7 +271,7 @@ export default function Login() {
         >
           {/* Logo */}
           <div className="flex items-center gap-3">
-            <div className="bg-white/10 backdrop-blur-xl w-14 h-14 rounded-2xl flex items-center justify-center border border-white/20 shadow-2xl">
+            <div className="bg-indigo-900/80 w-14 h-14 rounded-2xl flex items-center justify-center border border-white/20 shadow-2xl">
               <GraduationCap className="text-blue-400 w-8 h-8" />
             </div>
             <div>
@@ -296,12 +296,12 @@ export default function Login() {
 
           {/* Badges / Highlights */}
           <div className="pt-6 border-t border-white/10 grid grid-cols-2 gap-4">
-            <div className="bg-white/5 p-4 rounded-2xl border border-white/10 backdrop-blur-sm">
+            <div className="bg-indigo-900/60 p-4 rounded-2xl border border-white/10">
               <ShieldCheck className="w-5 h-5 text-emerald-400 mb-2" />
               <h4 className="text-sm font-bold text-white">Aman & Terproteksi</h4>
               <p className="text-xs text-slate-400 mt-0.5">Sistem kunci layar anti-curang.</p>
             </div>
-            <div className="bg-white/5 p-4 rounded-2xl border border-white/10 backdrop-blur-sm">
+            <div className="bg-indigo-900/60 p-4 rounded-2xl border border-white/10">
               <Zap className="w-5 h-5 text-blue-400 mb-2" />
               <h4 className="text-sm font-bold text-white">100% Offline-First</h4>
               <p className="text-xs text-slate-400 mt-0.5">Bebas gangguan sinyal sekolah.</p>

@@ -48,13 +48,13 @@
   }
 }
 
-/* Glassmorphism Classes */
+/* Clean Performance Classes (No heavy backdrop-blur) */
 .glass {
-  @apply bg-white/70 backdrop-blur-xl border border-white/40 shadow-[0_8px_30px_rgb(0,0,0,0.04)];
+  @apply bg-white border border-slate-200 shadow-sm;
 }
 
 .glass-dark {
-  @apply bg-indigo-950/80 backdrop-blur-xl border border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.12)];
+  @apply bg-indigo-950 border border-indigo-900 shadow-md;
 }
 
 /* Advanced Hover Effects */

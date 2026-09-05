@@ -1036,20 +1036,21 @@ export default function StudentExam() {
   return (
     <div className="min-h-screen bg-slate-50/60 pb-28 select-none">
       {/* Top Navbar Minimalis & Fokus */}
-      <header className="bg-white/95 backdrop-blur-md border-b border-slate-100 sticky top-0 z-40 transition-all">
-        <div className="max-w-5xl mx-auto px-4 sm:px-8 py-3.5 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-2xl bg-indigo-950 text-white flex items-center justify-center font-black text-sm shrink-0 shadow-md shadow-indigo-950/15">
-              <GraduationCap className="w-5 h-5" />
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-xs">
+        <div className="max-w-5xl mx-auto px-4 sm:px-8 py-3 flex items-center justify-between gap-4">
+          {/* Logo & Judul Ujian di bawahnya */}
+          <div className="flex flex-col items-start min-w-0 pr-2">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-indigo-950 text-white flex items-center justify-center font-black text-xs shrink-0 shadow-sm">
+                <GraduationCap className="w-4 h-4" />
+              </div>
+              <span className="text-[11px] font-black uppercase tracking-widest text-slate-400">
+                Lembar Ujian Siswa
+              </span>
             </div>
-            <div className="min-w-0">
-              <h1 className="font-black text-indigo-950 text-sm sm:text-base tracking-tight truncate">
-                {exam?.title || 'Ujian Sekolah'}
-              </h1>
-              <p className="text-[11px] font-bold text-slate-400 truncate">
-                {studentData.nama} • <span className="text-indigo-950">{studentData.kelas}</span>
-              </p>
-            </div>
+            <h1 className="font-black text-indigo-950 text-sm sm:text-base tracking-tight leading-snug mt-1 break-words">
+              {exam?.title || 'Ujian Sekolah'}
+            </h1>
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
@@ -1090,15 +1091,16 @@ export default function StudentExam() {
         </div>
       </header>
 
-      {/* Popover / Panel Grid Nomor Soal */}
+      {/* Popover / Panel Grid Nomor Soal (Tanpa blur agar sangat ringan di device spek rendah) */}
       <AnimatePresence>
         {showNumberGrid && (
-          <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 px-4 bg-indigo-950/30 backdrop-blur-xs">
+          <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 px-4 bg-black/60">
             <motion.div 
-              initial={{ opacity: 0, y: -15, scale: 0.98 }}
+              initial={{ opacity: 0, y: -10, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -15, scale: 0.98 }}
-              className="w-full max-w-xl bg-white rounded-3xl shadow-2xl border border-slate-100 p-6 space-y-4"
+              exit={{ opacity: 0, y: -10, scale: 0.98 }}
+              transition={{ duration: 0.15 }}
+              className="w-full max-w-xl bg-white rounded-3xl shadow-2xl border border-slate-200 p-6 space-y-4"
             >
               <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                 <div>
