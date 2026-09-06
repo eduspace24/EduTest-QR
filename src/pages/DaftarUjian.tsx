@@ -255,6 +255,7 @@ export default function DaftarUjian() {
         cheat_tolerance: fullExam.cheat_tolerance !== undefined ? Number(fullExam.cheat_tolerance) : 2,
         unlock_code: fullExam.unlock_code || '19SMAN',
         randomized: fullExam.randomized !== undefined ? fullExam.randomized : true,
+        randomize_options: fullExam.randomize_options !== undefined ? fullExam.randomize_options : true,
         targetClasses: Array.isArray(fullExam.targetClasses) ? fullExam.targetClasses : [],
         targetClassNames: Array.isArray(fullExam.targetClassNames) ? fullExam.targetClassNames : [],
         questions: Array.isArray(fullExam.questions) ? fullExam.questions : []
@@ -305,6 +306,7 @@ export default function DaftarUjian() {
         cheat_tolerance: updatedPayload.cheat_tolerance,
         unlock_code: updatedPayload.unlock_code,
         randomized: updatedPayload.randomized,
+        randomize_options: updatedPayload.randomize_options,
         _answer_key: (updatedPayload.questions || []).map((q: any) => ({
           id: q.id,
           answer: q.correct_answer || q.answer || 'a'
@@ -1071,7 +1073,23 @@ export default function DaftarUjian() {
                               />
                             </div>
                             <p className="text-[11px] text-slate-500">
-                              Nomor soal akan teracak otomatis di setiap siswa untuk mencegah contekan.
+                              Nomor soal teracak otomatis di setiap siswa.
+                            </p>
+                          </div>
+
+                          {/* Acak Pilihan Jawaban */}
+                          <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/60 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-bold text-slate-800">Acak Pilihan Jawaban</span>
+                              <input
+                                type="checkbox"
+                                checked={editingExam.randomize_options}
+                                onChange={(e) => setEditingExam({ ...editingExam, randomize_options: e.target.checked })}
+                                className="w-4 h-4 accent-indigo-950 cursor-pointer"
+                              />
+                            </div>
+                            <p className="text-[11px] text-slate-500">
+                              Urutan opsi A, B, C, D, E teracak otomatis di setiap siswa.
                             </p>
                           </div>
 

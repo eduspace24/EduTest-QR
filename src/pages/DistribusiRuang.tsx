@@ -104,6 +104,7 @@ export default function DistribusiRuang() {
   // Distribution Results
   const [rooms, setRooms] = useState<ExamRoom[]>([]);
   const [selectedRoomDetail, setSelectedRoomDetail] = useState<ExamRoom | null>(null);
+  const [roomSearchQuery, setRoomSearchQuery] = useState('');
 
   // Custom Proctors (PPL, Eksternal, Mahasiswa Magang)
   const [customProctors, setCustomProctors] = useState<CustomProctor[]>(() => {
@@ -261,6 +262,16 @@ export default function DistribusiRuang() {
       return !isAssigned;
     });
   }, [eligibleStudents, studentAssignmentMap]);
+
+  // Filtered rooms based on search
+  const filteredRooms = useMemo(() => {
+    if (!roomSearchQuery.trim()) return rooms;
+    const q = roomSearchQuery.toLowerCase().trim();
+    return rooms.filter(r => 
+      r.name.toLowerCase().includes(q) || 
+      (r.classes && r.classes.some(c => c.toLowerCase().includes(q)))
+    );
+  }, [rooms, roomSearchQuery]);
 
   // Toggle individual grade on/off
   const handleToggleGrade = (gradeId: string) => {
@@ -1199,282 +1210,160 @@ export default function DistribusiRuang() {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Panel Pengaturan Otomatis */}
-            <div className="lg:col-span-1 bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-5">
-              <h3 className="font-bold text-indigo-950 text-sm flex items-center gap-2">
-                <Sliders className="w-4 h-4 text-blue-600" /> Parameter Penataan Otomatis
-              </h3>
+            <div className="lg:col-span-1 bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                  <Sliders className="w-4 h-4 text-blue-600" /> Parameter Otomatis
+                </h3>
+                <span className="text-[11px] font-bold text-slate-500">
+                  {eligibleStudents.length} Peserta
+                </span>
+              </div>
 
-              {/* 1. Pemilihan Jenjang Berbasis Toggle Aktif/Nonaktif */}
-              <div className="space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-slate-700">Pilih Angkatan yang Ujian:</label>
-                  <span className="text-[10px] font-black text-indigo-950 bg-indigo-50 border border-indigo-100 px-2.5 py-0.5 rounded-full">
-                    {eligibleStudents.length} Murid Terpilih
-                  </span>
-                </div>
-
-                {/* Toggle Angkatan: Kelas X, XI, XII */}
-                <div className="space-y-2">
+              {/* 1. Pemilihan Jenjang Berbasis Toggle Ringkas */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-700 block">Pilih Angkatan Ujian:</label>
+                <div className="grid grid-cols-3 gap-2">
                   {[
-                    { id: 'X', label: 'Kelas X', desc: 'Angkatan Kelas 10', count: studentsByGrade['X']?.length || 0, color: 'indigo' },
-                    { id: 'XI', label: 'Kelas XI', desc: 'Angkatan Kelas 11', count: studentsByGrade['XI']?.length || 0, color: 'purple' },
-                    { id: 'XII', label: 'Kelas XII', desc: 'Angkatan Kelas 12', count: studentsByGrade['XII']?.length || 0, color: 'emerald' }
+                    { id: 'X', label: 'Kelas X', count: studentsByGrade['X']?.length || 0 },
+                    { id: 'XI', label: 'Kelas XI', count: studentsByGrade['XI']?.length || 0 },
+                    { id: 'XII', label: 'Kelas XII', count: studentsByGrade['XII']?.length || 0 }
                   ].map(g => {
                     const isSelected = selectedGrades.includes(g.id);
-                    const style = getGradeBadgeStyle(g.id);
-
                     return (
-                      <div
+                      <button
                         key={g.id}
+                        type="button"
                         onClick={() => handleToggleGrade(g.id)}
                         className={cn(
-                          "p-3 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-between gap-3 select-none",
+                          "py-2 px-1 rounded-xl border text-center transition-all flex flex-col items-center justify-center gap-0.5",
                           isSelected
-                            ? cn("border-slate-300 shadow-xs", style.box)
-                            : "bg-slate-50/70 border-slate-200 opacity-60 hover:opacity-80"
+                            ? "bg-indigo-950 text-white border-indigo-950 shadow-xs font-bold"
+                            : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100"
                         )}
                       >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className={cn(
-                            "w-9 h-9 rounded-xl flex items-center justify-center font-black text-xs shrink-0 transition-all",
-                            isSelected ? style.badge : "bg-slate-200 text-slate-500"
-                          )}>
-                            {g.id}
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <h4 className={cn("text-xs font-black transition-colors", isSelected ? "text-indigo-950" : "text-slate-500")}>
-                                {g.label}
-                              </h4>
-                              <span className={cn(
-                                "text-[9px] font-bold px-2 py-0.5 rounded-md",
-                                isSelected ? "bg-white/90 text-slate-700 border" : "bg-slate-200 text-slate-500"
-                              )}>
-                                {g.count} Murid
-                              </span>
-                            </div>
-                            <p className="text-[10px] text-slate-400 font-medium">
-                              {isSelected ? 'Aktif mengikuti ujian' : 'Nonaktif (tidak ikut ujian)'}
-                            </p>
-                          </div>
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs font-black">{g.label}</span>
+                          {isSelected && <Check className="w-3 h-3 text-emerald-400" />}
                         </div>
-
-                        {/* Modern Toggle Switch */}
-                        <div className={cn(
-                          "w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 flex items-center",
-                          isSelected 
-                            ? (g.color === 'emerald' ? 'bg-emerald-600' : g.color === 'purple' ? 'bg-purple-600' : 'bg-indigo-950') 
-                            : "bg-slate-300"
+                        <span className={cn(
+                          "text-[10px]",
+                          isSelected ? "text-indigo-200" : "text-slate-400"
                         )}>
-                          <div className={cn(
-                            "w-5 h-5 rounded-full bg-white shadow-md transform transition-transform duration-200 flex items-center justify-center",
-                            isSelected ? "translate-x-5" : "translate-x-0"
-                          )}>
-                            {isSelected && (
-                              <Check className={cn("w-3 h-3", 
-                                g.color === 'emerald' ? 'text-emerald-600' : 
-                                g.color === 'purple' ? 'text-purple-600' : 
-                                'text-indigo-950'
-                              )} />
-                            )}
-                          </div>
-                        </div>
-                      </div>
+                          {g.count} murid
+                        </span>
+                      </button>
                     );
                   })}
-                </div>
-
-                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-[11px] font-bold text-slate-600">
-                  <span>Angkatan Terpilih:</span>
-                  <span className="text-indigo-950 font-black">
-                    {selectedGrades.length === 3 
-                      ? 'Seluruh Angkatan (X, XI, XII)' 
-                      : selectedGrades.map(g => `Kelas ${g}`).join(' & ')}
-                  </span>
                 </div>
               </div>
 
               {/* 2. Metode Penataan Meja & Urutan Duduk */}
-              <div className="space-y-2 pt-3 border-t border-slate-100">
-                <label className="text-xs font-bold text-slate-700">Metode Penataan & Urutan Meja:</label>
-                <div className="space-y-2">
-                  {/* Standar Rombel & Absen */}
-                  <label 
-                    onClick={() => setSeatingMethod('standard_class')}
-                    className={cn(
-                      "flex items-start gap-2.5 p-2.5 rounded-2xl border cursor-pointer transition-all",
-                      seatingMethod === 'standard_class'
-                        ? "bg-blue-50/50 border-blue-600 shadow-xs"
-                        : "bg-white border-slate-200 hover:bg-slate-50"
-                    )}
-                  >
-                    <input 
-                      type="radio" 
-                      name="seatingMethod" 
-                      checked={seatingMethod === 'standard_class'} 
-                      onChange={() => setSeatingMethod('standard_class')}
-                      className="mt-1 accent-indigo-950" 
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs font-black text-indigo-950 flex items-center gap-1.5">
-                          <ListOrdered className="w-3.5 h-3.5 text-blue-600" />
-                          Standar Rombel & No. Absen
-                        </p>
-                        <span className="text-[9px] font-bold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
-                          Default
-                        </span>
-                      </div>
-                      <p className="text-[10px] text-slate-500 mt-0.5 leading-relaxed">
-                        Sesuai rombel (A-Z) dan nomor absen urut (1, 2, 3...).
-                      </p>
-                    </div>
-                  </label>
-
-                  {/* Per Kelas Namun Absen Diacak */}
-                  <label 
-                    onClick={() => setSeatingMethod('class_shuffled_seats')}
-                    className={cn(
-                      "flex items-start gap-2.5 p-2.5 rounded-2xl border cursor-pointer transition-all",
-                      seatingMethod === 'class_shuffled_seats'
-                        ? "bg-purple-50/50 border-purple-600 shadow-xs"
-                        : "bg-white border-slate-200 hover:bg-slate-50"
-                    )}
-                  >
-                    <input 
-                      type="radio" 
-                      name="seatingMethod" 
-                      checked={seatingMethod === 'class_shuffled_seats'} 
-                      onChange={() => setSeatingMethod('class_shuffled_seats')}
-                      className="mt-1 accent-indigo-950" 
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs font-black text-indigo-950 flex items-center gap-1.5">
-                          <Users className="w-3.5 h-3.5 text-purple-600" />
-                          Per Rombel (Absen Diacak)
-                        </p>
-                        <span className="text-[9px] font-bold bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded">
-                          1 Kelas 1 Ruang
-                        </span>
-                      </div>
-                      <p className="text-[10px] text-slate-500 mt-0.5 leading-relaxed">
-                        Tetap berkumpul per kelas di ruangan yang sama, nomor meja diacak.
-                      </p>
-                    </div>
-                  </label>
-
-                  {/* Silang Antar-Jenjang (ASAT Anti-Nyontek) */}
-                  <label 
-                    onClick={() => setSeatingMethod('cross_grade')}
-                    className={cn(
-                      "flex items-start gap-2.5 p-2.5 rounded-2xl border cursor-pointer transition-all",
-                      seatingMethod === 'cross_grade'
-                        ? "bg-indigo-50/50 border-indigo-950 shadow-xs"
-                        : "bg-white border-slate-200 hover:bg-slate-50"
-                    )}
-                  >
-                    <input 
-                      type="radio" 
-                      name="seatingMethod" 
-                      checked={seatingMethod === 'cross_grade'} 
-                      onChange={() => setSeatingMethod('cross_grade')}
-                      className="mt-1 accent-indigo-950" 
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs font-black text-indigo-950 flex items-center gap-1.5">
-                          <Shuffle className="w-3.5 h-3.5 text-indigo-600" />
-                          Silang Antar-Jenjang (ASAT)
-                        </p>
-                        <span className="text-[9px] font-bold bg-indigo-100 text-indigo-950 px-1.5 py-0.5 rounded">
-                          Rekomendasi
-                        </span>
-                      </div>
-                      <p className="text-[10px] text-slate-500 mt-0.5 leading-relaxed">
-                        Peserta antar angkatan duduk berselang (selang-seling meja).
-                      </p>
-                    </div>
-                  </label>
-
-                  {/* Acak Bebas Campur Penuh */}
-                  <label 
-                    onClick={() => setSeatingMethod('full_random')}
-                    className={cn(
-                      "flex items-start gap-2.5 p-2.5 rounded-2xl border cursor-pointer transition-all",
-                      seatingMethod === 'full_random'
-                        ? "bg-emerald-50/50 border-emerald-600 shadow-xs"
-                        : "bg-white border-slate-200 hover:bg-slate-50"
-                    )}
-                  >
-                    <input 
-                      type="radio" 
-                      name="seatingMethod" 
-                      checked={seatingMethod === 'full_random'} 
-                      onChange={() => setSeatingMethod('full_random')}
-                      className="mt-1 accent-indigo-950" 
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-black text-indigo-950 flex items-center gap-1.5">
-                        <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-                        Acak Bebas Campur Penuh
-                      </p>
-                      <p className="text-[10px] text-slate-500 mt-0.5 leading-relaxed">
-                        Seluruh murid dari jenjang terpilih diacak bebas ke seluruh ruangan.
-                      </p>
-                    </div>
-                  </label>
+              <div className="space-y-2 pt-2 border-t border-slate-100">
+                <label className="text-xs font-bold text-slate-700 block">Metode Penataan Meja:</label>
+                <div className="space-y-1.5">
+                  {[
+                    { id: 'standard_class', icon: ListOrdered, title: 'Standar Rombel & Absen', badge: 'Default', desc: 'Sesuai urut rombel & nomor absen' },
+                    { id: 'class_shuffled_seats', icon: Users, title: 'Per Rombel (Absen Acak)', badge: '1 Kelas', desc: 'Per kelas, posisi nomor meja diacak' },
+                    { id: 'cross_grade', icon: Shuffle, title: 'Silang Antar-Jenjang', badge: 'Rekomendasi', desc: 'Duduk berselang-seling antar angkatan' },
+                    { id: 'full_random', icon: Sparkles, title: 'Acak Bebas Total', badge: 'Campur', desc: 'Semua murid diacak ke seluruh ruangan' }
+                  ].map(m => {
+                    const isSelected = seatingMethod === m.id;
+                    const Icon = m.icon;
+                    return (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => setSeatingMethod(m.id as any)}
+                        className={cn(
+                          "w-full p-2.5 rounded-xl border text-left transition-all flex items-center justify-between gap-2.5",
+                          isSelected
+                            ? "bg-blue-50/70 border-blue-500 text-blue-950 shadow-2xs"
+                            : "bg-white border-slate-200 hover:bg-slate-50 text-slate-700"
+                        )}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className={cn(
+                            "w-7 h-7 rounded-lg flex items-center justify-center shrink-0",
+                            isSelected ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-500"
+                          )}>
+                            <Icon className="w-3.5 h-3.5" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs font-bold truncate">{m.title}</span>
+                              {m.badge && (
+                                <span className={cn(
+                                  "text-[9px] font-bold px-1.5 py-0.2 rounded shrink-0",
+                                  isSelected ? "bg-blue-200/60 text-blue-900" : "bg-slate-100 text-slate-500"
+                                )}>
+                                  {m.badge}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[10px] text-slate-400 truncate">{m.desc}</p>
+                          </div>
+                        </div>
+                        <div className={cn(
+                          "w-4 h-4 rounded-full border flex items-center justify-center shrink-0",
+                          isSelected ? "border-blue-600 bg-blue-600 text-white" : "border-slate-300"
+                        )}>
+                          {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
               {/* 3. Kapasitas & Jumlah Ruang */}
-              <div className="space-y-2 pt-3 border-t border-slate-100">
+              <div className="space-y-2 pt-2 border-t border-slate-100">
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
                     onClick={() => setDistributionMode('capacity')}
                     className={cn(
-                      "p-2.5 rounded-xl border text-left text-xs font-bold transition-all",
+                      "py-2 px-2.5 rounded-xl border text-left transition-all",
                       distributionMode === 'capacity'
-                        ? "border-blue-600 bg-blue-50/40 text-blue-950 shadow-xs"
+                        ? "border-blue-600 bg-blue-50/50 text-blue-950 font-bold shadow-2xs"
                         : "border-slate-200 text-slate-600 hover:bg-slate-50"
                     )}
                   >
-                    <p className="font-black text-xs">Kapasitas Meja</p>
-                    <p className="text-[10px] text-slate-400 font-medium">Isi meja per ruang</p>
+                    <p className="text-xs font-bold">Kapasitas Meja</p>
+                    <p className="text-[10px] text-slate-400">Isi meja per ruang</p>
                   </button>
                   <button
                     type="button"
                     onClick={() => setDistributionMode('rooms')}
                     className={cn(
-                      "p-2.5 rounded-xl border text-left text-xs font-bold transition-all",
+                      "py-2 px-2.5 rounded-xl border text-left transition-all",
                       distributionMode === 'rooms'
-                        ? "border-blue-600 bg-blue-50/40 text-blue-950 shadow-xs"
+                        ? "border-blue-600 bg-blue-50/50 text-blue-950 font-bold shadow-2xs"
                         : "border-slate-200 text-slate-600 hover:bg-slate-50"
                     )}
                   >
-                    <p className="font-black text-xs">Jumlah Ruang</p>
-                    <p className="text-[10px] text-slate-400 font-medium">Bagi rata ke N ruang</p>
+                    <p className="text-xs font-bold">Jumlah Ruang</p>
+                    <p className="text-[10px] text-slate-400">Bagi rata ke ruang</p>
                   </button>
                 </div>
 
                 {distributionMode === 'capacity' ? (
-                  <div className="space-y-1.5 pt-2">
+                  <div className="space-y-1.5 pt-1">
                     <div className="flex items-center justify-between">
-                      <label className="text-[11px] font-bold text-slate-600">Kapasitas Meja per Ruang:</label>
+                      <label className="text-[11px] font-bold text-slate-600">Preset Kapasitas Meja:</label>
                       <span className="text-xs font-black text-blue-600">{capacityPerRoom} Meja</span>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="grid grid-cols-4 gap-1.5">
                       {[20, 24, 30, 36].map(val => (
                         <button
                           key={val}
                           type="button"
                           onClick={() => setCapacityPerRoom(val)}
                           className={cn(
-                            "flex-1 py-1.5 rounded-lg border text-xs font-black transition-all",
+                            "py-1.5 rounded-lg border text-xs font-black transition-all",
                             capacityPerRoom === val
-                              ? "bg-blue-600 text-white border-blue-600"
-                              : "bg-white text-slate-600 border-slate-200"
+                              ? "bg-blue-600 text-white border-blue-600 shadow-2xs"
+                              : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
                           )}
                         >
                           {val}
@@ -1487,24 +1376,24 @@ export default function DistribusiRuang() {
                       max={60}
                       value={capacityPerRoom}
                       onChange={(e) => setCapacityPerRoom(parseInt(e.target.value) || 20)}
-                      className="w-full mt-1 px-3 py-2 rounded-xl border border-slate-200 font-bold text-xs text-indigo-950 bg-slate-50"
-                      placeholder="Atau ketik kapasitas custom..."
+                      className="w-full mt-1 px-3 py-1.5 rounded-xl border border-slate-200 font-bold text-xs text-indigo-950 bg-slate-50/70"
+                      placeholder="Atau ketik kapasitas..."
                     />
                   </div>
                 ) : (
-                  <div className="space-y-1.5 pt-2">
-                    <label className="text-[11px] font-bold text-slate-600">Target Jumlah Ruangan Tersedia:</label>
+                  <div className="space-y-1.5 pt-1">
+                    <label className="text-[11px] font-bold text-slate-600">Target Jumlah Ruangan:</label>
                     <input
                       type="number"
                       min={1}
                       max={50}
                       value={targetRoomsCount}
                       onChange={(e) => setTargetRoomsCount(parseInt(e.target.value) || 1)}
-                      className="w-full px-3 py-2 rounded-xl border border-slate-200 font-bold text-xs text-indigo-950 bg-slate-50"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 font-bold text-xs text-indigo-950 bg-slate-50/70"
                       placeholder="Contoh: 24 ruangan"
                     />
                     <p className="text-[10px] text-slate-400">
-                      Sistem akan membagi rata ~{Math.ceil(eligibleStudents.length / (targetRoomsCount || 1))} murid per ruang.
+                      Rata-rata ~{Math.ceil(eligibleStudents.length / (targetRoomsCount || 1))} murid per ruang.
                     </p>
                   </div>
                 )}
@@ -1513,88 +1402,83 @@ export default function DistribusiRuang() {
               {/* Tombol Eksekusi Otomatis */}
               <button
                 onClick={handleGenerateDistribution}
-                className="w-full bg-indigo-950 hover:bg-indigo-900 text-white py-3 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all"
+                className="w-full bg-indigo-950 hover:bg-indigo-900 text-white py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-sm active:scale-95 transition-all"
               >
-                {seatingMethod === 'standard_class' && <ListOrdered className="w-4 h-4" />}
-                {seatingMethod === 'class_shuffled_seats' && <Users className="w-4 h-4" />}
-                {seatingMethod === 'cross_grade' && <Shuffle className="w-4 h-4" />}
-                {seatingMethod === 'full_random' && <Sparkles className="w-4 h-4" />}
-                {seatingMethod === 'standard_class' ? 'Bentuk Ruangan Standar (Urut Absen)' :
-                 seatingMethod === 'class_shuffled_seats' ? 'Bentuk Ruangan (Per Kelas Absen Acak)' :
-                 seatingMethod === 'full_random' ? 'Bentuk & Acak Ruangan Bebas' :
-                 'Bentuk & Acak Ruangan Bersilang'}
+                <Sparkles className="w-4 h-4 text-amber-300" />
+                Terapkan Penataan Otomatis
               </button>
             </div>
 
             {/* Panel Ringkasan & Ruang yang Terbentuk */}
-            <div className="lg:col-span-2 space-y-5">
-              {/* Statistik Banner */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-xs">
+            <div className="lg:col-span-2 space-y-4">
+              {/* Statistik Banner - 3 Ringkasan Ramping */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-2xs">
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Murid Ujian</p>
-                  <p className="text-xl font-black text-indigo-950 mt-1">{eligibleStudents.length}</p>
-                  <p className="text-[10px] text-slate-400 mt-0.5">
+                  <p className="text-xl font-black text-indigo-950 mt-0.5">{eligibleStudents.length}</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5 truncate">
                     {selectedGrades.map(g => `${g}: ${studentsByGrade[g]?.length || 0}`).join(' • ')}
                   </p>
                 </div>
-                <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-xs">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Jumlah Ruangan</p>
-                  <p className="text-xl font-black text-blue-600 mt-1">{rooms.length}</p>
-                  <p className="text-[10px] text-slate-400 mt-0.5">{rooms.length > 0 ? 'Ruang Aktif' : 'Belum dibentuk'}</p>
+                <div className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-2xs">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Jumlah Ruang</p>
+                  <p className="text-xl font-black text-blue-600 mt-0.5">{rooms.length}</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">
+                    {rooms.length > 0 ? `Kapasitas ${capacityPerRoom} meja/ruang` : 'Belum dibentuk'}
+                  </p>
                 </div>
-                <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-xs">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Murid Teralokasi</p>
-                  <p className="text-xl font-black text-emerald-600 mt-1">
+                <div className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-2xs">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status Alokasi</p>
+                  <p className="text-xl font-black text-emerald-600 mt-0.5">
                     {eligibleStudents.length - unassignedEligibleStudents.length}
+                    <span className="text-xs font-normal text-slate-400 ml-1">/ {eligibleStudents.length}</span>
                   </p>
                   <p className="text-[10px] text-slate-400 mt-0.5">
-                    {unassignedEligibleStudents.length > 0 ? `${unassignedEligibleStudents.length} belum ada ruang` : 'Semua dapat ruang'}
-                  </p>
-                </div>
-                <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-xs">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Fleksibilitas</p>
-                  <p className="text-xs font-black text-purple-600 mt-1.5 line-clamp-1">
-                    Mix Auto & Manual
-                  </p>
-                  <p className="text-[10px] text-slate-400 mt-0.5">
-                    Bisa ubah & pindah kursi
+                    {unassignedEligibleStudents.length > 0 ? `${unassignedEligibleStudents.length} belum dapat ruang` : 'Semua sudah dapat meja'}
                   </p>
                 </div>
               </div>
 
-              {/* Grid Ruangan & Toolbar Manajemen Manual */}
+              {/* Grid Ruangan & Toolbar Manajemen */}
               <div className="space-y-3">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                  <div>
-                    <h3 className="font-bold text-indigo-950 text-sm">
-                      Daftar Ruang Ujian ({rooms.length} Ruang)
+                  <div className="flex items-center gap-3">
+                    <h3 className="font-bold text-slate-900 text-sm">
+                      Daftar Ruang ({filteredRooms.length})
                     </h3>
-                    <p className="text-[11px] text-slate-400 font-medium">
-                      Klik salah satu ruang untuk mengelola denah, pindah murid, atau menambah peserta manual.
-                    </p>
+                    <div className="relative">
+                      <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        value={roomSearchQuery}
+                        onChange={(e) => setRoomSearchQuery(e.target.value)}
+                        placeholder="Cari ruang..."
+                        className="pl-8 pr-2.5 py-1 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none focus:border-blue-500 w-36 sm:w-44 transition-all"
+                      />
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 flex-wrap">
                     <button
                       onClick={() => setShowCreateRoomModal(true)}
-                      className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all"
+                      className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs flex items-center gap-1 transition-all"
                     >
-                      <Plus className="w-3.5 h-3.5 text-slate-500" /> Tambah Ruang Baru
+                      <Plus className="w-3.5 h-3.5 text-slate-500" /> Ruang Baru
                     </button>
                     <button
                       onClick={() => {
                         setManualFilterStatus('all');
                         setShowManualAssignModal(true);
                       }}
-                      className="px-3.5 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all"
+                      className="px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-xl font-bold text-xs flex items-center gap-1 transition-all"
                     >
-                      <UserPlus className="w-3.5 h-3.5" /> Kelola / Pindah Murid
+                      <UserPlus className="w-3.5 h-3.5" /> Kelola Murid
                     </button>
                     {rooms.length > 0 && (
                       <button
                         onClick={handleResetAllRooms}
                         title="Kosongkan Semua Ruang"
-                        className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
+                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -1602,34 +1486,31 @@ export default function DistribusiRuang() {
                   </div>
                 </div>
 
-                {rooms.length === 0 ? (
-                  <div className="bg-white rounded-3xl p-12 text-center border border-slate-200 border-dashed">
-                    <Building2 className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                    <h4 className="font-bold text-indigo-950 text-base">Belum Ada Ruangan yang Dibentuk</h4>
-                    <p className="text-slate-400 text-xs max-w-md mx-auto mt-1 mb-4">
-                      Tentukan parameter di panel kiri lalu klik bentuk ruang otomatis, atau buat ruang manual secara mandiri.
+                {filteredRooms.length === 0 ? (
+                  <div className="bg-white rounded-2xl p-10 text-center border border-slate-200 border-dashed">
+                    <Building2 className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                    <h4 className="font-bold text-slate-800 text-sm">
+                      {rooms.length === 0 ? 'Belum Ada Ruangan' : 'Ruangan Tidak Ditemukan'}
+                    </h4>
+                    <p className="text-slate-400 text-xs max-w-sm mx-auto mt-1 mb-3">
+                      {rooms.length === 0
+                        ? 'Atur parameter di sebelah kiri lalu klik Terapkan Penataan Otomatis.'
+                        : `Tidak ada ruangan dengan kata kunci "${roomSearchQuery}".`}
                     </p>
-                    <div className="flex items-center justify-center gap-3">
-                      <button
-                        onClick={() => setShowCreateRoomModal(true)}
-                        className="px-4 py-2 bg-indigo-950 text-white rounded-xl font-bold text-xs flex items-center gap-2"
-                      >
-                        <Plus className="w-4 h-4" /> + Buat Ruang Manual
-                      </button>
-                      <button
-                        onClick={() => {
-                          setManualFilterStatus('all');
-                          setShowManualAssignModal(true);
-                        }}
-                        className="px-4 py-2 bg-blue-50 text-blue-700 rounded-xl font-bold text-xs flex items-center gap-2"
-                      >
-                        <UserPlus className="w-4 h-4" /> Alokasi Manual
-                      </button>
-                    </div>
+                    {rooms.length === 0 && (
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          onClick={() => setShowCreateRoomModal(true)}
+                          className="px-3 py-1.5 bg-indigo-950 text-white rounded-xl font-bold text-xs flex items-center gap-1.5"
+                        >
+                          <Plus className="w-3.5 h-3.5" /> Buat Manual
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                    {rooms.map(room => {
+                    {filteredRooms.map(room => {
                       const presentGrades: string[] = (Array.from(new Set(room.seats.map(s => String(s.grade || 'OTHER')))) as string[]).sort();
                       const isFull = room.seats.length >= room.capacity;
                       const remaining = Math.max(0, room.capacity - room.seats.length);
@@ -1637,34 +1518,35 @@ export default function DistribusiRuang() {
                       return (
                         <div
                           key={room.id}
-                          className="bg-white p-4 rounded-2xl border border-slate-100 hover:border-blue-400 hover:shadow-lg transition-all flex flex-col justify-between group"
+                          className="bg-white p-3.5 rounded-2xl border border-slate-200/80 hover:border-blue-400 hover:shadow-md transition-all flex flex-col justify-between group"
                         >
                           <div>
+                            {/* Card Header: Room Name & Capacity Pill */}
                             <div className="flex items-center justify-between mb-2">
                               <span 
                                 onClick={() => setSelectedRoomDetail(room)}
-                                className="font-black text-indigo-950 text-sm group-hover:text-blue-600 transition-colors cursor-pointer"
+                                className="font-bold text-slate-900 text-sm group-hover:text-blue-600 transition-colors cursor-pointer"
                               >
                                 {room.name}
                               </span>
                               <span className={cn(
-                                "text-[10px] font-black px-2 py-0.5 rounded-md",
-                                isFull ? "bg-rose-50 text-rose-700" : "bg-blue-50 text-blue-600"
+                                "text-[10px] font-bold px-2 py-0.5 rounded-md",
+                                isFull ? "bg-emerald-50 text-emerald-700" : "bg-blue-50 text-blue-700"
                               )}>
-                                {room.seats.length} / {room.capacity} Meja
+                                {room.seats.length}/{room.capacity} Meja
                               </span>
                             </div>
 
-                            {/* Badge Jenjang Dinamis */}
+                            {/* Grade Badges */}
                             <div className="flex flex-wrap items-center gap-1 mb-2">
                               {presentGrades.length === 0 ? (
-                                <span className="text-[10px] text-slate-400 italic">Ruangan masih kosong</span>
+                                <span className="text-[10px] text-slate-400 italic">Ruangan kosong</span>
                               ) : (
                                 presentGrades.map(g => {
                                   const cnt = room.seats.filter(s => s.grade === g).length;
                                   const style = getGradeBadgeStyle(g);
                                   return (
-                                    <span key={g} className={cn("px-2 py-0.5 rounded text-[10px] font-black border", style.pill)}>
+                                    <span key={g} className={cn("px-1.5 py-0.5 rounded text-[10px] font-bold border", style.pill)}>
                                       Kelas {g}: {cnt}
                                     </span>
                                   );
@@ -1672,38 +1554,42 @@ export default function DistribusiRuang() {
                               )}
                             </div>
 
-                            {/* Info Rombel */}
+                            {/* Rombel count / summary (ringkas tanpa text spam) */}
                             {room.classes && room.classes.length > 0 && (
-                              <p className="text-[10px] text-slate-500 font-medium line-clamp-1 mb-2">
-                                Rombel: <span className="font-bold text-slate-700">{room.classes.join(', ')}</span>
-                              </p>
+                              <div className="text-[10px] text-slate-500 font-medium mb-2 truncate">
+                                {room.classes.length <= 2 ? (
+                                  <span>Rombel: <strong className="text-slate-700">{room.classes.join(', ')}</strong></span>
+                                ) : (
+                                  <span className="text-slate-500 font-medium">{room.classes.length} Rombel Terlibat</span>
+                                )}
+                              </div>
                             )}
 
-                            {/* Sisa Meja */}
-                            <div className="flex items-center justify-between text-[10px] text-slate-400 mb-3">
-                              <span>Status Meja:</span>
-                              <span className={cn("font-bold", remaining > 0 ? "text-emerald-600" : "text-slate-500")}>
-                                {remaining > 0 ? `Sisa ${remaining} Meja Kosong` : 'Kapasitas Penuh'}
+                            {/* Status Meja Sederhana */}
+                            <div className="flex items-center justify-between text-[10px] text-slate-400 mb-2.5">
+                              <span>Status:</span>
+                              <span className={cn("font-bold", remaining > 0 ? "text-amber-600" : "text-slate-600")}>
+                                {remaining > 0 ? `Tersisa ${remaining} Meja` : 'Meja Penuh'}
                               </span>
                             </div>
                           </div>
 
-                          <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px]">
+                          <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
                             <button
                               onClick={() => {
                                 setManualTargetRoomId(room.id);
                                 setManualFilterStatus('unassigned');
                                 setShowManualAssignModal(true);
                               }}
-                              className="text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1"
+                              className="text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1 py-0.5"
                             >
-                              <Plus className="w-3.5 h-3.5" /> Isi Murid
+                              <Plus className="w-3 h-3" /> Isi Murid
                             </button>
                             <button
                               onClick={() => setSelectedRoomDetail(room)}
-                              className="text-indigo-950 hover:text-blue-600 font-black flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform"
+                              className="text-slate-700 hover:text-blue-600 font-bold flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform py-0.5"
                             >
-                              Buka Denah <ChevronRight className="w-3.5 h-3.5" />
+                              Buka Denah <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
                             </button>
                           </div>
                         </div>
