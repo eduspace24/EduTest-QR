@@ -66,6 +66,13 @@ export default function StudentExam() {
   const [allDbStudents, setAllDbStudents] = useState<any[]>([]);
 
   const enterFullscreen = () => {
+    // Avoid triggering mobile OS immersive notification toast ("To exit full screen, drag from the top...")
+    const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+      ('ontouchstart' in window && window.innerWidth <= 820);
+    if (isMobile) {
+      return;
+    }
+
     try {
       const docEl = document.documentElement;
       if (docEl.requestFullscreen) {
