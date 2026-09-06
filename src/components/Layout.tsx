@@ -14,7 +14,8 @@ import {
   CheckCircle2,
   X,
   QrCode,
-  Building2
+  Building2,
+  FileText
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { cn, formatPersonName } from '../lib/utils';
@@ -65,8 +66,9 @@ export default function Layout({ session, onLogout }: LayoutProps) {
   ];
 
   const studentMenuItems = [
-    { icon: LayoutDashboard, label: 'Portal Murid', path: '/student/dashboard' },
-    { icon: ListTodo, label: 'Ujian Saya', path: '/student/dashboard' },
+    { icon: LayoutDashboard, label: 'Beranda', path: '/student/dashboard' },
+    { icon: FileText, label: 'Ulangan Harian', path: '/student/ulangan-harian' },
+    { icon: GraduationCap, label: 'Ujian Akhir Semester', path: '/student/ujian-semester' },
     { icon: User, label: 'Profil Saya', path: '/profil' },
   ];
 

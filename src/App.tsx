@@ -11,6 +11,8 @@ const Login = lazy(() => import('./pages/Login'));
 const ProfileSetup = lazy(() => import('./pages/ProfileSetup'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const StudentDashboard = lazy(() => import('./pages/student/Dashboard'));
+const StudentDailyExams = lazy(() => import('./pages/student/DailyExams'));
+const StudentSemesterExams = lazy(() => import('./pages/student/SemesterExams'));
 const BuatUjian = lazy(() => import('./pages/BuatUjian'));
 const BankSoal = lazy(() => import('./pages/BankSoal'));
 const DaftarUjian = lazy(() => import('./pages/DaftarUjian'));
@@ -60,14 +62,17 @@ export default function App() {
             <Route path="/profil-guru" element={session ? (isSuperAdmin || isMurid ? <Navigate to="/dashboard" /> : <ProfileSetup />) : <Navigate to="/login" />} />
             
             {/* Student Dedicated Portal */}
-            <Route path="/student/dashboard" element={
+            <Route element={
               session ? (
                 <Layout session={session} />
               ) : (
                 <Navigate to="/login" replace />
               )
             }>
-              <Route index element={<StudentDashboard />} />
+              <Route path="/student" element={<Navigate to="/student/dashboard" replace />} />
+              <Route path="/student/dashboard" element={<StudentDashboard />} />
+              <Route path="/student/ulangan-harian" element={<StudentDailyExams />} />
+              <Route path="/student/ujian-semester" element={<StudentSemesterExams />} />
             </Route>
 
             {/* Protected Routes with Layout */}

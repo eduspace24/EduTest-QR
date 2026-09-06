@@ -23,7 +23,8 @@ import {
   Type,
   Maximize,
   Minimize,
-  LayoutGrid
+  LayoutGrid,
+  FileText
 } from 'lucide-react';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import { cn } from '../../lib/utils';
@@ -890,20 +891,40 @@ export default function StudentExam() {
         >
           {/* Header */}
           <div className="text-center space-y-2">
-            <div className="bg-indigo-950 w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center text-white mx-auto shadow-lg shadow-indigo-950/20">
-              <GraduationCap className="w-7 h-7 sm:w-8 sm:h-8" />
+            <div className={cn(
+              "w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center text-white mx-auto shadow-lg",
+              exam?.exam_type === 'harian'
+                ? "bg-emerald-600 shadow-emerald-600/20"
+                : "bg-indigo-950 shadow-indigo-950/20"
+            )}>
+              {exam?.exam_type === 'harian' ? (
+                <FileText className="w-7 h-7 sm:w-8 sm:h-8" />
+              ) : (
+                <GraduationCap className="w-7 h-7 sm:w-8 sm:h-8" />
+              )}
             </div>
             <div className="flex items-center justify-center gap-2 flex-wrap pt-1">
-              <span className="bg-indigo-100 text-indigo-950 text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider">
+              <span className={cn(
+                "text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider flex items-center gap-1",
+                exam?.exam_type === 'harian'
+                  ? "bg-emerald-100 text-emerald-900 border border-emerald-200"
+                  : "bg-indigo-950 text-white"
+              )}>
+                {exam?.exam_type === 'harian' ? <FileText className="w-3 h-3" /> : <GraduationCap className="w-3 h-3" />}
+                {exam?.exam_type === 'harian' ? 'Ulangan Harian' : 'Ujian Akhir Semester'}
+              </span>
+              <span className="bg-slate-100 text-slate-800 text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider">
                 {exam?.subject || 'Mata Pelajaran'}
               </span>
-              <span className="bg-emerald-100 text-emerald-800 text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider flex items-center gap-1">
-                <ShieldCheck className="w-3 h-3" /> Siap Dimulai
+              <span className="bg-emerald-50 text-emerald-800 text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider flex items-center gap-1 border border-emerald-200">
+                <ShieldCheck className="w-3 h-3 text-emerald-600" /> Siap Dimulai
               </span>
             </div>
             <h2 className="text-xl sm:text-2xl font-black text-indigo-950 tracking-tight">{exam?.title || 'Memuat Lembar Ujian...'}</h2>
             <p className="text-slate-400 text-xs font-semibold">
-              Pastikan identitas Anda sudah sesuai sebelum menekan tombol mulai.
+              {exam?.exam_type === 'harian'
+                ? 'Pastikan identitas Anda sudah sesuai sebelum memulai pengerjaan ulangan.'
+                : 'Asesmen semester resmi sekolah. Pastikan identitas dan perangkat Anda siap.'}
             </p>
           </div>
 
@@ -1041,11 +1062,14 @@ export default function StudentExam() {
           {/* Logo & Judul Ujian di bawahnya */}
           <div className="flex flex-col items-start min-w-0 pr-2">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-indigo-950 text-white flex items-center justify-center font-black text-xs shrink-0 shadow-sm">
-                <GraduationCap className="w-4 h-4" />
+              <div className={cn(
+                "w-8 h-8 rounded-xl text-white flex items-center justify-center font-black text-xs shrink-0 shadow-sm",
+                exam?.exam_type === 'harian' ? "bg-emerald-600" : "bg-indigo-950"
+              )}>
+                {exam?.exam_type === 'harian' ? <FileText className="w-4 h-4" /> : <GraduationCap className="w-4 h-4" />}
               </div>
               <span className="text-[11px] font-black uppercase tracking-widest text-slate-400">
-                Lembar Ujian Siswa
+                {exam?.exam_type === 'harian' ? 'Lembar Ulangan Harian' : 'Lembar Ujian Akhir Semester'}
               </span>
             </div>
             <h1 className="font-black text-indigo-950 text-sm sm:text-base tracking-tight leading-snug mt-1 break-words">
