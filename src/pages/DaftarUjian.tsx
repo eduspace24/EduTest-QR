@@ -315,6 +315,7 @@ export default function DaftarUjian() {
         anti_cheat: updatedPayload.anti_cheat,
         cheat_tolerance: updatedPayload.cheat_tolerance,
         unlock_code: updatedPayload.unlock_code,
+        token: updatedPayload.unlock_code,
         randomized: updatedPayload.randomized,
         randomize_options: updatedPayload.randomize_options,
         _answer_key: (updatedPayload.questions || []).map((q: any) => ({
@@ -354,30 +355,36 @@ export default function DaftarUjian() {
         }).eq('id', examId);
       } catch {}
 
+      const enrichedPayload = {
+        ...updatedPayload,
+        unlock_code: updatedPayload.unlock_code,
+        token: updatedPayload.unlock_code
+      };
+
       // 3. Simpan ke cache IndexedDB & LocalStorage
-      await saveCollection('exam_' + examId, updatedPayload);
-      localStorage.setItem('edu_exam_' + examId, JSON.stringify(updatedPayload));
+      await saveCollection('exam_' + examId, enrichedPayload);
+      localStorage.setItem('edu_exam_' + examId, JSON.stringify(enrichedPayload));
       localStorage.setItem(`edu_exam_${examId}_updated`, new Date().toISOString());
 
       // Update state exams_list
       const currentList = (await getCollectionData('exams_list')) || [];
       const updatedList = currentList.map((e: any) => {
         const eId = e.id || e.$id || e.driveFileId;
-        return eId === examId ? { ...e, ...updatedPayload } : e;
+        return eId === examId ? { ...e, ...enrichedPayload } : e;
       });
       await saveCollection('exams_list', updatedList);
 
       const rawExams = (await getCollectionData('exams')) || [];
       const updatedRaw = rawExams.map((e: any) => {
         const eId = e.id || e.$id || e.driveFileId;
-        return eId === examId ? { ...e, ...updatedPayload } : e;
+        return eId === examId ? { ...e, ...enrichedPayload } : e;
       });
       await saveCollection('exams', updatedRaw);
 
       // 4. Update tampilan tabel real-time
       setExams(prev => prev.map(e => {
         const eId = e.id || e.$id || e.driveFileId;
-        return eId === examId ? { ...e, ...updatedPayload } : e;
+        return eId === examId ? { ...e, ...enrichedPayload } : e;
       }));
 
       setIsEditModalOpen(false);

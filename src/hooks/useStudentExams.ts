@@ -23,6 +23,8 @@ export interface StudentExamItem {
   show_score?: boolean;
   status?: string;
   created_at?: string;
+  unlock_code?: string;
+  token?: string;
 }
 
 export interface StudentRoomSeat {
@@ -84,7 +86,9 @@ export function useStudentExams() {
               allowedStudents: parsedCloud.allowedStudents || d.allowedStudents || [],
               session_name: parsedCloud.session_name || d.session_name || '',
               start_time: parsedCloud.start_time || d.start_time || '',
-              end_time: parsedCloud.end_time || d.end_time || ''
+              end_time: parsedCloud.end_time || d.end_time || '',
+              unlock_code: parsedCloud.unlock_code || d.unlock_code || '',
+              token: parsedCloud.unlock_code || parsedCloud.token || d.unlock_code || d.token || ''
             };
           });
         }

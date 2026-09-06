@@ -48,6 +48,7 @@ export default function StudentExam() {
   const [isLocked, setIsLocked] = useState(false);
   const [unlockInput, setUnlockInput] = useState('');
   const [unlockError, setUnlockError] = useState('');
+  const [isUnlocking, setIsUnlocking] = useState(false);
   const [triggerCheatSubmit, setTriggerCheatSubmit] = useState(false);
   const [auditLog, setAuditLog] = useState<{time: string, action: string}[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -675,33 +676,88 @@ export default function StudentExam() {
     }
   };
 
-  const handleUnlock = () => {
+  const handleUnlock = async () => {
     const code = unlockInput.trim().toUpperCase();
-    if (!code) return;
+    if (!code || isUnlocking) return;
 
-    // Kumpulkan seluruh kandidat kode unlock / token yang sah untuk ujian ini
-    const allowedCodes = new Set<string>();
-    if (exam?.unlock_code) allowedCodes.add(String(exam.unlock_code).trim().toUpperCase());
-    if (exam?.token) allowedCodes.add(String(exam.token).trim().toUpperCase());
-    if (exam?._valid_tokens && Array.isArray(exam._valid_tokens)) {
-      exam._valid_tokens.forEach((t: any) => {
-        if (t) allowedCodes.add(String(t).trim().toUpperCase());
-      });
-    }
-    // Kode darurat pengawas sekolah / master
-    allowedCodes.add('19SMAN');
+    setIsUnlocking(true);
+    setUnlockError('');
 
-    if (allowedCodes.has(code)) {
-      const wasAutoSubmitted = exam?.cheat_tolerance !== 0 && cheatViolations >= exam.cheat_tolerance;
-      setIsLocked(false);
-      setCheatViolations(0);
-      setUnlockInput('');
-      setUnlockError('');
-      if (wasAutoSubmitted) {
-        navigate(`/exam/result/finish`);
+    try {
+      // 1. Kumpulkan seluruh kandidat kode unlock / token yang sah dalam memori
+      const allowedCodes = new Set<string>();
+      if (exam?.unlock_code) allowedCodes.add(String(exam.unlock_code).trim().toUpperCase());
+      if (exam?.token) allowedCodes.add(String(exam.token).trim().toUpperCase());
+      if (exam?._valid_tokens && Array.isArray(exam._valid_tokens)) {
+        exam._valid_tokens.forEach((t: any) => {
+          if (t) allowedCodes.add(String(t).trim().toUpperCase());
+        });
       }
-    } else {
-      setUnlockError('Kode unlock salah. Coba lagi atau hubungi pengawas.');
+      // Kode darurat pengawas sekolah / master
+      allowedCodes.add('19SMAN');
+
+      let isMatch = allowedCodes.has(code);
+
+      // 2. Jika belum cocok, periksa dokumen ujian terbaru secara real-time dari Appwrite Cloud
+      //    agar jika guru baru saja mengubah token saat ujian berlangsung, token baru langsung valid!
+      if (!isMatch && examId) {
+        try {
+          const { databases, COLLECTIONS, APPWRITE_DATABASE_ID } = await import('../../lib/appwrite');
+          const freshDoc = await databases.getDocument(
+            APPWRITE_DATABASE_ID,
+            COLLECTIONS.EXAMS,
+            examId
+          );
+          if (freshDoc) {
+            if (freshDoc.unlock_code) {
+              allowedCodes.add(String(freshDoc.unlock_code).trim().toUpperCase());
+            }
+            if (freshDoc.questions && typeof freshDoc.questions === 'string') {
+              try {
+                const freshParsed = JSON.parse(freshDoc.questions);
+                if (freshParsed.unlock_code) allowedCodes.add(String(freshParsed.unlock_code).trim().toUpperCase());
+                if (freshParsed.token) allowedCodes.add(String(freshParsed.token).trim().toUpperCase());
+              } catch {}
+            }
+            // Simpan token baru ke state exam agar sesi murid tersinkronisasi
+            setExam((prev: any) => ({
+              ...prev,
+              unlock_code: freshDoc.unlock_code || prev?.unlock_code,
+              token: freshDoc.unlock_code || prev?.token,
+              _valid_tokens: Array.from(allowedCodes)
+            }));
+            isMatch = allowedCodes.has(code);
+          }
+        } catch (cloudErr) {
+          console.warn('Realtime cloud unlock check note:', cloudErr);
+        }
+
+        // Cek juga fallback cache lokal
+        if (!isMatch) {
+          try {
+            const localExam = await getCollectionData('exam_' + examId);
+            const lObj = Array.isArray(localExam) ? localExam[0] : localExam;
+            if (lObj?.unlock_code) allowedCodes.add(String(lObj.unlock_code).trim().toUpperCase());
+            if (lObj?.token) allowedCodes.add(String(lObj.token).trim().toUpperCase());
+            isMatch = allowedCodes.has(code);
+          } catch {}
+        }
+      }
+
+      if (isMatch) {
+        const wasAutoSubmitted = exam?.cheat_tolerance !== 0 && cheatViolations >= exam.cheat_tolerance;
+        setIsLocked(false);
+        setCheatViolations(0);
+        setUnlockInput('');
+        setUnlockError('');
+        if (wasAutoSubmitted) {
+          navigate(`/exam/result/finish`);
+        }
+      } else {
+        setUnlockError('Kode unlock salah. Coba lagi atau hubungi pengawas.');
+      }
+    } finally {
+      setIsUnlocking(false);
     }
   };
 
@@ -834,9 +890,17 @@ export default function StudentExam() {
             </div>
             <button
               onClick={handleUnlock}
-              className="w-full bg-indigo-950 text-white py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-indigo-900 transition-all active:scale-95"
+              disabled={isUnlocking}
+              className="w-full bg-indigo-950 text-white py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-indigo-900 transition-all active:scale-95 disabled:opacity-60 cursor-pointer"
             >
-              Buka Blokir
+              {isUnlocking ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Memverifikasi...</span>
+                </>
+              ) : (
+                <span>Buka Blokir</span>
+              )}
             </button>
           </div>
         </div>
