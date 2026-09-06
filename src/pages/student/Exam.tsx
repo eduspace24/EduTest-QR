@@ -839,8 +839,8 @@ export default function StudentExam() {
 
           <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-xs space-y-2 mb-6 text-left">
             <div className="flex justify-between">
-              <span className="text-slate-400 font-medium">Nama Peserta:</span>
-              <span className="font-bold text-indigo-950">{completionData?.student_name || completionData?.studentName || studentData.nama || 'Peserta'}</span>
+              <span className="text-slate-400 font-medium">Nama Murid:</span>
+              <span className="font-bold text-indigo-950">{completionData?.student_name || completionData?.studentName || studentData.nama || 'Murid'}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-slate-400 font-medium">Kelas:</span>
@@ -1028,7 +1028,7 @@ export default function StudentExam() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700">NISN / No. Peserta</label>
+                  <label className="text-xs font-bold text-slate-700">NISN</label>
                   <input 
                     type="text" 
                     placeholder="Contoh: 242510311"

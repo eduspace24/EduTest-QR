@@ -52,48 +52,30 @@ export default function SemesterExams() {
 
   return (
     <div className="p-4 sm:p-8 max-w-6xl mx-auto space-y-6">
-      {/* Header Banner Formal */}
-      <div className="bg-gradient-to-r from-indigo-950 via-slate-900 to-indigo-900 p-6 sm:p-8 rounded-3xl text-white shadow-lg relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-        <div className="space-y-2 z-10">
-          <button
-            onClick={() => navigate('/student/dashboard')}
-            className="text-indigo-200 hover:text-white text-xs font-bold flex items-center gap-1.5 transition-colors mb-2 cursor-pointer"
-          >
-            <ArrowLeft className="w-4 h-4" /> Kembali ke Beranda
-          </button>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-xs text-indigo-200 text-xs font-bold">
-            <GraduationCap className="w-3.5 h-3.5" /> Asesmen Sumatif Sekolah (ASAT / SAS)
+      {/* Header Bersih & Ringkas */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200">
+        <div>
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+              <GraduationCap className="w-6 h-6 text-indigo-950" /> Ujian Akhir Semester
+            </h1>
+            {semesterExams.length > 0 && roomSeat && (
+              <span className="text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-xl flex items-center gap-1.5 shadow-2xs">
+                <Building2 className="w-3.5 h-3.5" /> {roomSeat.roomName} • Meja {roomSeat.seatNumber}
+              </span>
+            )}
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tight">
-            Ujian Akhir Semester
-          </h1>
-          <p className="text-slate-300 text-xs sm:text-sm max-w-xl leading-relaxed">
-            Asesmen resmi terjadwal untuk peserta didik kelas <strong className="text-white">{sessionUser?.kelas || 'Siswa'}</strong>. Harap hadir dan mengerjakan sesuai sesi & ruang yang ditentukan.
+          <p className="text-xs text-slate-500 font-medium mt-0.5">
+            Jadwal asesmen semester kelas {sessionUser?.kelas || 'murid'}.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 z-10">
-          {/* Card Ruang & Nomor Meja Hanya Jika Ada Ujian Semester */}
-          {semesterExams.length > 0 && roomSeat ? (
-            <div className="bg-white/10 backdrop-blur-xs p-3.5 rounded-2xl border border-white/20 text-left min-w-[140px]">
-              <div className="flex items-center gap-1.5 text-indigo-200 text-[10px] font-bold uppercase tracking-wider">
-                <Building2 className="w-3.5 h-3.5" /> Lokasi Ujian
-              </div>
-              <p className="text-lg font-black text-white mt-0.5">{roomSeat.roomName}</p>
-              <p className="text-xs text-emerald-300 font-bold">Meja No. {roomSeat.seatNumber}</p>
-            </div>
-          ) : (
-            <div className="bg-white/10 backdrop-blur-xs p-3.5 rounded-2xl border border-white/20 text-center min-w-[100px]">
-              <p className="text-2xl font-black text-white">{pendingCount}</p>
-              <p className="text-[10px] text-indigo-200 font-bold uppercase tracking-wider">Ujian Aktif</p>
-            </div>
-          )}
-
-          <div className="bg-white/10 backdrop-blur-xs p-3.5 rounded-2xl border border-white/20 text-center min-w-[90px]">
-            <p className="text-2xl font-black text-emerald-400">{completedCount}</p>
-            <p className="text-[10px] text-indigo-200 font-bold uppercase tracking-wider">Selesai</p>
-          </div>
-        </div>
+        <button
+          onClick={() => navigate('/student/dashboard')}
+          className="self-start sm:self-auto text-slate-600 hover:text-indigo-950 text-xs font-bold flex items-center gap-1 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-xl transition-all cursor-pointer"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" /> Beranda
+        </button>
       </div>
 
       {/* Toolbar & Filter Tabs */}

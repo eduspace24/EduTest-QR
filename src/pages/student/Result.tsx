@@ -116,7 +116,7 @@ export default function StudentResult() {
                 
                 {meta && (
                   <div className="text-center w-full max-w-sm">
-                    <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">Identitas Peserta</p>
+                    <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">Identitas Murid</p>
                     <p className="text-lg font-black text-indigo-950 leading-tight mb-0.5">{meta.studentName}</p>
                     <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">{meta.studentKelas}</p>
                     

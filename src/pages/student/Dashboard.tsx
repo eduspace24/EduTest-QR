@@ -41,7 +41,7 @@ export default function StudentDashboard() {
           </div>
           <div className="space-y-1">
             <span className="text-[10px] font-black uppercase tracking-wider bg-white/10 text-slate-200 px-2.5 py-0.5 rounded-full inline-block">
-              Peserta Didik
+              Murid
             </span>
             <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white">
               Halo, {sessionUser?.nama || 'Murid Nineteen'}!
