@@ -3,7 +3,6 @@ import {
   CheckCircle2, 
   ArrowRight,
   GraduationCap,
-  PartyPopper,
   ShieldCheck,
   ChevronRight,
   QrCode,
@@ -36,22 +35,20 @@ export default function StudentResult() {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4 py-12 relative overflow-hidden">
       <motion.div 
-        initial={{ opacity: 0, y: 40 }}
+        initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-2xl bg-white rounded-[2.5rem] shadow-2xl border border-slate-100 overflow-hidden relative z-10"
+        className="w-full max-w-2xl bg-white rounded-3xl sm:rounded-[2.5rem] shadow-card border border-slate-200/85 overflow-hidden relative z-10"
       >
-        <div className="h-4 bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-600" />
-        
         <div className="p-6 sm:p-12 text-center">
           <motion.div 
-            initial={{ scale: 0.5, opacity: 0 }}
+            initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="w-20 h-20 bg-emerald-50 text-emerald-500 rounded-[1.5rem] mx-auto mb-6 flex items-center justify-center shadow-lg"
+            className="w-16 h-16 sm:w-20 sm:h-20 bg-emerald-50 text-emerald-600 rounded-2xl sm:rounded-3xl mx-auto mb-5 sm:mb-6 flex items-center justify-center border border-emerald-200/80 shadow-soft"
           >
-            <PartyPopper className="w-10 h-10" />
+            <CheckCircle2 className="w-9 h-9 sm:w-11 sm:h-11 text-emerald-600" />
           </motion.div>
 
-          <h1 className="text-3xl font-black text-indigo-950 tracking-tight mb-2">{cheatFlagged ? 'Ujian Diakhiri' : 'Ujian Selesai!'}</h1>
+          <h1 className="text-2xl sm:text-3xl font-black text-indigo-950 tracking-tight mb-2">{cheatFlagged ? 'Ujian Diakhiri' : 'Ujian Selesai!'}</h1>
           
           {cheatFlagged && (
             <div className="flex items-start gap-3 px-4 py-3 mb-6 bg-red-50 text-red-700 rounded-2xl border border-red-100 text-xs font-bold max-w-md mx-auto text-left">
