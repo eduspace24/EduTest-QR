@@ -66,21 +66,18 @@ export default function StudentExam() {
   const [allDbStudents, setAllDbStudents] = useState<any[]>([]);
 
   const enterFullscreen = () => {
-    // Avoid triggering mobile OS immersive notification toast ("To exit full screen, drag from the top...")
-    const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
-      ('ontouchstart' in window && window.innerWidth <= 820);
-    if (isMobile) {
-      return;
-    }
-
     try {
-      const docEl = document.documentElement;
+      const docEl = document.documentElement as any;
       if (docEl.requestFullscreen) {
-        docEl.requestFullscreen().catch(() => {});
-      } else if ((docEl as any).webkitRequestFullscreen) {
-        (docEl as any).webkitRequestFullscreen();
-      } else if ((docEl as any).msRequestFullscreen) {
-        (docEl as any).msRequestFullscreen();
+        docEl.requestFullscreen().catch((err: any) => {
+          console.warn('requestFullscreen note:', err);
+        });
+      } else if (docEl.webkitRequestFullscreen) {
+        docEl.webkitRequestFullscreen();
+      } else if (docEl.mozRequestFullScreen) {
+        docEl.mozRequestFullScreen();
+      } else if (docEl.msRequestFullscreen) {
+        docEl.msRequestFullscreen();
       }
     } catch (e) {
       console.warn('Fullscreen error:', e);
@@ -1101,6 +1098,22 @@ export default function StudentExam() {
             >
               <LayoutGrid className="w-4 h-4" />
               <span className="hidden sm:inline">Nomor Soal</span>
+            </button>
+
+            {/* Tombol Layar Penuh (Fullscreen) */}
+            <button
+              type="button"
+              onClick={() => {
+                if (document.fullscreenElement) {
+                  exitFullscreen();
+                } else {
+                  enterFullscreen();
+                }
+              }}
+              className="flex items-center justify-center p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all cursor-pointer"
+              title={isFullscreen ? "Keluar Layar Penuh" : "Layar Penuh"}
+            >
+              {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
             </button>
 
             {/* Timer Badge */}
