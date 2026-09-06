@@ -10,7 +10,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useStudentExams } from '../../hooks/useStudentExams';
-import { cn, formatTeacherName, resolveExamType } from '../../lib/utils';
+import { cn, resolveExamType } from '../../lib/utils';
 
 export default function StudentDashboard() {
   const navigate = useNavigate();
@@ -131,7 +131,7 @@ export default function StudentDashboard() {
 
                       {isDone && (
                         <span className="text-[10px] bg-emerald-100 text-emerald-800 font-black px-2.5 py-0.5 rounded-md border border-emerald-200 flex items-center gap-1">
-                          <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Selesai 1x
+                          <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Selesai
                         </span>
                       )}
                     </div>
@@ -140,10 +140,11 @@ export default function StudentDashboard() {
                       {exam.title}
                     </h3>
 
-                    <p className="text-xs text-slate-400 font-medium">
-                      Oleh: <strong className="text-slate-600">{formatTeacherName(exam.teacher_name || 'Guru Pengampu')}</strong>
-                      {!isDaily && exam.start_time ? ` • Pukul ${exam.start_time} - ${exam.end_time || 'Selesai'}` : ' • Waktu Bebas'}
-                    </p>
+                    {!isDaily && exam.start_time && (
+                      <p className="text-xs text-slate-500 font-medium">
+                        Pukul {exam.start_time} - {exam.end_time || 'Selesai'}
+                      </p>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">
@@ -170,9 +171,9 @@ export default function StudentDashboard() {
                           e.stopPropagation();
                           navigate(targetPage);
                         }}
-                        className="px-4 py-2.5 bg-blue-50 text-blue-700 group-hover:bg-blue-600 group-hover:text-white rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+                        className="px-4 py-2 bg-blue-50 text-blue-700 group-hover:bg-blue-600 group-hover:text-white rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
                       >
-                        <span>Buka Halaman {isDaily ? 'Ulangan' : 'Ujian'}</span>
+                        <span>Buka</span>
                         <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
                       </button>
                     )}

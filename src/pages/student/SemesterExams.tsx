@@ -13,7 +13,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useStudentExams, StudentExamItem } from '../../hooks/useStudentExams';
-import { cn, formatTeacherName } from '../../lib/utils';
+import { cn } from '../../lib/utils';
 
 export default function SemesterExams() {
   const navigate = useNavigate();
@@ -197,7 +197,7 @@ export default function SemesterExams() {
 
                     {isDone && (
                       <span className="text-[10px] bg-emerald-100 text-emerald-800 font-black px-2.5 py-0.5 rounded-md border border-emerald-200 flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Selesai 1x
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Selesai
                       </span>
                     )}
                   </div>
@@ -206,16 +206,17 @@ export default function SemesterExams() {
                     {exam.title}
                   </h3>
 
-                  <p className="text-xs text-slate-400 font-medium">
-                    Panitia / Pengampu: <strong className="text-slate-600">{formatTeacherName(exam.teacher_name || 'Panitia ASAT')}</strong>
-                    {exam.start_time && ` • Pukul ${exam.start_time} - ${exam.end_time || 'Selesai'}`}
-                  </p>
+                  {exam.start_time && (
+                    <p className="text-xs text-slate-500 font-medium">
+                      Pukul {exam.start_time} - {exam.end_time || 'Selesai'}
+                    </p>
+                  )}
                 </div>
 
                 {isDone ? (
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="px-4 py-2.5 bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold rounded-xl flex items-center gap-1.5">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Ujian Selesai
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Selesai
                     </span>
                     <button
                       type="button"
@@ -232,7 +233,7 @@ export default function SemesterExams() {
                     onClick={() => navigate(`/test/${exam.teacher_id || 'teacher'}/${exam.id}`)}
                     className="px-6 py-3 bg-indigo-950 hover:bg-indigo-900 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-md shadow-indigo-950/20 active:scale-95 transition-all shrink-0 cursor-pointer"
                   >
-                    <span>Mulai Ujian</span>
+                    <span>Mulai</span>
                     <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   </button>
                 )}

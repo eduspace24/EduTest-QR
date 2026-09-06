@@ -637,7 +637,7 @@ export default function DaftarUjian() {
 
             const scheduleText = isSemester && exam.session_name
               ? `${exam.session_name} (${exam.start_time || '07:30'} - ${exam.end_time || '09:30'})`
-              : 'Kapan saja • 1x Pengerjaan';
+              : 'Kapan saja';
 
             const modeText = exam.submission_mode === 'direct'
               ? 'Kirim Otomatis'

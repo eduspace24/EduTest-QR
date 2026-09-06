@@ -118,7 +118,7 @@ export default function Dashboard() {
         <div>
           <div className="flex items-center gap-2">
             <span className="bg-indigo-100 text-indigo-950 text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider">
-              {isSuperAdmin ? 'Super Administrator' : 'Guru Pengampu'}
+              {isSuperAdmin ? 'Administrator' : 'Guru'}
             </span>
           </div>
           <h2 className="tracking-tight text-2xl sm:text-3xl font-black text-indigo-950 mt-1">

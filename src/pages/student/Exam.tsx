@@ -838,7 +838,7 @@ export default function StudentExam() {
           </span>
           <h2 className="text-xl sm:text-2xl font-black text-indigo-950 mt-3 mb-2">{exam?.title || 'Ujian'}</h2>
           <p className="text-xs text-slate-500 font-bold mb-6 leading-relaxed">
-            Anda telah menyelesaikan ujian ini. Setiap murid hanya diperbolehkan mengerjakan satu kali saja dan jawaban Anda telah tercatat rapi di sistem.
+            Anda telah menyelesaikan ujian ini. Jawaban Anda telah tersimpan di sistem.
           </p>
 
           <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-xs space-y-2 mb-6 text-left">
@@ -865,8 +865,8 @@ export default function StudentExam() {
               </div>
             )}
             <div className="flex justify-between">
-              <span className="text-slate-400 font-medium">Status Pengerjaan:</span>
-              <span className="font-bold text-emerald-600">1x (Terkunci)</span>
+              <span className="text-slate-400 font-medium">Status:</span>
+              <span className="font-bold text-emerald-600">Selesai</span>
             </div>
           </div>
 
@@ -933,9 +933,7 @@ export default function StudentExam() {
             </div>
             <h2 className="text-xl sm:text-2xl font-black text-indigo-950 tracking-tight">{exam?.title || 'Memuat Lembar Ujian...'}</h2>
             <p className="text-slate-400 text-xs font-semibold">
-              {exam?.exam_type === 'harian'
-                ? 'Pastikan identitas Anda sudah sesuai sebelum memulai pengerjaan ulangan.'
-                : 'Asesmen semester resmi sekolah. Pastikan identitas dan perangkat Anda siap.'}
+              Periksa identitas sebelum mulai mengerjakan.
             </p>
           </div>
 
@@ -996,7 +994,7 @@ export default function StudentExam() {
                 }}
                 className="w-full py-4 rounded-2xl font-black text-base sm:text-lg bg-indigo-950 hover:bg-indigo-900 text-white transition-all flex items-center justify-center gap-3 shadow-xl shadow-indigo-950/20 active:scale-[0.98] cursor-pointer"
               >
-                <span>Mulai Kerjakan Ujian Sekarang</span>
+                <span>Mulai Mengerjakan</span>
                 <ArrowRight className="w-5 h-5" />
               </button>
 
