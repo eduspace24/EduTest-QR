@@ -729,11 +729,11 @@ export default function StudentExam() {
 
     if (!finalData.nama || !finalData.kelas) return;
     
+    enterFullscreen();
     const session = {
       user: { ...finalData, role: 'siswa' }
     };
     localStorage.setItem('edu_session', JSON.stringify(session));
-    enterFullscreen();
     setIsJoined(true);
     addAudit('Ujian Dimulai (Identitas Diisi)');
   };
@@ -981,11 +981,11 @@ export default function StudentExam() {
               <button
                 type="button"
                 onClick={() => {
+                  enterFullscreen();
                   const session = {
                     user: { ...studentData, role: 'siswa', code: studentCode || studentData.id }
                   };
                   localStorage.setItem('edu_session', JSON.stringify(session));
-                  enterFullscreen();
                   setIsJoined(true);
                   addAudit('Ujian Dimulai (Portal Siswa)');
                 }}
@@ -1110,8 +1110,13 @@ export default function StudentExam() {
                   enterFullscreen();
                 }
               }}
-              className="flex items-center justify-center p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all cursor-pointer"
-              title={isFullscreen ? "Keluar Layar Penuh" : "Layar Penuh"}
+              className={cn(
+                "flex items-center justify-center p-2 rounded-xl transition-all cursor-pointer",
+                isFullscreen
+                  ? "bg-slate-100 hover:bg-slate-200 text-slate-700"
+                  : "bg-amber-100 hover:bg-amber-200 text-amber-800 border border-amber-300"
+              )}
+              title={isFullscreen ? "Keluar Layar Penuh" : "Aktifkan Layar Penuh"}
             >
               {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
             </button>
