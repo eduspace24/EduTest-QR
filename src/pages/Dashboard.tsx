@@ -170,7 +170,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <motion.div variants={slideUp} initial="hidden" animate="show" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <motion.div variants={slideUp} initial="hidden" animate="show" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-6">
         {statCards.map((stat, idx) => {
           const Icon = stat.icon;
           return (
@@ -179,7 +179,7 @@ export default function Dashboard() {
               variants={slideUp}
               initial="initial" animate="animate"
               transition={{ delay: idx * 0.1 }}
-              className="group bg-white p-5 rounded-2xl border border-slate-100 hover:border-indigo-950/10 hover:shadow-xl hover:shadow-indigo-950/5 transition-all text-left"
+              className="group bg-white p-5 rounded-2xl border border-slate-200/85 shadow-soft hover:shadow-card hover:-translate-y-0.5 hover:border-slate-300 transition-all duration-300 text-left"
             >
               <div className={`${stat.bg} ${stat.color} w-10 h-10 rounded-xl flex items-center justify-center mb-4 border ${stat.border} group-hover:scale-105 transition-transform`}>
                 <Icon className="w-5 h-5" />
@@ -192,12 +192,12 @@ export default function Dashboard() {
       </motion.div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white rounded-[2rem] border border-slate-100 p-8 sm:p-10 flex flex-col items-center justify-center text-center relative overflow-hidden group min-h-[300px]">
+        <div className="lg:col-span-2 bg-white rounded-[2rem] border border-slate-200/85 shadow-soft p-8 sm:p-10 flex flex-col items-center justify-center text-center relative overflow-hidden group min-h-[300px]">
           <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity">
             <Zap className="w-32 h-32 text-indigo-950" />
           </div>
           <div className="relative z-10">
-            <div className="bg-indigo-50 text-indigo-600 w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <div className="bg-indigo-50 text-indigo-600 w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-indigo-100 shadow-2xs">
               <Zap className="w-6 h-6" />
             </div>
             <h3 className="text-lg sm:text-xl font-black text-indigo-950 mb-2">
@@ -210,14 +210,14 @@ export default function Dashboard() {
             </p>
             <Link 
               to={isSuperAdmin ? "/kelola-guru" : "/buat-ujian"} 
-              className="bg-indigo-950 text-white px-8 py-3 rounded-xl font-bold inline-block shadow-md shadow-indigo-950/20 hover:-translate-y-0.5 transition-all text-sm"
+              className="bg-indigo-950 hover:bg-indigo-900 text-white px-8 py-3 rounded-xl font-bold inline-block shadow-sm shadow-indigo-950/20 active:scale-95 transition-all text-sm cursor-pointer"
             >
               {isSuperAdmin ? 'Kelola Guru' : 'Buat Sekarang'}
             </Link>
           </div>
         </div>
 
-        <div className="bg-white rounded-[2rem] border border-slate-100 p-6">
+        <div className="bg-white rounded-[2rem] border border-slate-200/85 shadow-soft p-6">
           <h3 className="text-base font-black text-indigo-950 mb-6">Pintasan Cepat</h3>
           <div className="space-y-2">
             {(isSuperAdmin ? [

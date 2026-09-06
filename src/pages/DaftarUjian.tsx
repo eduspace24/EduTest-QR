@@ -666,12 +666,12 @@ export default function DaftarUjian() {
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 key={exam.id}
-                className="bg-white rounded-2xl border border-slate-200/80 p-5 hover:border-indigo-900/40 hover:shadow-md transition-all space-y-4 text-left"
+                className="bg-white rounded-2xl border border-slate-200/85 p-5 shadow-soft hover:shadow-card hover:-translate-y-0.5 hover:border-slate-300 transition-all duration-300 space-y-4 text-left"
               >
                 {/* Bagian Atas */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="flex items-start gap-3.5 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-slate-100 text-indigo-950 flex items-center justify-center shrink-0 mt-0.5 border border-slate-200">
+                    <div className="w-10 h-10 rounded-xl bg-slate-100 text-indigo-950 flex items-center justify-center shrink-0 mt-0.5 border border-slate-200/70 shadow-2xs">
                       <FileText className="w-5 h-5 text-indigo-900" />
                     </div>
                     

@@ -57,9 +57,36 @@
   @apply bg-indigo-950 border border-indigo-900 shadow-md;
 }
 
+/* Modern Soft Shadows & Cards (Clean, Ambient & Lively) */
+.shadow-soft {
+  box-shadow: 0 3px 14px -2px rgba(15, 23, 42, 0.05), 0 1px 4px -1px rgba(15, 23, 42, 0.03);
+}
+
+.shadow-card {
+  box-shadow: 0 8px 24px -4px rgba(15, 23, 42, 0.06), 0 2px 8px -2px rgba(15, 23, 42, 0.03);
+}
+
+.shadow-card-hover {
+  box-shadow: 0 16px 36px -6px rgba(15, 23, 42, 0.09), 0 4px 12px -2px rgba(15, 23, 42, 0.04);
+}
+
+.card-elevated {
+  background-color: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.85);
+  box-shadow: 0 3px 14px -2px rgba(15, 23, 42, 0.05), 0 1px 4px -1px rgba(15, 23, 42, 0.03);
+  border-radius: 1.25rem;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.card-elevated:hover {
+  border-color: rgba(203, 213, 225, 0.95);
+  box-shadow: 0 10px 28px -4px rgba(15, 23, 42, 0.08), 0 3px 10px -2px rgba(15, 23, 42, 0.04);
+  transform: translateY(-2px);
+}
+
 /* Advanced Hover Effects */
 .card-hover {
-  @apply transition-all duration-500 hover:shadow-2xl hover:shadow-slate-200/50 hover:-translate-y-1.5 hover:border-slate-300;
+  @apply transition-all duration-300 hover:shadow-lg hover:shadow-slate-200/60 hover:-translate-y-1 hover:border-slate-300;
 }
 
 .button-hover {

@@ -1207,68 +1207,52 @@ export default function StudentExam() {
   return (
     <div className="min-h-screen bg-slate-50/60 pb-28 select-none">
       {/* Top Navbar Minimalis & Fokus */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-xs">
-        <div className="max-w-5xl mx-auto px-4 sm:px-8 py-3 flex items-center justify-between gap-4">
-          {/* Logo & Judul Ujian di bawahnya */}
-          <div className="flex flex-col items-start min-w-0 pr-2">
-            <div className="flex items-center gap-2">
-              <div className={cn(
-                "w-8 h-8 rounded-xl text-white flex items-center justify-center font-black text-xs shrink-0 shadow-sm",
-                exam?.exam_type === 'harian' ? "bg-emerald-600" : "bg-indigo-950"
-              )}>
-                {exam?.exam_type === 'harian' ? <FileText className="w-4 h-4" /> : <GraduationCap className="w-4 h-4" />}
-              </div>
-              <span className="text-[11px] font-black uppercase tracking-widest text-slate-400">
-                {exam?.exam_type === 'harian' ? 'Lembar Ulangan Harian' : 'Lembar Ujian Akhir Semester'}
-              </span>
+      {/* Top Navbar Minimalis, Lega & Fokus */}
+      <header className="bg-white/95 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-40 shadow-[0_2px_12px_-3px_rgba(15,23,42,0.06)]">
+        <div className="max-w-5xl mx-auto px-3.5 sm:px-8 py-2.5 sm:py-3 flex items-center justify-between gap-2.5 sm:gap-4">
+          {/* Sisi Kiri: Badge & Judul Ujian Terstruktur Rapi */}
+          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1 max-w-[45%] sm:max-w-md">
+            <div className={cn(
+              "w-7 h-7 sm:w-9 sm:h-9 rounded-xl text-white flex items-center justify-center font-black text-xs shrink-0 shadow-sm",
+              exam?.exam_type === 'harian' ? "bg-emerald-600 shadow-emerald-600/20" : "bg-indigo-950 shadow-indigo-950/20"
+            )}>
+              {exam?.exam_type === 'harian' ? <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <GraduationCap className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
             </div>
-            <h1 className="font-black text-indigo-950 text-sm sm:text-base tracking-tight leading-snug mt-1 break-words">
-              {exam?.title || 'Ujian Sekolah'}
-            </h1>
+            <div className="min-w-0 flex-1">
+              <span className={cn(
+                "hidden sm:inline-block text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md mb-0.5",
+                exam?.exam_type === 'harian' ? "bg-emerald-50 text-emerald-800 border border-emerald-100" : "bg-indigo-50 text-indigo-800 border border-indigo-100"
+              )}>
+                {exam?.exam_type === 'harian' ? 'Ulangan Harian' : 'Ujian Semester'}
+              </span>
+              <h1 className="font-black text-indigo-950 text-xs sm:text-sm tracking-tight truncate leading-tight" title={exam?.title || 'Ujian Sekolah'}>
+                {exam?.title || 'Ujian Sekolah'}
+              </h1>
+            </div>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          {/* Sisi Kanan: Nomor Soal, Timer, dan Tombol Selesai (Lega & Tanpa Tombol Fullscreen) */}
+          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
             {/* Tombol Buka Nomor Soal Grid */}
             <button
               type="button"
               onClick={() => setShowNumberGrid(prev => !prev)}
               className={cn(
-                "flex items-center gap-1.5 px-3 py-2 rounded-xl font-bold text-xs transition-all cursor-pointer",
+                "flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl font-bold text-xs transition-all cursor-pointer",
                 showNumberGrid 
-                  ? "bg-indigo-950 text-white shadow-md shadow-indigo-950/20" 
-                  : "bg-slate-100 hover:bg-slate-200 text-slate-700"
+                  ? "bg-indigo-950 text-white shadow-sm shadow-indigo-950/20" 
+                  : "bg-slate-100/90 hover:bg-slate-200 text-slate-700 border border-slate-200/60"
               )}
               title="Daftar Nomor Soal"
             >
-              <LayoutGrid className="w-4 h-4" />
-              <span className="hidden sm:inline">Nomor Soal</span>
-            </button>
-
-            {/* Tombol Layar Penuh (Fullscreen) */}
-            <button
-              type="button"
-              onClick={() => {
-                if (document.fullscreenElement) {
-                  exitFullscreen();
-                } else {
-                  enterFullscreen();
-                }
-              }}
-              className={cn(
-                "flex items-center justify-center p-2 rounded-xl transition-all cursor-pointer",
-                isFullscreen
-                  ? "bg-slate-100 hover:bg-slate-200 text-slate-700"
-                  : "bg-amber-100 hover:bg-amber-200 text-amber-800 border border-amber-300"
-              )}
-              title={isFullscreen ? "Keluar Layar Penuh" : "Aktifkan Layar Penuh"}
-            >
-              {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+              <LayoutGrid className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="hidden md:inline">Nomor Soal</span>
             </button>
 
             {/* Timer Badge */}
-            <div className="flex items-center gap-1.5 bg-rose-50 border border-rose-100 text-rose-600 px-3 sm:px-4 py-2 rounded-xl font-black text-xs sm:text-sm shadow-xs">
-              <Clock className="w-4 h-4 text-rose-500 animate-pulse" />
-              <span className="font-mono font-bold tracking-tight">
+            <div className="flex items-center gap-1.5 bg-rose-50 border border-rose-100 text-rose-600 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl font-black text-xs sm:text-sm shadow-xs">
+              <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-rose-500 animate-pulse" />
+              <span className="font-mono font-bold tracking-tight text-xs sm:text-sm">
                 {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
               </span>
             </div>
@@ -1277,9 +1261,9 @@ export default function StudentExam() {
             <button 
               onClick={submitExam}
               disabled={submitting}
-              className="bg-indigo-950 hover:bg-indigo-900 text-white px-4 sm:px-6 py-2 rounded-xl font-black text-xs sm:text-sm shadow-lg shadow-indigo-950/20 flex items-center gap-2 cursor-pointer active:scale-95 transition-all"
+              className="bg-indigo-950 hover:bg-indigo-900 text-white px-3 sm:px-5 py-1.5 sm:py-2 rounded-xl font-black text-xs sm:text-sm shadow-md shadow-indigo-950/20 flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all"
             >
-              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
               <span>Selesai</span>
             </button>
           </div>
@@ -1384,7 +1368,7 @@ export default function StudentExam() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.2 }}
-          className="bg-white rounded-3xl sm:rounded-[2rem] shadow-xl shadow-indigo-950/5 border border-slate-100 p-6 sm:p-10"
+          className="bg-white rounded-3xl sm:rounded-[2rem] shadow-card border border-slate-200/80 p-5 sm:p-9"
         >
           {(() => {
             const currentQ = displayQuestions[currentQuestionIndex];
@@ -1396,30 +1380,30 @@ export default function StudentExam() {
               <>
                 <div className="mb-8">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="bg-indigo-50 text-indigo-600 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest">
+                    <span className="bg-indigo-50 text-indigo-700 border border-indigo-100 px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wider">
                       Pertanyaan {currentQuestionIndex + 1} Dari {displayQuestions.length}
                     </span>
                     <span className={cn(
-                      "text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full",
-                      qType === 'Pilihan Ganda' ? "bg-slate-100 text-slate-600" :
-                      qType === 'Essay' ? "bg-amber-100 text-amber-800" :
-                      qType.includes('TKA') ? "bg-purple-100 text-purple-800" :
-                      "bg-indigo-100 text-indigo-800"
+                      "text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full border",
+                      qType === 'Pilihan Ganda' ? "bg-slate-100 text-slate-700 border-slate-200" :
+                      qType === 'Essay' ? "bg-amber-50 text-amber-800 border-amber-200" :
+                      qType.includes('TKA') ? "bg-purple-50 text-purple-800 border-purple-200" :
+                      "bg-indigo-50 text-indigo-800 border-indigo-200"
                     )}>
                       {qType}
                     </span>
                   </div>
 
-                  <h2 className="text-xl sm:text-2xl font-bold text-indigo-950 mt-6 leading-relaxed">
+                  <h2 className="text-lg sm:text-xl font-bold text-indigo-950 mt-5 leading-relaxed">
                     {currentQ.question_text}
                   </h2>
 
                   {currentQ.image_url && (
-                    <div className="mt-6 rounded-3xl overflow-hidden border border-slate-100 bg-slate-50/50">
+                    <div className="mt-5 rounded-2xl overflow-hidden border border-slate-200/80 bg-slate-50/50 p-2">
                       <img 
                         src={currentQ.image_url} 
                         alt="Question Attachment" 
-                        className="w-full max-h-[500px] object-contain mx-auto"
+                        className="w-full max-h-[480px] object-contain mx-auto rounded-xl"
                       />
                     </div>
                   )}
@@ -1427,15 +1411,15 @@ export default function StudentExam() {
 
                 {/* 1. Pilihan Ganda Tunggal & TKA Klasik */}
                 {(qType === 'Pilihan Ganda' || qType === 'Pilihan Ganda Asosiatif (TKA)' || qType === 'Hubungan Sebab Akibat (TKA)') && (
-                  <div className="space-y-4">
+                  <div className="space-y-3 sm:space-y-3.5">
                     {(currentQ.options || []).map((opt: any) => (
                       <label 
                         key={opt.id}
                         className={cn(
-                          "flex items-center gap-4 p-5 sm:p-6 rounded-3xl border-2 cursor-pointer transition-all active:scale-[0.98]",
+                          "flex items-center gap-3.5 sm:gap-4 p-4 sm:p-5 rounded-2xl sm:rounded-3xl border-2 cursor-pointer transition-all active:scale-[0.99]",
                           currentAnswer === opt.id
-                            ? "border-indigo-950 bg-indigo-50/50 shadow-md shadow-indigo-950/5"
-                            : "border-slate-100 bg-white hover:border-slate-200"
+                            ? "border-indigo-950 bg-indigo-50/70 shadow-soft"
+                            : "border-slate-200/80 bg-white hover:border-slate-300 hover:shadow-soft"
                         )}
                       >
                         <input 
@@ -1459,7 +1443,7 @@ export default function StudentExam() {
 
                 {/* 2. Pilihan Ganda Kompleks (Multi-Select) */}
                 {qType === 'Pilihan Ganda Kompleks' && (
-                  <div className="space-y-4">
+                  <div className="space-y-3 sm:space-y-3.5">
                     <div className="p-3 bg-indigo-50/70 border border-indigo-100 rounded-2xl flex items-center gap-2 mb-2">
                       <CheckSquare className="w-4 h-4 text-indigo-600 shrink-0" />
                       <span className="text-xs font-bold text-indigo-950">Pilih semua jawaban yang benar (dapat mencentang lebih dari satu).</span>
@@ -1480,14 +1464,14 @@ export default function StudentExam() {
                             handleAnswer(currentQ.id, nextKeys.join(','));
                           }}
                           className={cn(
-                            "flex items-center gap-4 p-5 sm:p-6 rounded-3xl border-2 cursor-pointer transition-all active:scale-[0.98]",
+                            "flex items-center gap-3.5 sm:gap-4 p-4 sm:p-5 rounded-2xl sm:rounded-3xl border-2 cursor-pointer transition-all active:scale-[0.99]",
                             isSelected
-                              ? "border-indigo-950 bg-indigo-50/50 shadow-md shadow-indigo-950/5"
-                              : "border-slate-100 bg-white hover:border-slate-200"
+                              ? "border-indigo-950 bg-indigo-50/70 shadow-soft"
+                              : "border-slate-200/80 bg-white hover:border-slate-300 hover:shadow-soft"
                           )}
                         >
                           <div className={cn(
-                            "w-9 h-9 rounded-2xl flex items-center justify-center font-black text-sm shrink-0 transition-all",
+                            "w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm shrink-0 transition-all",
                             isSelected
                               ? "bg-indigo-950 text-white"
                               : "border-2 border-slate-200 text-slate-400 bg-slate-50"
@@ -1531,7 +1515,7 @@ export default function StudentExam() {
                         {rawPairs.map((p: any, pIdx: number) => {
                           const selectedPair = currentMatches[p.id] || currentMatches[p.left] || '';
                           return (
-                            <div key={p.id || pIdx} className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-4 sm:p-5 rounded-3xl border-2 border-slate-100 bg-white hover:border-slate-200 transition-all">
+                            <div key={p.id || pIdx} className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-4 sm:p-5 rounded-2xl border-2 border-slate-200/80 bg-white hover:border-slate-300 hover:shadow-soft transition-all">
                               <div className="flex items-center gap-3 flex-1">
                                 <span className="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-950 font-black text-xs flex items-center justify-center shrink-0">
                                   {pIdx + 1}
@@ -1546,7 +1530,7 @@ export default function StudentExam() {
                                     handleAnswer(currentQ.id, nextMatches);
                                   }}
                                   className={cn(
-                                    "px-4 py-2.5 rounded-2xl border-2 font-bold text-xs sm:text-sm outline-none cursor-pointer transition-all w-full sm:w-auto",
+                                    "px-4 py-2.5 rounded-xl border-2 font-bold text-xs sm:text-sm outline-none cursor-pointer transition-all w-full sm:w-auto",
                                     selectedPair
                                       ? "border-emerald-600 bg-emerald-50 text-emerald-900"
                                       : "border-slate-200 bg-slate-50 text-slate-500"
@@ -1580,7 +1564,7 @@ export default function StudentExam() {
                         placeholder="Ketik jawaban di sini..."
                         value={currentAnswer || ''}
                         onChange={(e) => handleAnswer(currentQ.id, e.target.value)}
-                        className="w-full p-6 text-lg font-bold text-indigo-950 rounded-3xl border-2 border-slate-200 bg-slate-50 outline-none focus:border-indigo-950 focus:bg-white transition-all shadow-inner"
+                        className="w-full p-4 sm:p-5 text-base sm:text-lg font-bold text-indigo-950 rounded-2xl border-2 border-slate-200/90 bg-slate-50/50 outline-none focus:border-indigo-950 focus:bg-white transition-all shadow-xs"
                       />
                     </div>
                   </div>
@@ -1623,7 +1607,7 @@ export default function StudentExam() {
                           <Reorder.Item
                             key={item.id}
                             value={item}
-                            className="flex items-center gap-4 p-5 rounded-3xl border-2 border-slate-200 bg-white shadow-sm hover:shadow-md cursor-grab active:cursor-grabbing transition-all select-none"
+                            className="flex items-center gap-4 p-4 sm:p-5 rounded-2xl border-2 border-slate-200/80 bg-white shadow-soft hover:shadow-card cursor-grab active:cursor-grabbing transition-all select-none"
                           >
                             <div className="bg-slate-100 text-slate-400 p-2 rounded-xl">
                               <GripVertical className="w-5 h-5" />
@@ -1651,7 +1635,7 @@ export default function StudentExam() {
                       placeholder="Ketik uraian jawaban Anda di sini..."
                       value={currentAnswer || ''}
                       onChange={(e) => handleAnswer(currentQ.id, e.target.value)}
-                      className="w-full p-6 text-sm font-medium text-indigo-950 rounded-3xl border-2 border-slate-200 bg-slate-50 outline-none focus:border-indigo-950 focus:bg-white transition-all min-h-[160px]"
+                      className="w-full p-5 text-sm font-medium text-indigo-950 rounded-2xl border-2 border-slate-200/90 bg-slate-50/50 outline-none focus:border-indigo-950 focus:bg-white transition-all min-h-[160px] shadow-xs"
                     />
                   </div>
                 )}
@@ -1665,7 +1649,7 @@ export default function StudentExam() {
           <button 
             disabled={currentQuestionIndex === 0}
             onClick={() => setCurrentQuestionIndex(prev => prev - 1)}
-            className="px-5 sm:px-6 py-3 rounded-2xl font-black text-xs sm:text-sm text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-30 disabled:hover:bg-white flex items-center gap-2 transition-all shadow-xs cursor-pointer"
+            className="px-4 sm:px-6 py-2.5 sm:py-3 rounded-2xl font-black text-xs sm:text-sm text-slate-700 bg-white border border-slate-200/90 hover:bg-slate-50 hover:border-slate-300 disabled:opacity-30 disabled:hover:bg-white flex items-center gap-2 transition-all shadow-soft cursor-pointer"
           >
             <ChevronLeft className="w-4 h-4" /> Soal Sebelumnya
           </button>
@@ -1673,7 +1657,7 @@ export default function StudentExam() {
           <button
             type="button"
             onClick={() => setShowNumberGrid(true)}
-            className="hidden sm:flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-slate-600 font-black text-xs hover:bg-slate-50 transition-all cursor-pointer"
+            className="hidden sm:flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-white border border-slate-200/90 text-slate-700 font-black text-xs hover:bg-slate-50 transition-all shadow-soft cursor-pointer"
           >
             <LayoutGrid className="w-3.5 h-3.5 text-indigo-950" />
             <span>Semua Soal ({currentQuestionIndex + 1}/{displayQuestions.length})</span>
@@ -1683,7 +1667,7 @@ export default function StudentExam() {
             <button 
               onClick={submitExam}
               disabled={submitting}
-              className="px-6 sm:px-8 py-3 rounded-2xl font-black text-xs sm:text-sm text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-600/20 flex items-center gap-2 transition-all cursor-pointer active:scale-95"
+              className="px-5 sm:px-8 py-2.5 sm:py-3 rounded-2xl font-black text-xs sm:text-sm text-white bg-emerald-600 hover:bg-emerald-700 shadow-md shadow-emerald-600/20 flex items-center gap-2 transition-all cursor-pointer active:scale-95"
             >
               {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
               <span>Kumpulkan Jawaban</span>
@@ -1691,7 +1675,7 @@ export default function StudentExam() {
           ) : (
             <button 
               onClick={() => setCurrentQuestionIndex(prev => prev + 1)}
-              className="px-5 sm:px-7 py-3 rounded-2xl font-black text-xs sm:text-sm text-white bg-indigo-950 hover:bg-indigo-900 shadow-lg shadow-indigo-950/20 flex items-center gap-2 transition-all cursor-pointer active:scale-95"
+              className="px-4 sm:px-7 py-2.5 sm:py-3 rounded-2xl font-black text-xs sm:text-sm text-white bg-indigo-950 hover:bg-indigo-900 shadow-md shadow-indigo-950/20 flex items-center gap-2 transition-all cursor-pointer active:scale-95"
             >
               <span>Soal Berikutnya</span> <ChevronRight className="w-4 h-4" />
             </button>
