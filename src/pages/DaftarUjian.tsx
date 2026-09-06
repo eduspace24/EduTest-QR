@@ -335,6 +335,7 @@ export default function DaftarUjian() {
             subject: updatedPayload.subject,
             duration: Number(updatedPayload.duration),
             status: updatedPayload.status,
+            unlock_code: updatedPayload.unlock_code || '',
             questions: JSON.stringify(cloudQuestionsPayload)
           }
         );

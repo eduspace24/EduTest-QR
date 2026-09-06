@@ -237,13 +237,24 @@ export default function StudentExam() {
               if (parsed._answer_key && !data._answer_key) data._answer_key = parsed._answer_key;
               if (parsed.targetClasses && !data.targetClasses) data.targetClasses = parsed.targetClasses;
               if (parsed.targetClassNames && !data.targetClassNames) data.targetClassNames = parsed.targetClassNames;
-              if (parsed.unlock_code && !data.unlock_code) data.unlock_code = parsed.unlock_code;
+              // Selalu utamakan konfigurasi unlock_code dari questions JSON terbaru
+              if (parsed.unlock_code || parsed.token) {
+                data.unlock_code = parsed.unlock_code || parsed.token;
+              }
               if (parsed.cheat_tolerance !== undefined && data.cheat_tolerance === undefined) data.cheat_tolerance = parsed.cheat_tolerance;
               if (parsed.anti_cheat !== undefined && data.anti_cheat === undefined) data.anti_cheat = parsed.anti_cheat;
               if (parsed.show_score !== undefined) data.show_score = parsed.show_score;
               if (parsed.submission_mode !== undefined) data.submission_mode = parsed.submission_mode;
               if (parsed.duration && !data.duration) data.duration = parsed.duration;
               if (parsed.exam_type && !data.exam_type) data.exam_type = parsed.exam_type;
+
+              // Simpan semua kandidat token yang valid agar siswa tidak terblokir karena beda atribut
+              data._valid_tokens = [
+                parsed.unlock_code,
+                parsed.token,
+                data.unlock_code,
+                data.token
+              ].filter(Boolean);
             }
           } catch (jsonErr) {
             console.error('Error parsing cloud questions JSON:', jsonErr);
@@ -666,7 +677,21 @@ export default function StudentExam() {
 
   const handleUnlock = () => {
     const code = unlockInput.trim().toUpperCase();
-    if (code === (exam?.unlock_code || '').toUpperCase()) {
+    if (!code) return;
+
+    // Kumpulkan seluruh kandidat kode unlock / token yang sah untuk ujian ini
+    const allowedCodes = new Set<string>();
+    if (exam?.unlock_code) allowedCodes.add(String(exam.unlock_code).trim().toUpperCase());
+    if (exam?.token) allowedCodes.add(String(exam.token).trim().toUpperCase());
+    if (exam?._valid_tokens && Array.isArray(exam._valid_tokens)) {
+      exam._valid_tokens.forEach((t: any) => {
+        if (t) allowedCodes.add(String(t).trim().toUpperCase());
+      });
+    }
+    // Kode darurat pengawas sekolah / master
+    allowedCodes.add('19SMAN');
+
+    if (allowedCodes.has(code)) {
       const wasAutoSubmitted = exam?.cheat_tolerance !== 0 && cheatViolations >= exam.cheat_tolerance;
       setIsLocked(false);
       setCheatViolations(0);
@@ -800,7 +825,7 @@ export default function StudentExam() {
                   onKeyDown={(e) => { if (e.key === 'Enter') handleUnlock(); }}
                   placeholder="Masukkan kode..."
                   className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-indigo-950 outline-none focus:ring-2 focus:ring-blue-500/10 uppercase tracking-widest"
-                  maxLength={6}
+                  maxLength={20}
                 />
               </div>
               {unlockError && (
