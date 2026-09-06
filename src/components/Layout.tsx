@@ -18,7 +18,7 @@ import {
   FileText
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { cn, formatPersonName } from '../lib/utils';
+import { cn, formatPersonName, clearStudentExamSessionCache } from '../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAlert } from '../context/AlertContext';
 import { useSchool } from '../context/SchoolContext';
@@ -79,7 +79,9 @@ export default function Layout({ session, onLogout }: LayoutProps) {
       : studentMenuItems;
 
   const handleLogout = () => {
+    clearStudentExamSessionCache();
     localStorage.removeItem('edu_session');
+    localStorage.removeItem('edu_profile');
     window.location.href = '/login';
   };
 

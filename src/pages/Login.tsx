@@ -20,6 +20,7 @@ import {
   findStudent, 
   SUPER_ADMIN_ACCOUNT 
 } from '../lib/seedAccounts';
+import { clearStudentExamSessionCache } from '../lib/utils';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -121,6 +122,7 @@ export default function Login() {
             profileCompleted: true
           }
         };
+        clearStudentExamSessionCache();
         localStorage.setItem('edu_session', JSON.stringify(muridSession));
         localStorage.setItem('edu_profile', JSON.stringify(muridSession.user));
         window.location.href = '/student/dashboard';
@@ -188,6 +190,7 @@ export default function Login() {
                 profileCompleted: true
               }
             };
+            clearStudentExamSessionCache();
             localStorage.setItem('edu_session', JSON.stringify(session));
             localStorage.setItem('edu_profile', JSON.stringify(session.user));
             window.location.href = '/student/dashboard';
@@ -236,6 +239,7 @@ export default function Login() {
             profileCompleted: true
           }
         };
+        clearStudentExamSessionCache();
         localStorage.setItem('edu_session', JSON.stringify(session));
         localStorage.setItem('edu_profile', JSON.stringify(session.user));
         window.location.href = '/student/dashboard';

@@ -156,4 +156,29 @@ export function resolveExamType(...candidates: any[]): 'harian' | 'semester' {
   return 'harian';
 }
 
+/**
+ * Clear local student exam progress & submission caches on logout or account switch
+ * to prevent another student on the same device from inheriting completed status.
+ */
+export function clearStudentExamSessionCache() {
+  try {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (
+        key.startsWith('submitted_') ||
+        key.startsWith('submission_meta_') ||
+        key.startsWith('answers_') ||
+        key.startsWith('timer_end_') ||
+        key.startsWith('audit_') ||
+        key.startsWith('edu_last_submission_') ||
+        key === 'edu_cheat_flagged'
+      )) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(k => localStorage.removeItem(k));
+  } catch {}
+}
+
 

@@ -129,33 +129,64 @@ export default function StudentExam() {
 
   useEffect(() => {
     const session = JSON.parse(localStorage.getItem('edu_session') || '{}');
-    const hasProgress = localStorage.getItem(`answers_${examId}`);
     const isStudent = session.user && (session.user.role === 'siswa' || session.user.role === 'murid');
+    const studentName = session.user?.nama || session.user?.name || '';
+    const studentKelas = session.user?.nama_kelas || session.user?.kelas || '';
+    const studentCodeVal = session.user?.nisn || session.user?.code || session.user?.id || '';
+    const studentNameNorm = studentName.trim().toLowerCase();
 
-    // 1. Check direct local submission flag
-    const localSubmitted = localStorage.getItem(`submitted_${examId}`);
-    const localMeta = localStorage.getItem(`submission_meta_${examId}`);
-    if (localSubmitted) {
+    // 1. Check direct local submission flag KHUSUS untuk murid yang sedang login
+    let isStudentCompleted = false;
+    let studentCompletionMeta: any = null;
+
+    if (studentCodeVal) {
+      const scopedSubmitted = localStorage.getItem(`submitted_${studentCodeVal}_${examId}`);
+      const scopedMeta = localStorage.getItem(`submission_meta_${studentCodeVal}_${examId}`);
+      if (scopedSubmitted) {
+        isStudentCompleted = true;
+        if (scopedMeta) {
+          try { studentCompletionMeta = JSON.parse(scopedMeta); } catch {}
+        }
+      }
+    }
+
+    if (!isStudentCompleted) {
+      const legacyMetaStr = localStorage.getItem(`submission_meta_${examId}`);
+      if (legacyMetaStr) {
+        try {
+          const parsed = JSON.parse(legacyMetaStr);
+          const pCode = parsed.studentCode || parsed.code || parsed.nisn;
+          const pName = (parsed.studentName || parsed.nama || '').trim().toLowerCase();
+          if (
+            (studentCodeVal && pCode && pCode === studentCodeVal) ||
+            (studentNameNorm && pName && pName === studentNameNorm)
+          ) {
+            isStudentCompleted = true;
+            studentCompletionMeta = parsed;
+          }
+        } catch {}
+      }
+    }
+
+    if (isStudentCompleted) {
       setAlreadyCompleted(true);
-      if (localMeta) {
-        try { setCompletionData(JSON.parse(localMeta)); } catch {}
+      if (studentCompletionMeta) {
+        try { setCompletionData(studentCompletionMeta); } catch {}
       }
     }
     
     if (isStudent) {
-      const studentName = session.user.nama || session.user.name || '';
-      const studentKelas = session.user.nama_kelas || session.user.kelas || '';
-      const studentCodeVal = session.user.nisn || session.user.code || session.user.id || '';
-      
       setStudentData({
         nama: studentName,
         kelas: studentKelas,
-        id: session.user.id || studentCodeVal,
+        id: session.user?.id || studentCodeVal,
         code: studentCodeVal
       });
       setStudentCode(studentCodeVal);
 
-      if (hasProgress) {
+      const scopedAnswersKey = studentCodeVal ? `answers_${studentCodeVal}_${examId}` : `answers_${examId}`;
+      const hasProgress = localStorage.getItem(scopedAnswersKey) || (!isStudentCompleted ? localStorage.getItem(`answers_${examId}`) : null);
+      if (hasProgress && !isStudentCompleted) {
         setIsJoined(true);
       }
     }
@@ -328,15 +359,20 @@ export default function StudentExam() {
           setDisplayQuestions(processQuestions(rawQuestions));
         }
         
-        // Restore progress
-        const savedAnswers = localStorage.getItem(`answers_${examId}`);
-        if (savedAnswers) setAnswers(JSON.parse(savedAnswers));
+        // Restore progress scoped to student
+        const scopedCode = session.user?.nisn || session.user?.code || session.user?.id || '';
+        const savedAnswers = (scopedCode && localStorage.getItem(`answers_${scopedCode}_${examId}`)) || (!isStudentCompleted ? localStorage.getItem(`answers_${examId}`) : null);
+        if (savedAnswers) {
+          try { setAnswers(JSON.parse(savedAnswers)); } catch {}
+        }
         
-        const savedLog = localStorage.getItem(`audit_${examId}`);
-        if (savedLog) setAuditLog(JSON.parse(savedLog));
+        const savedLog = (scopedCode && localStorage.getItem(`audit_${scopedCode}_${examId}`)) || (!isStudentCompleted ? localStorage.getItem(`audit_${examId}`) : null);
+        if (savedLog) {
+          try { setAuditLog(JSON.parse(savedLog)); } catch {}
+        }
 
         // Restore or init timer
-        const savedEndTime = localStorage.getItem(`timer_end_${examId}`);
+        const savedEndTime = (scopedCode && localStorage.getItem(`timer_end_${scopedCode}_${examId}`)) || (!isStudentCompleted ? localStorage.getItem(`timer_end_${examId}`) : null);
         if (savedEndTime) {
           const remaining = Math.max(0, Math.floor((parseInt(savedEndTime) - Date.now()) / 1000));
           setTimeLeft(remaining);
@@ -409,8 +445,10 @@ export default function StudentExam() {
     if (!isJoined || !exam || timeLeft <= 0) return;
     
     // Save deadline to localStorage so timer persists across refreshes
-    if (!localStorage.getItem(`timer_end_${examId}`)) {
-      localStorage.setItem(`timer_end_${examId}`, String(Date.now() + timeLeft * 1000));
+    const codeKey = studentCode || studentData?.id || '';
+    const timerKey = codeKey ? `timer_end_${codeKey}_${examId}` : `timer_end_${examId}`;
+    if (!localStorage.getItem(timerKey)) {
+      localStorage.setItem(timerKey, String(Date.now() + timeLeft * 1000));
     }
     
     timerRef.current = setInterval(() => {
@@ -434,6 +472,10 @@ export default function StudentExam() {
     const entry = { time: new Date().toLocaleTimeString(), action };
     setAuditLog(prev => {
       const newLog = [...prev, entry];
+      const codeKey = studentCode || studentData?.id || '';
+      if (codeKey) {
+        localStorage.setItem(`audit_${codeKey}_${examId}`, JSON.stringify(newLog));
+      }
       localStorage.setItem(`audit_${examId}`, JSON.stringify(newLog));
       return newLog;
     });
@@ -473,6 +515,10 @@ export default function StudentExam() {
   const handleAnswer = (questionId: string, value: any) => {
     setAnswers(prev => {
       const next = { ...prev, [questionId]: value };
+      const codeKey = studentCode || studentData?.id || '';
+      if (codeKey) {
+        localStorage.setItem(`answers_${codeKey}_${examId}`, JSON.stringify(next));
+      }
       localStorage.setItem(`answers_${examId}`, JSON.stringify(next));
       return next;
     });
@@ -585,28 +631,32 @@ export default function StudentExam() {
         examTitle: exam?.title || undefined
       });
 
-      // Simpan backup lokal & data QR
-      localStorage.setItem(`submitted_${examId}`, qrString);
-      localStorage.setItem(`submission_meta_${examId}`, JSON.stringify({
+      const codeKey = session.user?.code || session.user?.nisn || session.user?.id || '-';
+      const studentNameVal = session.user?.nama || session.user?.name || '-';
+      const studentClassVal = session.user?.kelas || session.user?.nama_kelas || '-';
+
+      const metaObj = {
         examTitle: exam?.title || 'Ujian',
-        studentName: session.user?.nama || session.user?.name || '-',
-        studentKelas: session.user?.kelas || '-',
-        score,
-        show_score: exam?.show_score !== false,
-        submission_mode: exam?.submission_mode || 'hybrid',
-        completedAt: new Date().toISOString()
-      }));
-      localStorage.setItem('edu_last_submission_qr', qrString);
-      localStorage.setItem('edu_last_submission_meta', JSON.stringify({
-        examTitle: exam?.title || 'Ujian',
-        studentName: session.user?.nama || session.user?.name || '-',
-        studentKelas: session.user?.kelas || '-',
+        studentName: studentNameVal,
+        studentKelas: studentClassVal,
+        studentCode: codeKey,
         score,
         show_score: exam?.show_score !== false,
         submission_mode: exam?.submission_mode || 'hybrid',
         totalQuestions: exam.questions.length,
-        examLink: `/test/${teacherId}/${examId}`
-      }));
+        examLink: `/test/${teacherId}/${examId}`,
+        completedAt: new Date().toISOString()
+      };
+
+      // Simpan backup lokal terikat ke kode murid
+      if (codeKey && codeKey !== '-') {
+        localStorage.setItem(`submitted_${codeKey}_${examId}`, qrString);
+        localStorage.setItem(`submission_meta_${codeKey}_${examId}`, JSON.stringify(metaObj));
+      }
+      localStorage.setItem(`submitted_${examId}`, qrString);
+      localStorage.setItem(`submission_meta_${examId}`, JSON.stringify(metaObj));
+      localStorage.setItem('edu_last_submission_qr', qrString);
+      localStorage.setItem('edu_last_submission_meta', JSON.stringify(metaObj));
 
       // Simpan juga ke koleksi 'results' di IndexedDB
       try {
@@ -662,6 +712,11 @@ export default function StudentExam() {
 
       // Cleanup & Selesai
       if (!skipNavigate) {
+        if (codeKey && codeKey !== '-') {
+          localStorage.removeItem(`answers_${codeKey}_${examId}`);
+          localStorage.removeItem(`audit_${codeKey}_${examId}`);
+          localStorage.removeItem(`timer_end_${codeKey}_${examId}`);
+        }
         localStorage.removeItem(`answers_${examId}`);
         localStorage.removeItem(`audit_${examId}`);
         localStorage.removeItem(`timer_end_${examId}`);

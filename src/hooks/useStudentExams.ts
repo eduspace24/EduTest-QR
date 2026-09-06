@@ -254,12 +254,26 @@ export function useStudentExams() {
         }
       } catch {}
 
-      // 7. Last submission meta
+      // 7. Last submission meta (hanya jika milik murid yang sedang login)
       const lastMeta = localStorage.getItem('edu_last_submission_meta');
       if (lastMeta) {
         try {
-          setRecentSubmission(JSON.parse(lastMeta));
-        } catch {}
+          const parsedMeta = JSON.parse(lastMeta);
+          const mCode = parsedMeta.studentCode || parsedMeta.code || parsedMeta.nisn;
+          const mName = (parsedMeta.studentName || parsedMeta.nama || '').trim().toLowerCase();
+          if (
+            (studentCodeVal && mCode && mCode === studentCodeVal) ||
+            (studentNameVal && mName && mName === studentNameVal)
+          ) {
+            setRecentSubmission(parsedMeta);
+          } else {
+            setRecentSubmission(null);
+          }
+        } catch {
+          setRecentSubmission(null);
+        }
+      } else {
+        setRecentSubmission(null);
       }
     } catch (err) {
       console.error('Error fetching student exams in hook:', err);
@@ -274,14 +288,51 @@ export function useStudentExams() {
 
   const isExamCompleted = useCallback((exam: StudentExamItem) => {
     if (!exam) return false;
-    return (
+    const studentCodeVal = sessionUser?.nisn || sessionUser?.code || sessionUser?.id || '';
+    const studentNameVal = (sessionUser?.nama || sessionUser?.name || '').trim().toLowerCase();
+
+    // 1. Cek dari database resmi hasil pengerjaan murid ini
+    if (
       completedKeys.has(exam.id) ||
-      (exam.driveFileId ? completedKeys.has(exam.driveFileId) : false) ||
-      (exam.title ? completedKeys.has(exam.title.trim().toLowerCase()) : false) ||
-      Boolean(localStorage.getItem(`submitted_${exam.id}`)) ||
-      (exam.driveFileId ? Boolean(localStorage.getItem(`submitted_${exam.driveFileId}`)) : false)
-    );
-  }, [completedKeys]);
+      (exam.driveFileId ? completedKeys.has(exam.driveFileId) : false)
+    ) {
+      return true;
+    }
+
+    // 2. Cek submission cache yang terikat khusus ke NISN / kode murid ini
+    if (studentCodeVal) {
+      if (
+        Boolean(localStorage.getItem(`submitted_${studentCodeVal}_${exam.id}`)) ||
+        (exam.driveFileId && Boolean(localStorage.getItem(`submitted_${studentCodeVal}_${exam.driveFileId}`)))
+      ) {
+        return true;
+      }
+    }
+
+    // 3. Cek metadata lokal: pastikan identitas murid di dalamnya benar-benar cocok
+    const metaCandidates = [
+      studentCodeVal ? localStorage.getItem(`submission_meta_${studentCodeVal}_${exam.id}`) : null,
+      exam.driveFileId && studentCodeVal ? localStorage.getItem(`submission_meta_${studentCodeVal}_${exam.driveFileId}`) : null,
+      localStorage.getItem(`submission_meta_${exam.id}`),
+      exam.driveFileId ? localStorage.getItem(`submission_meta_${exam.driveFileId}`) : null
+    ].filter(Boolean);
+
+    for (const raw of metaCandidates) {
+      try {
+        const m = JSON.parse(raw!);
+        const mCode = m.studentCode || m.code || m.nisn;
+        const mName = (m.studentName || m.nama || '').trim().toLowerCase();
+        if (
+          (studentCodeVal && mCode && mCode === studentCodeVal) ||
+          (studentNameVal && mName && mName === studentNameVal)
+        ) {
+          return true;
+        }
+      } catch {}
+    }
+
+    return false;
+  }, [completedKeys, sessionUser]);
 
   const dailyExams = useMemo(() => {
     return activeExams.filter(e => resolveExamType(e) === 'harian');

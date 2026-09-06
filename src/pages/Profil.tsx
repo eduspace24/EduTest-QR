@@ -20,7 +20,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { cn, formatPersonName, formatStudentName } from '../lib/utils';
+import { cn, formatPersonName, formatStudentName, clearStudentExamSessionCache } from '../lib/utils';
 import { useSchool } from '../context/SchoolContext';
 import { useAlert } from '../context/AlertContext';
 import { getCollectionData, saveCollection } from '../lib/db';
@@ -614,7 +614,9 @@ export default function Profil() {
               type: 'confirm',
               confirmText: 'Ya, Keluar',
               onConfirm: () => {
+                clearStudentExamSessionCache();
                 localStorage.removeItem('edu_session');
+                localStorage.removeItem('edu_profile');
                 window.location.href = '/login';
               }
             })}
