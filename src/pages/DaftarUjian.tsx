@@ -33,7 +33,7 @@ import { useAlert } from '../context/AlertContext';
 import { TableSkeleton } from '../components/Skeleton';
 import { getCollectionData, saveCollection } from '../lib/db';
 import { supabase } from '../lib/supabase';
-import { cn } from '../lib/utils';
+import { cn, resolveExamType } from '../lib/utils';
 import { CLASSES_LIST } from '../lib/seedAccounts';
 
 export default function DaftarUjian() {
@@ -155,7 +155,7 @@ export default function DaftarUjian() {
                 questions: local.questions || rawQuestions || [],
                 targetClasses: local.targetClasses || parsedCloudConfig.targetClasses || d.targetClasses || [],
                 targetClassNames: local.targetClassNames || parsedCloudConfig.targetClassNames || d.targetClassNames || [],
-                exam_type: local.exam_type || parsedCloudConfig.exam_type || d.exam_type || 'semester',
+                exam_type: resolveExamType(local, parsedCloudConfig, d),
                 session_name: local.session_name || parsedCloudConfig.session_name || d.session_name || '',
                 show_score: local.show_score !== undefined ? local.show_score : (parsedCloudConfig.show_score !== undefined ? parsedCloudConfig.show_score : true),
                 submission_mode: local.submission_mode || parsedCloudConfig.submission_mode || 'hybrid'
@@ -168,7 +168,10 @@ export default function DaftarUjian() {
         const existingIds = new Set(allExams.map(e => e.id));
         for (const [id, localItem] of localMap.entries()) {
           if (!existingIds.has(id)) {
-            allExams.push(localItem);
+            allExams.push({
+              ...localItem,
+              exam_type: resolveExamType(localItem)
+            });
             existingIds.add(id);
           }
         }
@@ -244,7 +247,7 @@ export default function DaftarUjian() {
         title: fullExam.title || 'Ujian Sekolah',
         subject: fullExam.subject || 'Umum',
         duration: Number(fullExam.duration) || 60,
-        exam_type: fullExam.exam_type || 'semester',
+        exam_type: resolveExamType(fullExam),
         session_name: fullExam.session_name || 'Sesi 1',
         start_time: fullExam.start_time || '07:30',
         end_time: fullExam.end_time || '09:30',
@@ -539,8 +542,8 @@ export default function DaftarUjian() {
   // Filter tab data counter
   const activeCount = exams.filter(e => (e.status || 'active') === 'active').length;
   const draftCount = exams.filter(e => (e.status || 'active') !== 'active').length;
-  const semesterCount = exams.filter(e => (e.exam_type || 'semester') === 'semester').length;
-  const dailyCount = exams.filter(e => e.exam_type === 'harian').length;
+  const semesterCount = exams.filter(e => resolveExamType(e) === 'semester').length;
+  const dailyCount = exams.filter(e => resolveExamType(e) === 'harian').length;
 
   const filteredExams = (Array.isArray(exams) ? exams : []).filter(e => {
     const matchesSearch = (e.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -551,8 +554,8 @@ export default function DaftarUjian() {
     const isActive = (e.status || 'active') === 'active';
     if (activeTab === 'active') return isActive;
     if (activeTab === 'draft') return !isActive;
-    if (activeTab === 'semester') return (e.exam_type || 'semester') === 'semester';
-    if (activeTab === 'daily') return e.exam_type === 'harian';
+    if (activeTab === 'semester') return resolveExamType(e) === 'semester';
+    if (activeTab === 'daily') return resolveExamType(e) === 'harian';
 
     return true;
   });
@@ -630,7 +633,9 @@ export default function DaftarUjian() {
               ? exam.targetClassNames.slice(0, 3).join(', ') + (exam.targetClassNames.length > 3 ? ` (+${exam.targetClassNames.length - 3})` : '')
               : 'Semua Kelas';
 
-            const scheduleText = exam.exam_type === 'semester' && exam.session_name
+            const isSemester = resolveExamType(exam) === 'semester';
+
+            const scheduleText = isSemester && exam.session_name
               ? `${exam.session_name} (${exam.start_time || '07:30'} - ${exam.end_time || '09:30'})`
               : 'Kapan saja • 1x Pengerjaan';
 
@@ -669,7 +674,7 @@ export default function DaftarUjian() {
                         )}
 
                         <span className="font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md text-[11px]">
-                          {exam.exam_type === 'semester' ? 'Ujian Semester' : 'Ulangan Harian'}
+                          {isSemester ? 'Ujian Semester' : 'Ulangan Harian'}
                         </span>
 
                         <span className="text-slate-500 font-medium text-[11px] flex items-center gap-1">
@@ -963,16 +968,16 @@ export default function DaftarUjian() {
                           <div className="space-y-1.5">
                             <label className="text-xs font-bold text-slate-700">Jenis Ujian</label>
                             <select
-                              value={editingExam.exam_type || 'semester'}
+                              value={resolveExamType(editingExam)}
                               onChange={(e) => setEditingExam({ ...editingExam, exam_type: e.target.value })}
                               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white font-bold text-sm text-slate-900 outline-none focus:border-indigo-950 cursor-pointer"
                             >
-                              <option value="semester">🏛️ Ujian Semester / Resmi</option>
                               <option value="harian">📝 Ulangan Harian (Fleksibel)</option>
+                              <option value="semester">🏛️ Ujian Semester / Resmi</option>
                             </select>
                           </div>
 
-                          {editingExam.exam_type === 'semester' ? (
+                          {resolveExamType(editingExam) === 'semester' ? (
                             <div className="space-y-1.5">
                               <label className="text-xs font-bold text-slate-700">Sesi & Jam Ujian</label>
                               <div className="grid grid-cols-2 gap-2">

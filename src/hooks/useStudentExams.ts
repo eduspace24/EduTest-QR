@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { getCollectionData } from '../lib/db';
+import { resolveExamType } from '../lib/utils';
 
 export interface StudentExamItem {
   id: string;
@@ -62,11 +63,30 @@ export function useStudentExams() {
         );
 
         if (res && res.documents && res.documents.length > 0) {
-          allExams = res.documents.map(d => ({
-            ...d,
-            id: d.$id,
-            created_at: d.$createdAt
-          }));
+          allExams = res.documents.map(d => {
+            let parsedCloud: any = {};
+            if (typeof d.questions === 'string') {
+              try {
+                const p = JSON.parse(d.questions);
+                if (p && typeof p === 'object' && !Array.isArray(p)) {
+                  parsedCloud = p;
+                }
+              } catch {}
+            }
+            return {
+              ...parsedCloud,
+              ...d,
+              id: d.$id,
+              created_at: d.$createdAt,
+              exam_type: parsedCloud.exam_type || d.exam_type,
+              targetClasses: parsedCloud.targetClasses || d.targetClasses || [],
+              targetClassNames: parsedCloud.targetClassNames || d.targetClassNames || [],
+              allowedStudents: parsedCloud.allowedStudents || d.allowedStudents || [],
+              session_name: parsedCloud.session_name || d.session_name || '',
+              start_time: parsedCloud.start_time || d.start_time || '',
+              end_time: parsedCloud.end_time || d.end_time || ''
+            };
+          });
         }
       } catch {}
 
@@ -88,12 +108,14 @@ export function useStudentExams() {
       if (allExams.length > 0) {
         allExams = allExams.map((appwriteExam: any) => {
           const local = localMap.get(appwriteExam.id) || {};
+          const resolvedType = resolveExamType(local, appwriteExam);
           return {
             ...local,
             ...appwriteExam,
-            targetClasses: local.targetClasses || appwriteExam.targetClasses || [],
-            targetClassNames: local.targetClassNames || appwriteExam.targetClassNames || [],
-            exam_type: local.exam_type || appwriteExam.exam_type || 'semester',
+            targetClasses: (local.targetClasses && local.targetClasses.length > 0) ? local.targetClasses : (appwriteExam.targetClasses || []),
+            targetClassNames: (local.targetClassNames && local.targetClassNames.length > 0) ? local.targetClassNames : (appwriteExam.targetClassNames || []),
+            allowedStudents: (local.allowedStudents && local.allowedStudents.length > 0) ? local.allowedStudents : (appwriteExam.allowedStudents || []),
+            exam_type: resolvedType,
             session_name: local.session_name || appwriteExam.session_name || '',
             start_time: local.start_time || appwriteExam.start_time || '',
             end_time: local.end_time || appwriteExam.end_time || ''
@@ -105,7 +127,10 @@ export function useStudentExams() {
       const existingIds = new Set(allExams.map((e: any) => e.id));
       for (const [id, localItem] of localMap.entries()) {
         if (!existingIds.has(id)) {
-          allExams.push(localItem);
+          allExams.push({
+            ...localItem,
+            exam_type: resolveExamType(localItem)
+          });
           existingIds.add(id);
         }
       }
@@ -255,11 +280,11 @@ export function useStudentExams() {
   }, [completedKeys]);
 
   const dailyExams = useMemo(() => {
-    return activeExams.filter(e => e.exam_type === 'harian');
+    return activeExams.filter(e => resolveExamType(e) === 'harian');
   }, [activeExams]);
 
   const semesterExams = useMemo(() => {
-    return activeExams.filter(e => e.exam_type !== 'harian');
+    return activeExams.filter(e => resolveExamType(e) === 'semester');
   }, [activeExams]);
 
   return {

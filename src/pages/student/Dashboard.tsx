@@ -10,7 +10,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useStudentExams } from '../../hooks/useStudentExams';
-import { cn, formatTeacherName } from '../../lib/utils';
+import { cn, formatTeacherName, resolveExamType } from '../../lib/utils';
 
 export default function StudentDashboard() {
   const navigate = useNavigate();
@@ -89,7 +89,7 @@ export default function StudentDashboard() {
           <div className="grid grid-cols-1 gap-3.5">
             {activeExams.map(exam => {
               const isDone = isExamCompleted(exam);
-              const isDaily = exam.exam_type === 'harian';
+              const isDaily = resolveExamType(exam) === 'harian';
               const targetPage = isDaily ? '/student/ulangan-harian' : '/student/ujian-semester';
 
               return (

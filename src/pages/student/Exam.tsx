@@ -27,7 +27,7 @@ import {
   FileText
 } from 'lucide-react';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
-import { cn } from '../../lib/utils';
+import { cn, resolveExamType } from '../../lib/utils';
 import { addToPendingSubmissions, getCollectionData, saveCollection } from '../../lib/db';
 import { packResult } from '../../lib/hash';
 import { supabase } from '../../lib/supabase';
@@ -246,6 +246,7 @@ export default function StudentExam() {
               if (parsed.show_score !== undefined) data.show_score = parsed.show_score;
               if (parsed.submission_mode !== undefined) data.submission_mode = parsed.submission_mode;
               if (parsed.duration && !data.duration) data.duration = parsed.duration;
+              if (parsed.exam_type && !data.exam_type) data.exam_type = parsed.exam_type;
             }
           } catch (jsonErr) {
             console.error('Error parsing cloud questions JSON:', jsonErr);
@@ -263,8 +264,11 @@ export default function StudentExam() {
             }
             if (singleObj.show_score !== undefined && data.show_score === undefined) data.show_score = singleObj.show_score;
             if (singleObj.submission_mode !== undefined && data.submission_mode === undefined) data.submission_mode = singleObj.submission_mode;
+            if (singleObj.exam_type && !data.exam_type) data.exam_type = singleObj.exam_type;
           }
         }
+
+        data.exam_type = resolveExamType(data);
 
         if (!data.questions || !Array.isArray(data.questions) || data.questions.length === 0) {
           throw new Error('Soal ujian kosong atau tidak dapat diuraikan.');

@@ -36,7 +36,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import React, { useRef } from 'react';
 import { useAlert } from '../context/AlertContext';
-import { generateExamCode, cn } from '../lib/utils';
+import { generateExamCode, cn, resolveExamType } from '../lib/utils';
 import { getCollectionData, saveCollection } from '../lib/db';
 import { useSchool } from '../context/SchoolContext';
 import { uploadQuestionImage } from '../lib/cloudinary';
@@ -67,7 +67,7 @@ export default function BuatUjian() {
   const [formData, setFormData] = useState({
     title: '',
     subject: teacherSubjects[0] || '',
-    exam_type: (isSuperAdmin ? 'semester' : 'harian') as 'semester' | 'harian',
+    exam_type: 'harian' as 'semester' | 'harian',
     targetGrade: 'ALL',
     session_name: 'Sesi 1',
     start_time: '07:30',
@@ -347,7 +347,7 @@ export default function BuatUjian() {
           ...prev,
           title: examDoc.title || rawConfig.title || prev.title,
           subject: examDoc.subject || rawConfig.subject || prev.subject,
-          exam_type: examDoc.exam_type || rawConfig.exam_type || prev.exam_type,
+          exam_type: resolveExamType(examDoc, rawConfig) || 'harian',
           targetGrade: examDoc.targetGrade || rawConfig.targetGrade || prev.targetGrade,
           session_name: examDoc.session_name || rawConfig.session_name || prev.session_name,
           start_time: examDoc.start_time || rawConfig.start_time || prev.start_time,
@@ -693,7 +693,8 @@ export default function BuatUjian() {
         ? Array.from(selectedGradeSet)[0]
         : 'CUSTOM';
 
-      const isSemester = formData.exam_type === 'semester';
+      const resolvedExamType = resolveExamType(formData);
+      const isSemester = resolvedExamType === 'semester';
       const cleanSessionName = isSemester ? (formData.session_name || 'Sesi 1') : '';
       const cleanStartTime = isSemester ? (formData.start_time || '07:30') : '';
       const cleanEndTime = isSemester ? (formData.end_time || '09:30') : '';
@@ -701,6 +702,7 @@ export default function BuatUjian() {
 
       const examPayload = {
         ...formData,
+        exam_type: resolvedExamType,
         session_name: cleanSessionName,
         start_time: cleanStartTime,
         end_time: cleanEndTime,
@@ -771,7 +773,7 @@ export default function BuatUjian() {
         driveFileId: examId,
         title: formData.title,
         subject: formData.subject || teacherSubjects[0] || 'Informatika',
-        exam_type: formData.exam_type || 'semester',
+        exam_type: resolvedExamType,
         session_name: cleanSessionName,
         start_time: cleanStartTime,
         end_time: cleanEndTime,

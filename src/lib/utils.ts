@@ -110,3 +110,50 @@ export function formatPersonName(name: string, role?: string): string {
   return formatStudentName(name);
 }
 
+/**
+ * Resolves whether an exam is 'harian' (ulangan harian) or 'semester' (ujian semester/serentak).
+ * Checks explicit properties, intelligent title keywords, and configurations.
+ */
+export function resolveExamType(...candidates: any[]): 'harian' | 'semester' {
+  // 1. Explicit exam_type in candidates
+  for (const c of candidates) {
+    if (!c) continue;
+    const t = String(c.exam_type || '').trim().toLowerCase();
+    if (t === 'harian' || t === 'daily' || t === 'formatif') return 'harian';
+    if (t === 'semester' || t === 'sumatif' || t === 'serentak') return 'semester';
+  }
+
+  // 2. Intelligent title check
+  for (const c of candidates) {
+    if (!c || !c.title) continue;
+    const title = String(c.title).toLowerCase();
+    // Daily keywords: UH, PH, Formatif, Ulangan, Harian
+    const isDaily = /\b(uh|ph|formatif|harian|ulangan)\b/i.test(title);
+    // Semester keywords: ASAT, SAS, PAS, PTS, PAT, Sumatif, Semester, Serentak
+    const isSemester = /\b(asat|sas|pas|pts|pat|sumatif|semester|serentak)\b/i.test(title);
+
+    if (isDaily && !isSemester) return 'harian';
+    if (isSemester && !isDaily) return 'semester';
+  }
+
+  // 3. Check session name or room assignment attributes
+  for (const c of candidates) {
+    if (!c) continue;
+    if (c.session_name && String(c.session_name).trim() !== '' && String(c.session_name).trim() !== 'Sesi 1') {
+      return 'semester';
+    }
+  }
+
+  // 4. Fallback: if title contains "ulangan", it is harian
+  for (const c of candidates) {
+    if (!c || !c.title) continue;
+    const title = String(c.title).toLowerCase();
+    if (title.includes('ulangan')) return 'harian';
+    if (title.includes('semester')) return 'semester';
+  }
+
+  // 5. Default to harian
+  return 'harian';
+}
+
+
