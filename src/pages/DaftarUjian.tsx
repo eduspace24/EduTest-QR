@@ -48,6 +48,7 @@ export default function DaftarUjian() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingExam, setEditingExam] = useState<any | null>(null);
   const [loadingEditDetails, setLoadingEditDetails] = useState(false);
+  const [copiedTokenId, setCopiedTokenId] = useState<string | null>(null);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [editModalTab, setEditModalTab] = useState<'settings' | 'classes' | 'questions'>('settings');
   const [availableClasses, setAvailableClasses] = useState<any[]>([]);
@@ -147,6 +148,7 @@ export default function DaftarUjian() {
               } else if (Array.isArray(d.questions)) {
                 rawQuestions = d.questions;
               }
+              const resolvedToken = local.unlock_code || local.token || parsedCloudConfig.unlock_code || d.unlock_code || '';
               return {
                 ...local,
                 ...d,
@@ -158,7 +160,9 @@ export default function DaftarUjian() {
                 exam_type: resolveExamType(local, parsedCloudConfig, d),
                 session_name: local.session_name || parsedCloudConfig.session_name || d.session_name || '',
                 show_score: local.show_score !== undefined ? local.show_score : (parsedCloudConfig.show_score !== undefined ? parsedCloudConfig.show_score : true),
-                submission_mode: local.submission_mode || parsedCloudConfig.submission_mode || 'hybrid'
+                submission_mode: local.submission_mode || parsedCloudConfig.submission_mode || 'hybrid',
+                unlock_code: resolvedToken,
+                token: resolvedToken
               };
             });
           }
@@ -168,9 +172,12 @@ export default function DaftarUjian() {
         const existingIds = new Set(allExams.map(e => e.id));
         for (const [id, localItem] of localMap.entries()) {
           if (!existingIds.has(id)) {
+            const localToken = localItem.unlock_code || localItem.token || '';
             allExams.push({
               ...localItem,
-              exam_type: resolveExamType(localItem)
+              exam_type: resolveExamType(localItem),
+              unlock_code: localToken,
+              token: localToken
             });
             existingIds.add(id);
           }
@@ -680,6 +687,35 @@ export default function DaftarUjian() {
                         <span className="text-slate-500 font-medium text-[11px] flex items-center gap-1">
                           <Users className="w-3 h-3 text-slate-400" />
                           {classNames}
+                        </span>
+
+                        {/* Badge Token Ujian */}
+                        <span 
+                          onClick={(e) => {
+                            const code = exam.unlock_code || exam.token;
+                            if (code) {
+                              e.stopPropagation();
+                              navigator.clipboard.writeText(code);
+                              setCopiedTokenId(exam.id || exam.$id);
+                              setTimeout(() => setCopiedTokenId(null), 2000);
+                            }
+                          }}
+                          className={cn(
+                            "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-bold transition-all select-none",
+                            (exam.unlock_code || exam.token)
+                              ? "bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300/80 font-mono cursor-pointer active:scale-95 shadow-2xs"
+                              : "bg-slate-100 text-slate-400 border border-slate-200 font-sans"
+                          )}
+                          title={(exam.unlock_code || exam.token) ? "Klik untuk menyalin token ujian" : "Ujian tidak memerlukan token"}
+                        >
+                          <KeyRound className={cn("w-3.5 h-3.5 shrink-0", (exam.unlock_code || exam.token) ? "text-amber-600" : "text-slate-400")} />
+                          <span className="font-sans text-[10px] uppercase tracking-wider font-extrabold text-amber-800">Token:</span>
+                          <span className="tracking-widest font-black">{(exam.unlock_code || exam.token) || '-'}</span>
+                          {copiedTokenId === (exam.id || exam.$id) && (
+                            <span className="inline-flex items-center gap-0.5 text-[10px] text-emerald-700 font-sans font-extrabold ml-0.5">
+                              <Check className="w-3 h-3 text-emerald-600 shrink-0" /> Tersalin
+                            </span>
+                          )}
                         </span>
                       </div>
                     </div>
