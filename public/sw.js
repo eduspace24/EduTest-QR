@@ -1,4 +1,4 @@
-const CACHE_NAME = 'edutest-v3'; // Upgraded cache version for TKA Suite
+const CACHE_NAME = 'nineteen-exam-v1'; // Upgraded cache version for Nineteen Exam Suite
 const ASSETS = [
   '/',
   '/index.html',

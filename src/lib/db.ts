@@ -1,5 +1,5 @@
 /**
- * EduTest Local Database Service
+ * Nineteen Exam Local Database Service
  * Uses IndexedDB for persistent, optimized local storage.
  */
 

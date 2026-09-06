@@ -195,7 +195,7 @@ export default function HasilUjian({ isEmbedded = false }: { isEmbedded?: boolea
 
   const exportToPDF = () => {
     const doc = new jsPDF();
-    doc.text("Laporan Hasil Ujian - EduTest", 14, 15);
+    doc.text("Laporan Hasil Ujian - Nineteen Exam", 14, 15);
     
     const tableData = filteredResults.map(res => [
       formatStudentName(res.student_name || res.student?.nama || res.student?.name || 'Murid'),

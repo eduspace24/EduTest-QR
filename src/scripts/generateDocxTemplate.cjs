@@ -7,7 +7,7 @@ const doc = new docx.Document({
             properties: {},
             children: [
                 new docx.Paragraph({
-                    text: "TEMPLATE SOAL EDUTEST (WORD)",
+                    text: "TEMPLATE SOAL NINETEEN EXAM (WORD)",
                     heading: docx.HeadingLevel.HEADING_1,
                 }),
                 new docx.Paragraph({ text: "" }),
@@ -167,7 +167,7 @@ const doc = new docx.Document({
 });
 
 docx.Packer.toBuffer(doc).then((buffer) => {
-    fs.writeFileSync("public/Template_Bank_Soal_EduTest.docx", buffer);
+    fs.writeFileSync("public/Template_Bank_Soal_Nineteen_Exam.docx", buffer);
     console.log("Template generated successfully!");
 });
 

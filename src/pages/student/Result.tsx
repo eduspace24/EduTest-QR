@@ -176,7 +176,7 @@ export default function StudentResult() {
           <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Aman & Terverifikasi</p>
         </div>
         <p className="text-slate-400 text-[9px] font-bold uppercase tracking-widest opacity-50">
-          EduTest &copy; 2026 • SaaS Google Workspace Integration
+          Nineteen Exam &copy; 2026 • Platform Ujian Digital Terpadu
         </p>
       </div>
     </div>

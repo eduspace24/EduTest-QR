@@ -558,7 +558,7 @@ export default function BankSoal() {
     const ws = XLSX.utils.json_to_sheet(templateData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Template Soal');
-    XLSX.writeFile(wb, 'Template_Bank_Soal_EduTest.xlsx');
+    XLSX.writeFile(wb, 'Template_Bank_Soal_Nineteen_Exam.xlsx');
   };
 
   const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1970,7 +1970,7 @@ export default function BankSoal() {
               </button>
               
               <a 
-                href="/Template_Bank_Soal_EduTest.docx" download
+                href="/Template_Bank_Soal_Nineteen_Exam.docx" download
                 onClick={() => setShowTemplateModal(false)}
                 className="w-full flex items-center gap-3 p-3 rounded-2xl border-2 border-slate-100 hover:border-blue-500 hover:bg-blue-50/30 transition-all text-left group no-underline"
               >
