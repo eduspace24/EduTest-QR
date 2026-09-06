@@ -73,8 +73,8 @@ export default function SemesterExams() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3 z-10">
-          {/* Card Ruang & Nomor Meja Jika Ada */}
-          {roomSeat ? (
+          {/* Card Ruang & Nomor Meja Hanya Jika Ada Ujian Semester */}
+          {semesterExams.length > 0 && roomSeat ? (
             <div className="bg-white/10 backdrop-blur-xs p-3.5 rounded-2xl border border-white/20 text-left min-w-[140px]">
               <div className="flex items-center gap-1.5 text-indigo-200 text-[10px] font-bold uppercase tracking-wider">
                 <Building2 className="w-3.5 h-3.5" /> Lokasi Ujian

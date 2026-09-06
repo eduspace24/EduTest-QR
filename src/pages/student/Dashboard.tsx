@@ -4,11 +4,8 @@ import {
   Clock, 
   ArrowRight, 
   GraduationCap, 
-  Sparkles, 
   CheckCircle2, 
-  Building2, 
-  QrCode,
-  Layers
+  QrCode
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -21,7 +18,6 @@ export default function StudentDashboard() {
     loading, 
     sessionUser, 
     activeExams, 
-    roomSeat, 
     isExamCompleted, 
     recentSubmission 
   } = useStudentExams();
@@ -37,29 +33,21 @@ export default function StudentDashboard() {
 
   return (
     <div className="p-4 sm:p-8 max-w-5xl mx-auto space-y-6">
-      {/* 1. Papan Nama Header Berwarna Biru Khas Aplikasi */}
-      <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-950 text-white p-6 sm:p-7 rounded-3xl shadow-md relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+      {/* 1. Papan Nama Header Berwarna Biru Gelap Khas Aplikasi (Solid Tanpa Gradasi) */}
+      <div className="bg-indigo-950 text-white p-6 sm:p-7 rounded-3xl shadow-sm relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-5 border border-indigo-900/50">
         <div className="flex items-center gap-4 z-10">
-          <div className="w-14 h-14 rounded-2xl bg-white text-blue-700 flex items-center justify-center font-black text-xl shadow-md shrink-0">
+          <div className="w-14 h-14 rounded-2xl bg-white text-indigo-950 flex items-center justify-center font-black text-xl shadow-md shrink-0">
             {(sessionUser?.nama || 'M').charAt(0).toUpperCase()}
           </div>
           <div className="space-y-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[10px] font-black uppercase tracking-wider bg-white/20 backdrop-blur-xs text-white px-2.5 py-0.5 rounded-full">
-                Peserta Didik
-              </span>
-              {roomSeat && (
-                <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-500/30 backdrop-blur-xs text-emerald-100 border border-emerald-400/30 px-2.5 py-0.5 rounded-full flex items-center gap-1">
-                  <Building2 className="w-3 h-3" /> {roomSeat.roomName} • Meja {roomSeat.seatNumber}
-                </span>
-              )}
-            </div>
+            <span className="text-[10px] font-black uppercase tracking-wider bg-white/10 text-slate-200 px-2.5 py-0.5 rounded-full inline-block">
+              Peserta Didik
+            </span>
             <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white">
               Halo, {sessionUser?.nama || 'Murid Nineteen'}!
             </h1>
-            <p className="text-xs sm:text-sm text-blue-100 font-medium">
+            <p className="text-xs sm:text-sm text-slate-300 font-medium">
               Kelas: <strong className="text-white font-bold">{sessionUser?.kelas || 'Siswa'}</strong>
-              {sessionUser?.nisn && ` • NISN: ${sessionUser.nisn}`}
             </p>
           </div>
         </div>
@@ -68,9 +56,9 @@ export default function StudentDashboard() {
           <button
             type="button"
             onClick={() => navigate('/exam/result/finish')}
-            className="self-start sm:self-auto px-4 py-2.5 bg-white/15 hover:bg-white/25 border border-white/25 text-white rounded-2xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer z-10"
+            className="self-start sm:self-auto px-4 py-2.5 bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-2xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer z-10"
           >
-            <QrCode className="w-4 h-4 text-blue-200" />
+            <QrCode className="w-4 h-4 text-slate-300" />
             <span>Bukti Hasil Ujian</span>
           </button>
         )}
@@ -112,7 +100,7 @@ export default function StudentDashboard() {
                     "p-5 rounded-2xl border transition-all flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 cursor-pointer group",
                     isDone 
                       ? "bg-slate-50/70 border-slate-200/80 hover:bg-slate-50" 
-                      : "bg-white border-slate-200/90 hover:border-blue-500 hover:shadow-md"
+                      : "bg-white border-slate-200/90 hover:border-indigo-950 hover:shadow-md"
                   )}
                 >
                   <div className="space-y-1.5 min-w-0">
@@ -138,12 +126,6 @@ export default function StudentDashboard() {
                       {!isDaily && exam.session_name && (
                         <span className="text-[10px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md font-bold">
                           {exam.session_name}
-                        </span>
-                      )}
-
-                      {!isDaily && roomSeat && (
-                        <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-md font-bold flex items-center gap-1">
-                          <Building2 className="w-3 h-3" /> {roomSeat.roomName} • Meja {roomSeat.seatNumber}
                         </span>
                       )}
 
