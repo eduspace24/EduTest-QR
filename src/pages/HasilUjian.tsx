@@ -11,7 +11,10 @@ import {
   AlertCircle,
   XCircle,
   ChevronDown,
-  Trash2
+  Trash2,
+  RotateCcw,
+  KeyRound,
+  ShieldCheck
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import React from 'react';
@@ -19,6 +22,7 @@ import { cn, formatStudentName } from '../lib/utils';
 import { getCollectionData, saveCollection } from '../lib/db';
 import { useAlert } from '../context/AlertContext';
 import { supabase } from '../lib/supabase';
+import { authorizeStudentExamResume } from '../lib/examResetService';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -174,6 +178,56 @@ export default function HasilUjian({ isEmbedded = false }: { isEmbedded?: boolea
           message: `Hasil ujian untuk "${formatStudentName(sName)}" berhasil dihapus dari sistem.`,
           type: 'success'
         });
+      }
+    });
+  };
+
+  const handleResumeStudent = (resultItem: any) => {
+    const sName = resultItem.student_name || resultItem.student?.nama || resultItem.student?.name || 'Murid';
+    const sCode = resultItem.student_code || resultItem.student?.code || resultItem.student?.nisn || '';
+    const eTitle = resultItem.exam_title || resultItem.examTitle || 'Ujian';
+    const targetExamId = resultItem.driveFileId || resultItem.examId || resultItem.id;
+    const targetResultId = resultItem.id || resultItem.$id;
+
+    const session = JSON.parse(localStorage.getItem('edu_session') || '{}');
+    const teacherName = session?.user?.name || session?.user?.nama || 'Guru';
+
+    showAlert({
+      title: 'Izinkan Lanjut Ujian (Reset Pengiriman)?',
+      message: `Apakah Anda ingin mengizinkan "${formatStudentName(sName)}" melanjutkan pengerjaan "${eTitle}"?\n\nStatus pengiriman akan dibatalkan sehingga murid dapat melanjutkan menjawab soal yang belum selesai. Seluruh jawaban sebelumnya TIDAK AKAN HILANG.`,
+      type: 'confirm',
+      confirmText: 'Ya, Izinkan Lanjut',
+      cancelText: 'Batal',
+      onConfirm: async () => {
+        try {
+          await authorizeStudentExamResume(targetExamId, sCode, sName, teacherName);
+
+          const updated = results.filter(r => (r.id !== targetResultId && r.$id !== targetResultId));
+          setResults(updated);
+
+          try {
+            await saveCollection('results', updated);
+          } catch {}
+
+          if (targetResultId && !String(targetResultId).startsWith('loc_')) {
+            try {
+              const { databases, COLLECTIONS, APPWRITE_DATABASE_ID } = await import('../lib/appwrite');
+              await databases.deleteDocument(APPWRITE_DATABASE_ID, COLLECTIONS.EXAM_RESULTS, targetResultId);
+            } catch {}
+          }
+
+          showAlert({
+            title: 'Izin Diberikan!',
+            message: `Murid "${formatStudentName(sName)}" kini dapat melanjutkan ujian.\n\nMinta murid:\n1. Buka kembali halaman ujian\n2. Klik tombol "Periksa Izin Guru" (atau gunakan PIN Pengawas: 19SMAN)\n3. Lembar soal akan terbuka dengan semua jawaban tersimpan utuh.`,
+            type: 'success'
+          });
+        } catch (err: any) {
+          showAlert({
+            title: 'Gagal Membuka Ujian',
+            message: err.message || 'Terjadi kesalahan saat memproses izin.',
+            type: 'error'
+          });
+        }
       }
     });
   };
@@ -337,13 +391,25 @@ export default function HasilUjian({ isEmbedded = false }: { isEmbedded?: boolea
                       {res.score ?? 0}
                     </td>
                     <td className="px-8 py-5 text-center">
-                      <button
-                        onClick={() => handleDeleteResult(res)}
-                        className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all cursor-pointer"
-                        title="Hapus Hasil Ujian"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => handleResumeStudent(res)}
+                          className="px-2.5 py-1.5 text-indigo-950 bg-indigo-50 hover:bg-blue-600 hover:text-white rounded-xl transition-all cursor-pointer inline-flex items-center gap-1.5 font-bold text-xs border border-indigo-100 shadow-2xs active:scale-95"
+                          title="Izinkan murid melanjutkan pengerjaan ujian (jawaban sebelumnya tidak hilang)"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                          <span>Lanjut Ujian</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteResult(res)}
+                          className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all cursor-pointer"
+                          title="Hapus Hasil Ujian"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );

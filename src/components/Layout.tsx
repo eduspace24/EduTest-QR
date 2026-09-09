@@ -179,7 +179,7 @@ export default function Layout({ session, onLogout }: LayoutProps) {
               animate={{ x: 0 }} 
               exit={{ x: '-100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed inset-y-0 left-0 w-64 bg-white shadow-2xl z-[85] lg:hidden flex flex-col border-r border-slate-100"
+              className="fixed inset-y-0 left-0 w-64 bg-white shadow-2xl z-[85] lg:hidden flex flex-col border-r border-slate-100 safe-pt safe-pb"
             >
               <div className="p-5 flex items-center justify-between border-b border-slate-100">
                 <div className="flex items-center gap-3">

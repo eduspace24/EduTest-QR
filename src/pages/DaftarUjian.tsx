@@ -25,7 +25,10 @@ import {
   Shuffle,
   KeyRound,
   Layers,
-  HelpCircle
+  HelpCircle,
+  ShieldAlert,
+  RotateCcw,
+  Unlock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
@@ -35,6 +38,7 @@ import { getCollectionData, saveCollection } from '../lib/db';
 import { supabase } from '../lib/supabase';
 import { cn, resolveExamType } from '../lib/utils';
 import { CLASSES_LIST } from '../lib/seedAccounts';
+import { authorizeStudentExamResume } from '../lib/examResetService';
 
 export default function DaftarUjian() {
   const navigate = useNavigate();
@@ -43,6 +47,12 @@ export default function DaftarUjian() {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'all' | 'active' | 'draft' | 'semester' | 'daily'>('all');
   const { showAlert } = useAlert();
+
+  // State untuk Pusat Kendala Siswa (Buka Blokir & Reset Pengiriman)
+  const [troubleshootExam, setTroubleshootExam] = useState<any | null>(null);
+  const [troubleshootStudentCode, setTroubleshootStudentCode] = useState('');
+  const [troubleshootStudentName, setTroubleshootStudentName] = useState('');
+  const [isAuthorizingReset, setIsAuthorizingReset] = useState(false);
 
   // State untuk Edit Ujian Langsung (Tanpa dialihkan ke Buat Ujian Baru)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -66,6 +76,50 @@ export default function DaftarUjian() {
       message: `Tautan ujian disalin:\n${link}\n\nBagikan tautan ini kepada siswa.`,
       type: 'success'
     });
+  };
+
+  // Otorisasi buka blokir & reset pengiriman murid dari Pusat Kendala
+  const handleAuthorizeStudentTroubleshoot = async () => {
+    if (!troubleshootExam || !troubleshootStudentCode.trim()) {
+      showAlert({
+        title: 'Data Belum Lengkap',
+        message: 'Silakan masukkan NISN / Kode Siswa yang mengalami kendala.',
+        type: 'warning'
+      });
+      return;
+    }
+
+    setIsAuthorizingReset(true);
+    try {
+      const session = JSON.parse(localStorage.getItem('edu_session') || '{}');
+      const teacherName = session?.user?.name || session?.user?.nama || 'Guru';
+      const examId = troubleshootExam.driveFileId || troubleshootExam.id;
+
+      await authorizeStudentExamResume(
+        examId, 
+        troubleshootStudentCode.trim(), 
+        troubleshootStudentName.trim() || 'Murid',
+        teacherName
+      );
+
+      showAlert({
+        title: 'Izin Lanjut Diberikan!',
+        message: `Siswa dengan NISN "${troubleshootStudentCode}" telah diizinkan membuka kembali ujian "${troubleshootExam.title}".\n\nSeluruh jawaban sebelumnya tetap aman tersimpan. Minta siswa klik "Periksa Izin Guru" pada layarnya atau gunakan PIN Pengawas: 19SMAN.`,
+        type: 'success'
+      });
+
+      setTroubleshootStudentCode('');
+      setTroubleshootStudentName('');
+      setTroubleshootExam(null);
+    } catch (err: any) {
+      showAlert({
+        title: 'Gagal Memproses',
+        message: err?.message || 'Terjadi kesalahan saat menyimpan izin.',
+        type: 'error'
+      });
+    } finally {
+      setIsAuthorizingReset(false);
+    }
   };
 
   // Muat data kelas sekolah
@@ -819,6 +873,20 @@ export default function DaftarUjian() {
 
                     <button 
                       type="button"
+                      onClick={() => {
+                        setTroubleshootExam(exam);
+                        setTroubleshootStudentCode('');
+                        setTroubleshootStudentName('');
+                      }}
+                      className="px-3 py-1.5 rounded-lg border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                      title="Buka blokir murid atau reset pengiriman tidak sengaja"
+                    >
+                      <ShieldAlert className="w-3.5 h-3.5 text-amber-700" />
+                      <span>Kendala Siswa</span>
+                    </button>
+
+                    <button 
+                      type="button"
                       onClick={() => showShareLink(exam)}
                       className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer"
                       title="Salin link ujian"
@@ -1458,6 +1526,135 @@ export default function DaftarUjian() {
                     )}
                   </button>
                 </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal Pusat Kendala Siswa (Buka Blokir & Reset Pengiriman) */}
+      <AnimatePresence>
+        {troubleshootExam && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-lg bg-white rounded-3xl p-6 sm:p-7 shadow-2xl border border-slate-100 space-y-5 text-left"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2.5 rounded-2xl bg-amber-50 text-amber-700 border border-amber-200">
+                    <ShieldAlert className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-indigo-950 text-base">Pusat Kendala Siswa</h3>
+                    <p className="text-xs text-slate-400 font-medium">Buka blokir atau izinkan murid lanjut menjawab</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setTroubleshootExam(null)}
+                  className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 font-bold text-xs flex items-center justify-center cursor-pointer transition-all"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 space-y-1">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Ujian Terpilih</p>
+                <h4 className="text-sm font-black text-indigo-950 truncate">{troubleshootExam.title}</h4>
+              </div>
+
+              {/* Bagian 1: Token & PIN Darurat Pengawas */}
+              <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-200 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-amber-950 flex items-center gap-1.5">
+                    <KeyRound className="w-4 h-4 text-amber-600" /> Token & PIN Darurat Pengawas
+                  </span>
+                  <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-md">Bisa Diisi Langsung di HP Siswa</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="bg-white p-2.5 rounded-xl border border-amber-200 flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] font-bold text-slate-400 block">Token Ujian:</span>
+                      <span className="font-black font-mono text-sm text-indigo-950 tracking-wider">
+                        {troubleshootExam.unlock_code || troubleshootExam.token || 'TIDAK ADA'}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const c = troubleshootExam.unlock_code || troubleshootExam.token;
+                        if (c) {
+                          navigator.clipboard.writeText(c);
+                          showAlert({ title: 'Tersalin', message: `Token ${c} disalin!`, type: 'success' });
+                        }
+                      }}
+                      className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 cursor-pointer"
+                      title="Salin Token"
+                    >
+                      <KeyRound className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="bg-white p-2.5 rounded-xl border border-amber-200 flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] font-bold text-slate-400 block">PIN Master Darurat:</span>
+                      <span className="font-black font-mono text-sm text-amber-700 tracking-wider">19SMAN</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText('19SMAN');
+                        showAlert({ title: 'Tersalin', message: 'PIN Master 19SMAN disalin!', type: 'success' });
+                      }}
+                      className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 cursor-pointer"
+                      title="Salin PIN Master"
+                    >
+                      <KeyRound className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+                <p className="text-[11px] text-amber-800 font-medium leading-relaxed">
+                  Pengawas dapat mengetikkan PIN di atas langsung pada layar murid yang terblokir atau kepencet selesai untuk melanjutkan pengerjaan tanpa kehilangan jawaban.
+                </p>
+              </div>
+
+              {/* Bagian 2: Buka Izin Online untuk Siswa Tertentu */}
+              <div className="space-y-3 pt-1">
+                <h4 className="text-xs font-black text-indigo-950 uppercase tracking-wider flex items-center gap-1.5">
+                  <RotateCcw className="w-3.5 h-3.5 text-blue-600" /> Buka Izin Siswa Tertentu (Online 1-Klik)
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 block mb-1">NISN / Kode Siswa *</label>
+                    <input 
+                      type="text"
+                      placeholder="Contoh: 242510311"
+                      value={troubleshootStudentCode}
+                      onChange={(e) => setTroubleshootStudentCode(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 font-mono font-bold text-xs text-indigo-950 outline-none focus:border-indigo-950"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 block mb-1">Nama Siswa (Opsional)</label>
+                    <input 
+                      type="text"
+                      placeholder="Nama lengkap siswa..."
+                      value={troubleshootStudentName}
+                      onChange={(e) => setTroubleshootStudentName(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 font-bold text-xs text-indigo-950 outline-none focus:border-indigo-950"
+                    />
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleAuthorizeStudentTroubleshoot}
+                  disabled={isAuthorizingReset || !troubleshootStudentCode.trim()}
+                  className="w-full py-3 bg-indigo-950 hover:bg-indigo-900 text-white rounded-xl font-black text-xs flex items-center justify-center gap-2 shadow-md shadow-indigo-950/20 active:scale-95 transition-all disabled:opacity-50 cursor-pointer"
+                >
+                  {isAuthorizingReset ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
+                  <span>Izinkan Siswa Melanjutkan Ujian (Jawaban Tidak Hilang)</span>
+                </button>
               </div>
             </motion.div>
           </div>

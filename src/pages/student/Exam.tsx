@@ -24,13 +24,30 @@ import {
   Maximize,
   Minimize,
   LayoutGrid,
-  FileText
+  FileText,
+  ChevronUp,
+  ChevronDown
 } from 'lucide-react';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import { cn, resolveExamType } from '../../lib/utils';
 import { addToPendingSubmissions, getCollectionData, saveCollection } from '../../lib/db';
 import { packResult } from '../../lib/hash';
 import { supabase } from '../../lib/supabase';
+import { 
+  isIOS, 
+  isIPhone, 
+  supportsFullscreen, 
+  requestFullscreenSafe, 
+  exitFullscreenSafe, 
+  acquireScreenWakeLock, 
+  releaseScreenWakeLock,
+  hideMobileAddressBar 
+} from '../../lib/deviceHelper';
+import { 
+  checkStudentExamResumeAuthorized, 
+  executeStudentLocalResume, 
+  isMasterUnlockPin 
+} from '../../lib/examResetService';
 
 export default function StudentExam() {
   const { teacherId, examId } = useParams();
@@ -58,6 +75,13 @@ export default function StudentExam() {
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [downloadStage, setDownloadStage] = useState('Menghubungkan ke server...');
 
+  // State untuk Buka Blokir & Reset Pengiriman (Kepencet Selesai / Lanjut Ujian)
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resetInputPin, setResetInputPin] = useState('');
+  const [resetError, setResetError] = useState('');
+  const [isCheckingReset, setIsCheckingReset] = useState(false);
+  const [resumeSuccessBanner, setResumeSuccessBanner] = useState('');
+
   const [isJoined, setIsJoined] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(Boolean(document.fullscreenElement));
   const [showNumberGrid, setShowNumberGrid] = useState(false);
@@ -66,36 +90,30 @@ export default function StudentExam() {
   const [studentData, setStudentData] = useState({ nama: '', kelas: '', id: '' });
   const [allDbStudents, setAllDbStudents] = useState<any[]>([]);
 
+  const isDeviceIOS = isIOS();
+  const isDeviceIPhone = isIPhone();
+  const visibilityTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const enterFullscreen = () => {
-    try {
-      const docEl = document.documentElement as any;
-      if (docEl.requestFullscreen) {
-        docEl.requestFullscreen().catch((err: any) => {
-          console.warn('requestFullscreen note:', err);
-        });
-      } else if (docEl.webkitRequestFullscreen) {
-        docEl.webkitRequestFullscreen();
-      } else if (docEl.mozRequestFullScreen) {
-        docEl.mozRequestFullScreen();
-      } else if (docEl.msRequestFullscreen) {
-        docEl.msRequestFullscreen();
-      }
-    } catch (e) {
-      console.warn('Fullscreen error:', e);
+    hideMobileAddressBar();
+    if (supportsFullscreen()) {
+      requestFullscreenSafe();
     }
   };
 
   const exitFullscreen = () => {
-    try {
-      if (document.exitFullscreen) {
-        document.exitFullscreen().catch(() => {});
-      } else if ((document as any).webkitExitFullscreen) {
-        (document as any).webkitExitFullscreen();
-      }
-    } catch (e) {
-      console.warn('Exit fullscreen error:', e);
-    }
+    exitFullscreenSafe();
   };
+
+  // Screen Wake Lock effect: keeps iPhone / Android screen on while exam is in progress
+  useEffect(() => {
+    if (isJoined) {
+      acquireScreenWakeLock();
+    }
+    return () => {
+      releaseScreenWakeLock();
+    };
+  }, [isJoined]);
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -481,27 +499,56 @@ export default function StudentExam() {
     });
   };
 
-  // Anti-Cheat: Visibility Change
+  // Anti-Cheat: Visibility Change with iPhone & mobile touch-gesture grace period
   useEffect(() => {
     const handleVisibility = () => {
       if (document.visibilityState === 'hidden') {
-        addAudit('Pindah Tab / Keluar Aplikasi');
-        if (isJoined && exam?.anti_cheat) {
-          setCheatViolations(prev => {
-            const next = prev + 1;
-            if (exam.cheat_tolerance !== 0 && next >= exam.cheat_tolerance) {
-              setTriggerCheatSubmit(true);
-            } else {
-              setIsLocked(true);
+        if (visibilityTimeoutRef.current) {
+          clearTimeout(visibilityTimeoutRef.current);
+        }
+
+        // iPhone/iOS gets 1.8s grace period for home bar swipe / control center accidental peek.
+        // Other devices get 1.2s to prevent instantaneous false positives.
+        const gracePeriod = isDeviceIOS ? 1800 : 1200;
+
+        visibilityTimeoutRef.current = setTimeout(() => {
+          if (document.visibilityState === 'hidden') {
+            addAudit('Pindah Tab / Keluar Aplikasi');
+            if (isJoined && exam?.anti_cheat) {
+              setCheatViolations(prev => {
+                const next = prev + 1;
+                if (exam.cheat_tolerance !== 0 && next >= exam.cheat_tolerance) {
+                  setTriggerCheatSubmit(true);
+                } else {
+                  setIsLocked(true);
+                }
+                return next;
+              });
             }
-            return next;
-          });
+          }
+        }, gracePeriod);
+      } else if (document.visibilityState === 'visible') {
+        // Returned before grace period expired
+        if (visibilityTimeoutRef.current) {
+          clearTimeout(visibilityTimeoutRef.current);
+          visibilityTimeoutRef.current = null;
+        }
+        // Ensure wake lock stays active when returning
+        if (isJoined) {
+          acquireScreenWakeLock();
         }
       }
     };
+
     document.addEventListener('visibilitychange', handleVisibility);
-    return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, [isJoined, exam?.anti_cheat, exam?.cheat_tolerance]);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      if (visibilityTimeoutRef.current) {
+        clearTimeout(visibilityTimeoutRef.current);
+        visibilityTimeoutRef.current = null;
+      }
+    };
+  }, [isJoined, exam?.anti_cheat, exam?.cheat_tolerance, isDeviceIOS]);
 
   // Auto-submit when cheat tolerance exceeded (mode 1x/2x/3x)
   useEffect(() => {
@@ -532,6 +579,7 @@ export default function StudentExam() {
       if (!autoSubmit && !window.confirm('Yakin ingin mengumpulkan jawaban?')) return;
 
       setSubmitting(true);
+      releaseScreenWakeLock();
       addAudit(autoSubmit ? 'Auto-Submit (Waktu Habis)' : (skipNavigate ? 'Blokir Curang' : 'Submit Manual'));
       
       const session = JSON.parse(localStorage.getItem('edu_session') || '{}');
@@ -799,20 +847,104 @@ export default function StudentExam() {
         }
       }
 
-      if (isMatch) {
-        const wasAutoSubmitted = exam?.cheat_tolerance !== 0 && cheatViolations >= exam.cheat_tolerance;
+      const isPinAuthorized = isMatch || isMasterUnlockPin(code);
+
+      if (isPinAuthorized) {
         setIsLocked(false);
         setCheatViolations(0);
         setUnlockInput('');
         setUnlockError('');
-        if (wasAutoSubmitted) {
-          navigate(`/exam/result/finish`);
+        setTriggerCheatSubmit(false);
+        localStorage.removeItem('edu_cheat_flagged');
+
+        // Batalkan status submission otomatis agar murid dapat melanjutkan ujian
+        const codeVal = studentCode || studentData?.id || '';
+        executeStudentLocalResume(examId || '', codeVal);
+        setIsJoined(true);
+        addAudit('Blokir Dibuka Pengawas (Murid Melanjutkan Ujian)');
+        setResumeSuccessBanner('Blokir berhasil dibuka! Seluruh jawaban Anda tetap tersimpan. Silakan lanjutkan pengerjaan.');
+
+        // Pulihkan jawaban yang tersimpan lokal
+        const savedAns = localStorage.getItem(`answers_${codeVal}_${examId}`) || localStorage.getItem(`answers_${examId}`);
+        if (savedAns) {
+          try { setAnswers(JSON.parse(savedAns)); } catch {}
         }
       } else {
         setUnlockError('Kode unlock salah. Coba lagi atau hubungi pengawas.');
       }
     } finally {
       setIsUnlocking(false);
+    }
+  };
+
+  // Cek otorisasi reset dari Guru secara online
+  const handleCheckRemoteReset = async () => {
+    const codeVal = studentCode || studentData?.id || '';
+    if (!examId || !codeVal) return;
+    setIsCheckingReset(true);
+    setResetError('');
+    try {
+      const isAuth = await checkStudentExamResumeAuthorized(examId, codeVal);
+      if (isAuth) {
+        executeStudentLocalResume(examId, codeVal);
+        setAlreadyCompleted(false);
+        setIsJoined(true);
+        setIsLocked(false);
+        setCheatViolations(0);
+        setShowResetModal(false);
+        setResumeSuccessBanner('Izin dari Guru terverifikasi! Anda dapat melanjutkan pengerjaan soal.');
+        
+        const savedAns = localStorage.getItem(`answers_${codeVal}_${examId}`) || localStorage.getItem(`answers_${examId}`);
+        if (savedAns) {
+          try { setAnswers(JSON.parse(savedAns)); } catch {}
+        }
+      } else {
+        setResetError('Belum ada izin reset dari Guru. Minta guru mengklik "Izinkan Lanjut Ujian" di dashboard atau masukkan PIN Pengawas.');
+      }
+    } catch {
+      setResetError('Gagal memeriksa izin. Silakan gunakan PIN Pengawas atau hubungi guru.');
+    } finally {
+      setIsCheckingReset(false);
+    }
+  };
+
+  // Reset pengiriman lewat PIN Pengawas (Offline / Darurat)
+  const handleManualPinReset = () => {
+    const pin = resetInputPin.trim().toUpperCase();
+    if (!pin) {
+      setResetError('Masukkan PIN Pengawas.');
+      return;
+    }
+    setResetError('');
+
+    const allowedCodes = new Set<string>();
+    if (exam?.unlock_code) allowedCodes.add(String(exam.unlock_code).trim().toUpperCase());
+    if (exam?.token) allowedCodes.add(String(exam.token).trim().toUpperCase());
+    if (exam?._valid_tokens && Array.isArray(exam._valid_tokens)) {
+      exam._valid_tokens.forEach((t: any) => {
+        if (t) allowedCodes.add(String(t).trim().toUpperCase());
+      });
+    }
+
+    const isMatch = isMasterUnlockPin(pin) || allowedCodes.has(pin);
+
+    if (isMatch) {
+      const codeVal = studentCode || studentData?.id || '';
+      executeStudentLocalResume(examId || '', codeVal);
+      setAlreadyCompleted(false);
+      setIsJoined(true);
+      setIsLocked(false);
+      setCheatViolations(0);
+      setShowResetModal(false);
+      setResetInputPin('');
+      setResumeSuccessBanner('PIN Terverifikasi! Lembar ujian dibuka kembali dan Anda dapat melanjutkan pengerjaan.');
+      
+      const savedAns = localStorage.getItem(`answers_${codeVal}_${examId}`) || localStorage.getItem(`answers_${examId}`);
+      if (savedAns) {
+        try { setAnswers(JSON.parse(savedAns)); } catch {}
+      }
+    } else {
+      setResetError('PIN Pengawas salah. Hubungi guru/pengawas untuk mendapatkan PIN yang benar.');
     }
   };
 
@@ -957,6 +1089,16 @@ export default function StudentExam() {
                 <span>Buka Blokir</span>
               )}
             </button>
+
+            <button
+              type="button"
+              onClick={handleCheckRemoteReset}
+              disabled={isCheckingReset}
+              className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-60"
+            >
+              {isCheckingReset ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+              <span>Periksa Izin Buka Blokir dari Guru (Online)</span>
+            </button>
           </div>
         </div>
       </motion.div>
@@ -969,7 +1111,7 @@ export default function StudentExam() {
         <motion.div 
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl border border-slate-100 p-8 text-center"
+          className="w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl border border-slate-100 p-6 sm:p-8 text-center"
         >
           <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-3xl mx-auto mb-4 flex items-center justify-center shadow-xs">
             <CheckCircle2 className="w-8 h-8" />
@@ -978,11 +1120,11 @@ export default function StudentExam() {
             Sudah Selesai Dikerjakan
           </span>
           <h2 className="text-xl sm:text-2xl font-black text-indigo-950 mt-3 mb-2">{exam?.title || 'Ujian'}</h2>
-          <p className="text-xs text-slate-500 font-bold mb-6 leading-relaxed">
+          <p className="text-xs text-slate-500 font-bold mb-5 leading-relaxed">
             Anda telah menyelesaikan ujian ini. Jawaban Anda telah tersimpan di sistem.
           </p>
 
-          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-xs space-y-2 mb-6 text-left">
+          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-xs space-y-2 mb-4 text-left">
             <div className="flex justify-between">
               <span className="text-slate-400 font-medium">Nama Murid:</span>
               <span className="font-bold text-indigo-950">{completionData?.student_name || completionData?.studentName || studentData.nama || 'Murid'}</span>
@@ -1011,6 +1153,43 @@ export default function StudentExam() {
             </div>
           </div>
 
+          {/* Recovery Box untuk Murid yang Kepencet Kirim / Perlu Lanjut */}
+          <div className="p-4 rounded-2xl bg-amber-50/90 border border-amber-200 text-left space-y-2.5 mb-5">
+            <div className="flex items-center gap-2 text-amber-950 font-black text-xs">
+              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+              <span>Kepencet Selesai atau Butuh Melanjutkan Ujian?</span>
+            </div>
+            <p className="text-[11px] text-amber-800 leading-relaxed font-medium">
+              Jika Anda tidak sengaja mengumpulkan jawaban sebelum selesai, minta Guru/Pengawas untuk membuka kembali. <strong>Seluruh jawaban yang sudah Anda isi sebelumnya tetap tersimpan aman.</strong>
+            </p>
+
+            {resetError && (
+              <p className="text-[11px] font-bold text-rose-600 bg-rose-50 p-2 rounded-xl border border-rose-100">
+                {resetError}
+              </p>
+            )}
+
+            <div className="pt-1 flex flex-col sm:flex-row gap-2">
+              <button
+                type="button"
+                onClick={handleCheckRemoteReset}
+                disabled={isCheckingReset}
+                className="flex-1 py-2.5 px-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-black text-xs flex items-center justify-center gap-1.5 transition-all shadow-xs cursor-pointer active:scale-95 disabled:opacity-50"
+              >
+                {isCheckingReset ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                <span>Periksa Izin Guru</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => { setShowResetModal(true); setResetError(''); }}
+                className="flex-1 py-2.5 px-3 rounded-xl bg-white border border-amber-300 text-amber-950 hover:bg-amber-100 font-black text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95"
+              >
+                <KeyRound className="w-3.5 h-3.5 text-amber-600" />
+                <span>PIN Pengawas</span>
+              </button>
+            </div>
+          </div>
+
           <div className="flex flex-col gap-2.5">
             <button
               onClick={() => navigate('/student/dashboard')}
@@ -1028,6 +1207,58 @@ export default function StudentExam() {
             </button>
           </div>
         </motion.div>
+
+        {/* Modal Dialog Input PIN Pengawas */}
+        {showResetModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+            <div className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl border border-slate-100 space-y-4 text-left">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <KeyRound className="w-5 h-5 text-amber-600" />
+                  <h3 className="font-black text-indigo-950 text-sm">PIN Pengawas / Guru</h3>
+                </div>
+                <button 
+                  onClick={() => { setShowResetModal(false); setResetError(''); }}
+                  className="text-slate-400 hover:text-slate-600 p-1"
+                >
+                  ✕
+                </button>
+              </div>
+              <p className="text-xs text-slate-500 font-medium">
+                Minta guru atau pengawas ruangan memasukkan PIN Otorisasi untuk membuka kembali lembar ujian Anda.
+              </p>
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">PIN Otorisasi Pengawas</label>
+                <input 
+                  type="text"
+                  value={resetInputPin}
+                  onChange={(e) => { setResetInputPin(e.target.value); setResetError(''); }}
+                  placeholder="Masukkan PIN..."
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-indigo-950 outline-none uppercase tracking-widest focus:ring-2 focus:ring-amber-500/20"
+                />
+                {resetError && (
+                  <p className="text-[10px] font-bold text-rose-500 pt-1">{resetError}</p>
+                )}
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => { setShowResetModal(false); setResetError(''); }}
+                  className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={handleManualPinReset}
+                  className="flex-1 py-2.5 rounded-xl bg-indigo-950 hover:bg-indigo-900 text-white font-black text-xs shadow-md shadow-indigo-950/20"
+                >
+                  Buka Ujian
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -1071,6 +1302,11 @@ export default function StudentExam() {
               <span className="bg-emerald-50 text-emerald-800 text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider flex items-center gap-1 border border-emerald-200">
                 <ShieldCheck className="w-3 h-3 text-emerald-600" /> Siap Dimulai
               </span>
+              {isDeviceIOS && (
+                <span className="bg-sky-50 text-sky-800 text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider flex items-center gap-1 border border-sky-200">
+                  <Sparkles className="w-3 h-3 text-sky-600" /> Mode iPhone / iPad Aktif
+                </span>
+              )}
             </div>
             <h2 className="text-xl sm:text-2xl font-black text-indigo-950 tracking-tight">{exam?.title || 'Memuat Lembar Ujian...'}</h2>
             <p className="text-slate-400 text-xs font-semibold">
@@ -1205,10 +1441,10 @@ export default function StudentExam() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50/60 pb-28 select-none">
+    <div className="min-h-[100dvh] bg-slate-50/60 pb-36 select-none exam-mode-screen">
+      <div id="screen-wake-heartbeat" aria-hidden="true" />
       {/* Top Navbar Minimalis & Fokus */}
-      {/* Top Navbar Minimalis, Lega & Fokus */}
-      <header className="bg-white/95 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-40 shadow-[0_2px_12px_-3px_rgba(15,23,42,0.06)]">
+      <header className="bg-white/95 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-40 shadow-[0_2px_12px_-3px_rgba(15,23,42,0.06)] safe-pt">
         <div className="max-w-5xl mx-auto px-3.5 sm:px-8 py-2.5 sm:py-3 flex items-center justify-between gap-2.5 sm:gap-4">
           {/* Sisi Kiri: Badge & Judul Ujian Terstruktur Rapi */}
           <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1 max-w-[45%] sm:max-w-md">
@@ -1269,6 +1505,25 @@ export default function StudentExam() {
           </div>
         </div>
       </header>
+
+      {/* Banner Informasi Resume / Buka Blokir Berhasil */}
+      {resumeSuccessBanner && (
+        <div className="max-w-3xl mx-auto px-4 pt-4">
+          <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-bold flex items-center justify-between shadow-xs">
+            <div className="flex items-center gap-2.5">
+              <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+              <span>{resumeSuccessBanner}</span>
+            </div>
+            <button 
+              type="button"
+              onClick={() => setResumeSuccessBanner('')}
+              className="text-slate-400 hover:text-slate-600 p-1 font-bold text-xs"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Popover / Panel Grid Nomor Soal (Tanpa blur agar sangat ringan di device spek rendah) */}
       <AnimatePresence>
@@ -1416,7 +1671,7 @@ export default function StudentExam() {
                       <label 
                         key={opt.id}
                         className={cn(
-                          "flex items-center gap-3.5 sm:gap-4 p-4 sm:p-5 rounded-2xl sm:rounded-3xl border-2 cursor-pointer transition-all active:scale-[0.99]",
+                          "flex items-start sm:items-center gap-3.5 sm:gap-4 p-4 sm:p-5 rounded-2xl sm:rounded-3xl border-2 cursor-pointer transition-all active:scale-[0.99]",
                           currentAnswer === opt.id
                             ? "border-indigo-950 bg-indigo-50/70 shadow-soft"
                             : "border-slate-200/80 bg-white hover:border-slate-300 hover:shadow-soft"
@@ -1430,12 +1685,28 @@ export default function StudentExam() {
                           onChange={() => handleAnswer(currentQ.id, opt.id)}
                         />
                         <div className={cn(
-                          "w-9 h-9 rounded-2xl flex items-center justify-center font-black text-sm shrink-0 transition-all",
+                          "w-9 h-9 rounded-2xl flex items-center justify-center font-black text-sm shrink-0 transition-all mt-0.5 sm:mt-0",
                           currentAnswer === opt.id
                             ? "bg-indigo-950 text-white"
                             : "bg-slate-100 text-slate-500"
                         )}>{opt.label || opt.id.toUpperCase()}</div>
-                        <span className="font-bold text-indigo-950 text-sm sm:text-base">{opt.text}</span>
+                        <div className="flex-1 flex flex-col items-start gap-1.5 min-w-0">
+                          {opt.text && (
+                            <span className="font-bold text-indigo-950 text-sm sm:text-base leading-snug break-words">
+                              {opt.text}
+                            </span>
+                          )}
+                          {(opt.image || opt.image_url) && (
+                            <div className="mt-1 rounded-xl overflow-hidden border border-slate-200/90 bg-white p-1.5 max-w-full sm:max-w-md shadow-xs">
+                              <img 
+                                src={opt.image || opt.image_url} 
+                                alt={`Pilihan ${opt.label || opt.id.toUpperCase()}`} 
+                                className="max-h-40 sm:max-h-48 w-auto object-contain rounded-lg"
+                                loading="lazy"
+                              />
+                            </div>
+                          )}
+                        </div>
                       </label>
                     ))}
                   </div>
@@ -1464,21 +1735,37 @@ export default function StudentExam() {
                             handleAnswer(currentQ.id, nextKeys.join(','));
                           }}
                           className={cn(
-                            "flex items-center gap-3.5 sm:gap-4 p-4 sm:p-5 rounded-2xl sm:rounded-3xl border-2 cursor-pointer transition-all active:scale-[0.99]",
+                            "flex items-start sm:items-center gap-3.5 sm:gap-4 p-4 sm:p-5 rounded-2xl sm:rounded-3xl border-2 cursor-pointer transition-all active:scale-[0.99]",
                             isSelected
                               ? "border-indigo-950 bg-indigo-50/70 shadow-soft"
                               : "border-slate-200/80 bg-white hover:border-slate-300 hover:shadow-soft"
                           )}
                         >
                           <div className={cn(
-                            "w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm shrink-0 transition-all",
+                            "w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm shrink-0 transition-all mt-0.5 sm:mt-0",
                             isSelected
                               ? "bg-indigo-950 text-white"
                               : "border-2 border-slate-200 text-slate-400 bg-slate-50"
                           )}>
                             {isSelected ? '✓' : (opt.label || opt.id.toUpperCase())}
                           </div>
-                          <span className="font-bold text-indigo-950 text-sm sm:text-base">{opt.text}</span>
+                          <div className="flex-1 flex flex-col items-start gap-1.5 min-w-0">
+                            {opt.text && (
+                              <span className="font-bold text-indigo-950 text-sm sm:text-base leading-snug break-words">
+                                {opt.text}
+                              </span>
+                            )}
+                            {(opt.image || opt.image_url) && (
+                              <div className="mt-1 rounded-xl overflow-hidden border border-slate-200/90 bg-white p-1.5 max-w-full sm:max-w-md shadow-xs">
+                                <img 
+                                  src={opt.image || opt.image_url} 
+                                  alt={`Pilihan ${opt.label || opt.id.toUpperCase()}`} 
+                                  className="max-h-40 sm:max-h-48 w-auto object-contain rounded-lg"
+                                  loading="lazy"
+                                />
+                              </div>
+                            )}
+                          </div>
                         </label>
                       );
                     })}
@@ -1588,11 +1875,19 @@ export default function StudentExam() {
                     }
                   }
 
+                  const moveOrderItem = (fromIdx: number, toIdx: number) => {
+                    if (toIdx < 0 || toIdx >= currentOrderItems.length) return;
+                    const copy = [...currentOrderItems];
+                    const [moved] = copy.splice(fromIdx, 1);
+                    copy.splice(toIdx, 0, moved);
+                    handleAnswer(currentQ.id, copy.map((it: any) => it.id));
+                  };
+
                   return (
                     <div className="space-y-4">
                       <div className="p-3 bg-blue-50 border border-blue-100 rounded-2xl flex items-center gap-2 mb-2">
                         <Layers className="w-4 h-4 text-blue-700 shrink-0" />
-                        <span className="text-xs font-bold text-blue-950">Geser (Drag & Drop) kartu di bawah ini untuk menyusun urutan yang benar.</span>
+                        <span className="text-xs font-bold text-blue-950">Geser kartu atau tekan tombol panah (▲/▼) untuk menyusun urutan yang benar.</span>
                       </div>
                       <Reorder.Group
                         axis="y"
@@ -1607,7 +1902,7 @@ export default function StudentExam() {
                           <Reorder.Item
                             key={item.id}
                             value={item}
-                            className="flex items-center gap-4 p-4 sm:p-5 rounded-2xl border-2 border-slate-200/80 bg-white shadow-soft hover:shadow-card cursor-grab active:cursor-grabbing transition-all select-none"
+                            className="flex items-center gap-3 sm:gap-4 p-3.5 sm:p-5 rounded-2xl border-2 border-slate-200/80 bg-white shadow-soft hover:shadow-card cursor-grab active:cursor-grabbing transition-all select-none"
                           >
                             <div className="bg-slate-100 text-slate-400 p-2 rounded-xl">
                               <GripVertical className="w-5 h-5" />
@@ -1616,6 +1911,34 @@ export default function StudentExam() {
                               {orderIdx + 1}
                             </span>
                             <span className="font-bold text-indigo-950 text-sm sm:text-base flex-1">{item.text}</span>
+                            
+                            {/* Mobile & Touch Friendly Up/Down Arrows */}
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                type="button"
+                                disabled={orderIdx === 0}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  moveOrderItem(orderIdx, orderIdx - 1);
+                                }}
+                                className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 disabled:opacity-25 text-slate-700 flex items-center justify-center cursor-pointer transition-all active:scale-90"
+                                title="Pindahkan ke Atas"
+                              >
+                                <ChevronUp className="w-4 h-4" />
+                              </button>
+                              <button
+                                type="button"
+                                disabled={orderIdx === currentOrderItems.length - 1}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  moveOrderItem(orderIdx, orderIdx + 1);
+                                }}
+                                className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 disabled:opacity-25 text-slate-700 flex items-center justify-center cursor-pointer transition-all active:scale-90"
+                                title="Pindahkan ke Bawah"
+                              >
+                                <ChevronDown className="w-4 h-4" />
+                              </button>
+                            </div>
                           </Reorder.Item>
                         ))}
                       </Reorder.Group>
@@ -1644,8 +1967,8 @@ export default function StudentExam() {
           })()}
         </motion.div>
 
-        {/* Bottom Actions Bar */}
-        <div className="mt-8 flex items-center justify-between gap-4">
+        {/* Bottom Actions Bar with Safe-Area for iPhone */}
+        <div className="mt-8 flex items-center justify-between gap-3 sm:gap-4 pb-safe safe-pb">
           <button 
             disabled={currentQuestionIndex === 0}
             onClick={() => setCurrentQuestionIndex(prev => prev - 1)}

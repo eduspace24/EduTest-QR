@@ -46,6 +46,12 @@ const doc = new docx.Document({
                 new docx.Paragraph({
                     text: "9. Untuk Drag and Drop (Mengurutkan), tuliskan urutan yang benar dari atas ke bawah (A, B, C, D) di opsi jawaban.",
                 }),
+                new docx.Paragraph({
+                    text: "10. Gambar pada Soal & Opsi Jawaban: Cukup paste/sisipkan gambar langsung di Word pada teks soal maupun pada opsi jawaban (A, B, C, D, E). Sistem secara otomatis membaca dan mengompresi gambar menjadi format WebP ultra-ringan.",
+                }),
+                new docx.Paragraph({
+                    text: "11. Anda juga dapat menggunakan baris 'Gambar:' untuk meletakkan gambar khusus soal.",
+                }),
                 new docx.Paragraph({ text: "" }),
 
                 new docx.Paragraph({

@@ -46,8 +46,12 @@ export async function saveCollection(name: string, data: any, updatedAt?: string
   return new Promise<void>((resolve, reject) => {
     const request = store.put(payload);
     request.onsuccess = () => {
-      localStorage.setItem(`edu_${finalName}`, JSON.stringify(data));
-      localStorage.setItem(`edu_${finalName}_updated`, payload.updated_at);
+      try {
+        localStorage.setItem(`edu_${finalName}`, JSON.stringify(data));
+        localStorage.setItem(`edu_${finalName}_updated`, payload.updated_at);
+      } catch (storageErr) {
+        console.warn(`LocalStorage quota reached for ${finalName}, persistent data saved safely in IndexedDB:`, storageErr);
+      }
       resolve();
     };
     request.onerror = () => reject(request.error);

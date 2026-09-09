@@ -28,6 +28,7 @@ import { cn } from '../lib/utils';
 import { useAlert } from '../context/AlertContext';
 import { getCollectionData, saveCollection } from '../lib/db';
 import { uploadQuestionImage } from '../lib/cloudinary';
+import { parseDocxQuestions } from '../lib/docxQuestionParser';
 // @ts-ignore
 import mammoth from 'mammoth';
 
@@ -155,6 +156,12 @@ export default function BankSoal() {
   const [autoDetectCategory, setAutoDetectCategory] = useState(() => {
     return localStorage.getItem('edu_auto_detect_category') !== 'false';
   });
+  const [importStatus, setImportStatus] = useState<{ active: boolean; stage: string; current: number; total: number }>({
+    active: false,
+    stage: '',
+    current: 0,
+    total: 100
+  });
   const [newQuestion, setNewQuestion] = useState({
     text: '',
     type: 'Pilihan Ganda',
@@ -165,6 +172,11 @@ export default function BankSoal() {
     option_c: '',
     option_d: '',
     option_e: '',
+    option_a_image: '',
+    option_b_image: '',
+    option_c_image: '',
+    option_d_image: '',
+    option_e_image: '',
     jawaban_benar: 'a',
     image_url: ''
   });
@@ -382,6 +394,30 @@ export default function BankSoal() {
 
   const excelInputRef = useRef<HTMLInputElement>(null);
   const wordInputRef = useRef<HTMLInputElement>(null);
+  const optionImageInputRef = useRef<HTMLInputElement>(null);
+  const [activeUploadOptionKey, setActiveUploadOptionKey] = useState<string | null>(null);
+
+  const handleUploadOptionImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !activeUploadOptionKey) return;
+    try {
+      setIsUploading(true);
+      const { url, sizeReductionPercent } = await uploadQuestionImage(file);
+      setNewQuestion(prev => ({ ...prev, [activeUploadOptionKey]: url }));
+      showAlert({
+        title: 'Gambar Opsi Terpasang',
+        message: `Gambar opsi berhasil dikompresi otomatis (hemat ${sizeReductionPercent}%)!`,
+        type: 'success'
+      });
+    } catch (err) {
+      console.error('Error uploading option image:', err);
+      showAlert({ title: 'Gagal', message: 'Gagal memproses gambar opsi.', type: 'error' });
+    } finally {
+      setIsUploading(false);
+      setActiveUploadOptionKey(null);
+      if (optionImageInputRef.current) optionImageInputRef.current.value = '';
+    }
+  };
 
   const handleTypeChange = (type: string) => {
     let extra = {};
@@ -702,206 +738,65 @@ export default function BankSoal() {
           return;
         }
 
-        const result = await mammoth.extractRawText({ arrayBuffer });
-        const rawText = result.value;
+        setImportStatus({
+          active: true,
+          stage: 'Membaca dokumen Word (.docx)...',
+          current: 10,
+          total: 100
+        });
 
-        if (!rawText || !rawText.trim()) {
-          showAlert({ title: 'Gagal', message: 'Dokumen Word kosong.', type: 'error' });
-          return;
-        }
-
-        const normalizedText = rawText.replace(/\r\n/g, '\n');
-        const lines = normalizedText.split('\n').map(l => l.trim());
-        
-        const dataQuestions: any[] = [];
-        let currentQuestion: any = null;
-
-        for (const line of lines) {
-          if (!line) continue;
-
-          // Check if line starts a new question
-          const startMatch = line.match(/^(\d+)[\s.)-]+\s*(.*)/);
-          if (startMatch) {
-            // Save previous question if valid
-            if (currentQuestion) {
-              const hasType = !!currentQuestion.type;
-              const hasOptions = !!(currentQuestion.option_a || currentQuestion.option_b);
-              const hasJawaban = !!currentQuestion.jawaban_benar;
-              
-              if (hasType || hasOptions || hasJawaban) {
-                dataQuestions.push(currentQuestion);
-              }
-            }
-            
-            // Start new question
-            currentQuestion = {
-              text: startMatch[2].trim(),
-              type: '',
-              category: teacherSubjects[0] || 'Informatika',
-              option_a: '',
-              option_b: '',
-              option_c: '',
-              option_d: '',
-              option_e: '',
-              jawaban_benar: '',
-              image_url: ''
-            };
-            continue;
+        const { questions: finalizedQuestions, stats } = await parseDocxQuestions(arrayBuffer, {
+          teacherSubjects,
+          activeFolder,
+          autoDetectCategory,
+          foldersList,
+          customFolders,
+          selectedSubjectFilter,
+          selectedJenjangFilter,
+          isSuperAdmin,
+          fileName: file.name,
+          onProgress: (prog) => {
+            setImportStatus({
+              active: true,
+              stage: prog.stage,
+              current: prog.current,
+              total: prog.total
+            });
           }
+        });
 
-          if (!currentQuestion) continue;
-
-          // Check field prefixes
-          const isField = line.match(/^(tipe|kategori|jawaban|gambar)\s*:/i) || line.match(/^[a-e]\s*[:.]/i);
-          if (isField) {
-            if (line.match(/^tipe\s*:/i)) {
-              currentQuestion.type = line.substring(line.indexOf(':') + 1).trim();
-            } else if (line.match(/^kategori\s*:/i)) {
-              currentQuestion.category = line.substring(line.indexOf(':') + 1).trim();
-            } else if (line.match(/^gambar\s*:/i)) {
-              currentQuestion.image_url = line.substring(line.indexOf(':') + 1).trim();
-            } else if (line.match(/^jawaban\s*:/i)) {
-              const ans = line.substring(line.indexOf(':') + 1).trim();
-              currentQuestion.jawaban_benar = ans.toLowerCase();
-            } else if (line.match(/^a\s*[:.]/i)) {
-              currentQuestion.option_a = line.replace(/^a\s*[:.]/i, '').trim();
-            } else if (line.match(/^b\s*[:.]/i)) {
-              currentQuestion.option_b = line.replace(/^b\s*[:.]/i, '').trim();
-            } else if (line.match(/^c\s*[:.]/i)) {
-              currentQuestion.option_c = line.replace(/^c\s*[:.]/i, '').trim();
-            } else if (line.match(/^d\s*[:.]/i)) {
-              currentQuestion.option_d = line.replace(/^d\s*[:.]/i, '').trim();
-            } else if (line.match(/^e\s*[:.]/i)) {
-              currentQuestion.option_e = line.replace(/^e\s*[:.]/i, '').trim();
-            }
-          } else {
-            // Append to question text if it's multi-line before options start
-            if (!currentQuestion.option_a && !currentQuestion.option_b && !currentQuestion.option_c) {
-              currentQuestion.text += '\n' + line;
-            }
-          }
-        }
-
-        // Push last question if valid
-        if (currentQuestion) {
-          const hasType = !!currentQuestion.type;
-          const hasOptions = !!(currentQuestion.option_a || currentQuestion.option_b);
-          const hasJawaban = !!currentQuestion.jawaban_benar;
-          
-          if (hasType || hasOptions || hasJawaban) {
-            dataQuestions.push(currentQuestion);
-          }
-        }
-
-        if (dataQuestions.length === 0) {
-          showAlert({ title: 'Gagal', message: 'Tidak ada data soal yang valid ditemukan di dalam dokumen Word.', type: 'error' });
-          return;
-        }
-
-        // Map and normalize fields
-        const finalizedQuestions = dataQuestions.map((q, idx) => {
-          let normalizedType = 'Pilihan Ganda';
-          const typeLower = (q.type || '').toLowerCase();
-          
-          if (typeLower.includes('asosiatif')) {
-            normalizedType = 'Pilihan Ganda Asosiatif (TKA)';
-          } else if (typeLower.includes('sebab') || typeLower.includes('akibat')) {
-            normalizedType = 'Hubungan Sebab Akibat (TKA)';
-          } else if (typeLower.includes('kompleks') || typeLower.includes('multi')) {
-            normalizedType = 'Pilihan Ganda Kompleks';
-          } else if (typeLower.includes('jodoh') || typeLower.includes('match')) {
-            normalizedType = 'Menjodohkan';
-          } else if (typeLower.includes('isian') || typeLower.includes('rumpang') || typeLower.includes('singkat')) {
-            normalizedType = 'Isian Singkat';
-          } else if (typeLower.includes('drag') || typeLower.includes('urut')) {
-            normalizedType = 'Drag and Drop';
-          } else if (typeLower.includes('essay') || typeLower.includes('uraian')) {
-            normalizedType = 'Essay';
-          }
-
-          let option_a = q.option_a;
-          let option_b = q.option_b;
-          let option_c = q.option_c;
-          let option_d = q.option_d;
-          let option_e = q.option_e;
-
-          if (normalizedType === 'Pilihan Ganda Asosiatif (TKA)' && (!option_a || option_a.trim() === '')) {
-            option_a = '1, 2, dan 3 benar';
-            option_b = '1 dan 3 benar';
-            option_c = '2 dan 4 benar';
-            option_d = 'Hanya 4 yang benar';
-            option_e = 'Semua pernyataan benar';
-          } else if (normalizedType === 'Hubungan Sebab Akibat (TKA)' && (!option_a || option_a.trim() === '')) {
-            option_a = 'Pernyataan benar, alasan benar, dan keduanya menunjukkan hubungan sebab akibat';
-            option_b = 'Pernyataan benar, alasan benar, tetapi keduanya tidak menunjukkan hubungan sebab akibat';
-            option_c = 'Pernyataan benar dan alasan salah';
-            option_d = 'Pernyataan salah dan alasan benar';
-            option_e = 'Pernyataan dan alasan keduanya salah';
-          }
-
-          // Determine category based on activeFolder, autoDetectCategory & teacher subjects
-          let finalCategory = '';
-          if (activeFolder) {
-            finalCategory = activeFolder;
-          } else if (autoDetectCategory && q.category) {
-            const rawCat = String(q.category || '').trim();
-            const matchedInFolders = foldersList.find(f => f.toLowerCase() === rawCat.toLowerCase());
-            finalCategory = matchedInFolders || rawCat;
-          } else {
-            finalCategory = teacherSubjects[0] || (isSuperAdmin ? 'Informatika' : 'Informatika');
-          }
-
-          if (!isSuperAdmin && teacherSubjects.length > 0 && !activeFolder) {
-            const matchedSubject = teacherSubjects.find(ts => finalCategory.toLowerCase().includes(ts.toLowerCase()));
-            const matchedCustom = customFolders.find(cf => cf.toLowerCase() === finalCategory.toLowerCase());
-            finalCategory = matchedSubject || matchedCustom || (selectedSubjectFilter !== 'ALL' ? selectedSubjectFilter : teacherSubjects[0]);
-          } else if (!finalCategory || finalCategory.toLowerCase() === 'umum') {
-            finalCategory = selectedSubjectFilter !== 'ALL' ? selectedSubjectFilter : (teacherSubjects[0] || 'Informatika');
-          }
-
-          let detectedJenjang = selectedJenjangFilter !== 'ALL' ? selectedJenjangFilter : 'X';
-          const fileLower = (file.name || '').toLowerCase();
-          const qTextLower = (q.text || '').toLowerCase();
-          if (fileLower.includes('kelas_xii') || fileLower.includes('kelas xii') || fileLower.includes('kelas 12') || qTextLower.includes('kelas xii')) {
-            detectedJenjang = 'XII';
-          } else if (fileLower.includes('kelas_xi') || fileLower.includes('kelas xi') || fileLower.includes('kelas 11') || qTextLower.includes('kelas xi')) {
-            detectedJenjang = 'XI';
-          } else if (fileLower.includes('kelas_x') || fileLower.includes('kelas x') || fileLower.includes('kelas 10') || qTextLower.includes('kelas x')) {
-            detectedJenjang = 'X';
-          }
-
-          let jawaban_benar = q.jawaban_benar || (normalizedType === 'Menjodohkan' ? 'auto' : 'a');
-
-          return {
-            id: `${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 4)}`,
-            text: q.text.trim(),
-            type: normalizedType,
-            category: finalCategory,
-            jenjang: detectedJenjang,
-            option_a,
-            option_b,
-            option_c,
-            option_d,
-            option_e,
-            jawaban_benar,
-            image_url: q.image_url || ''
-          };
+        setImportStatus({
+          active: true,
+          stage: 'Menyimpan soal & gambar ke penyimpanan...',
+          current: 95,
+          total: 100
         });
 
         const updated = [...questions, ...finalizedQuestions];
         setQuestions(updated);
         await syncToDrive(updated);
 
+        let successMsg = `${finalizedQuestions.length} soal berhasil diimpor dari dokumen Word.`;
+        if (stats.totalImages > 0) {
+          successMsg += `\n\n📸 ${stats.totalImages} gambar (soal & opsi) berhasil diekstrak dan dikompresi otomatis (WebP HD, hemat ${stats.savingsPercent}% memori).`;
+        }
+
         showAlert({ 
-          title: 'Berhasil', 
-          message: `${finalizedQuestions.length} soal berhasil diimpor dari Word.`, 
+          title: 'Import Word Berhasil!', 
+          message: successMsg, 
           type: 'success' 
         });
-      } catch (err) {
+      } catch (err: any) {
         console.error('Word import error:', err);
-        showAlert({ title: 'Error', message: 'Gagal memproses file Word. Pastikan format penulisan soal sudah benar.', type: 'error' });
+        showAlert({ 
+          title: 'Gagal Memproses Word', 
+          message: err?.message || 'Gagal memproses file Word. Pastikan format penulisan soal sudah benar.', 
+          type: 'error' 
+        });
+      } finally {
+        setImportStatus({ active: false, stage: '', current: 0, total: 100 });
+        if (wordInputRef.current) wordInputRef.current.value = '';
       }
-      if (wordInputRef.current) wordInputRef.current.value = '';
     };
     reader.readAsArrayBuffer(file);
   };
@@ -953,6 +848,11 @@ export default function BankSoal() {
       option_c: '',
       option_d: '',
       option_e: '',
+      option_a_image: '',
+      option_b_image: '',
+      option_c_image: '',
+      option_d_image: '',
+      option_e_image: '',
       jawaban_benar: 'a',
       image_url: ''
     });
@@ -962,16 +862,21 @@ export default function BankSoal() {
   const openEditModal = (q: any) => {
     setEditingId(q.id);
     setNewQuestion({
-      text: q.text,
-      type: q.type,
+      text: q.text || '',
+      type: q.type || 'Pilihan Ganda',
       category: q.category || teacherSubjects[0] || 'Informatika',
       jenjang: q.jenjang || 'X',
-      option_a: q.option_a,
-      option_b: q.option_b,
-      option_c: q.option_c,
-      option_d: q.option_d,
+      option_a: q.option_a || '',
+      option_b: q.option_b || '',
+      option_c: q.option_c || '',
+      option_d: q.option_d || '',
       option_e: q.option_e || '',
-      jawaban_benar: q.jawaban_benar,
+      option_a_image: q.option_a_image || '',
+      option_b_image: q.option_b_image || '',
+      option_c_image: q.option_c_image || '',
+      option_d_image: q.option_d_image || '',
+      option_e_image: q.option_e_image || '',
+      jawaban_benar: q.jawaban_benar || 'a',
       image_url: q.image_url || ''
     });
     setShowAddModal(true);
@@ -1199,6 +1104,10 @@ export default function BankSoal() {
           <input 
             type="file" ref={wordInputRef} className="hidden" 
             accept=".docx" onChange={handleImportWord} 
+          />
+          <input 
+            type="file" ref={optionImageInputRef} className="hidden" 
+            accept="image/*" onChange={handleUploadOptionImage} 
           />
           <button 
             onClick={() => setShowCreateFolderModal(true)}
@@ -1540,15 +1449,22 @@ export default function BankSoal() {
                         </div>
                       )}
                       <div className="mt-auto flex items-center justify-between pt-2">
-                        <span className={cn(
-                          "text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md",
-                          q.type === 'Pilihan Ganda' ? "bg-slate-100 text-slate-600" :
-                          q.type === 'Essay' ? "bg-amber-50 text-amber-700" :
-                          q.type?.includes('TKA') ? "bg-purple-50 text-purple-700" :
-                          "bg-indigo-50 text-indigo-700"
-                        )}>
-                          {q.type || 'Pilihan Ganda'}
-                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className={cn(
+                            "text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md",
+                            q.type === 'Pilihan Ganda' ? "bg-slate-100 text-slate-600" :
+                            q.type === 'Essay' ? "bg-amber-50 text-amber-700" :
+                            q.type?.includes('TKA') ? "bg-purple-50 text-purple-700" :
+                            "bg-indigo-50 text-indigo-700"
+                          )}>
+                            {q.type || 'Pilihan Ganda'}
+                          </span>
+                          {Boolean(q.option_a_image || q.option_b_image || q.option_c_image || q.option_d_image || q.option_e_image) && (
+                            <span className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200/60 flex items-center gap-1">
+                              <ImageIcon className="w-2.5 h-2.5" /> Opsi Bergambar
+                            </span>
+                          )}
+                        </div>
                         <button 
                           onClick={() => openEditModal(q)}
                           className="text-blue-600 font-bold text-[11px] flex items-center gap-1 hover:underline bg-transparent border-none cursor-pointer outline-none"
@@ -1749,26 +1665,67 @@ export default function BankSoal() {
                     { key: 'option_d', label: 'D' },
                     { key: 'option_e', label: 'E' }
                   ].map((opt) => (
-                    <div key={opt.key} className="flex items-center gap-3">
-                      <button
-                        type="button"
-                        onClick={() => setNewQuestion({ ...newQuestion, jawaban_benar: opt.key.replace('option_', '') })}
-                        className={cn(
-                          "w-10 h-10 rounded-xl font-bold flex items-center justify-center border-2 transition-all shrink-0",
-                          newQuestion.jawaban_benar === opt.key.replace('option_', '') 
-                            ? "bg-emerald-500 border-emerald-500 text-white shadow-md shadow-emerald-500/20" 
-                            : "border-slate-200 text-slate-400 hover:border-slate-300"
-                        )}
-                      >
-                        {opt.label}
-                      </button>
-                      <input
-                        type="text"
-                        placeholder={`Pilihan ${opt.label}`}
-                        className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 outline-none text-xs font-medium text-indigo-950"
-                        value={newQuestion[opt.key as keyof typeof newQuestion]}
-                        onChange={(e) => setNewQuestion({ ...newQuestion, [opt.key]: e.target.value })}
-                      />
+                    <div key={opt.key} className="flex flex-col gap-1.5 p-2 rounded-2xl border border-slate-200/80 bg-slate-50/50">
+                      <div className="flex items-center gap-2.5">
+                        <button
+                          type="button"
+                          onClick={() => setNewQuestion({ ...newQuestion, jawaban_benar: opt.key.replace('option_', '') })}
+                          className={cn(
+                            "w-9 h-9 rounded-xl font-bold flex items-center justify-center border-2 transition-all shrink-0",
+                            newQuestion.jawaban_benar === opt.key.replace('option_', '') 
+                              ? "bg-emerald-500 border-emerald-500 text-white shadow-md shadow-emerald-500/20" 
+                              : "border-slate-200 text-slate-400 hover:border-slate-300 bg-white"
+                          )}
+                        >
+                          {opt.label}
+                        </button>
+                        <input
+                          type="text"
+                          placeholder={`Pilihan ${opt.label} (Teks pilihan)`}
+                          className="flex-1 px-3.5 py-2 rounded-xl border border-slate-200 bg-white outline-none text-xs font-medium text-indigo-950 focus:border-indigo-500"
+                          value={newQuestion[opt.key as keyof typeof newQuestion]}
+                          onChange={(e) => setNewQuestion({ ...newQuestion, [opt.key]: e.target.value })}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveUploadOptionKey(`${opt.key}_image`);
+                            optionImageInputRef.current?.click();
+                          }}
+                          title={`Unggah Gambar Opsi ${opt.label}`}
+                          className={cn(
+                            "p-2 rounded-xl border text-xs flex items-center gap-1 shrink-0 transition-all cursor-pointer",
+                            newQuestion[`${opt.key}_image` as keyof typeof newQuestion]
+                              ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                              : "border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:text-indigo-600"
+                          )}
+                        >
+                          <ImageIcon className="w-3.5 h-3.5" />
+                          <span className="hidden sm:inline text-[10px] font-bold">
+                            {newQuestion[`${opt.key}_image` as keyof typeof newQuestion] ? 'Ganti' : 'Gambar'}
+                          </span>
+                        </button>
+                      </div>
+                      {Boolean(newQuestion[`${opt.key}_image` as keyof typeof newQuestion]) && (
+                        <div className="flex items-center gap-2 pl-11">
+                          <div className="relative group w-20 h-14 rounded-lg overflow-hidden border border-slate-200 bg-white shadow-xs">
+                            <img
+                              src={String(newQuestion[`${opt.key}_image` as keyof typeof newQuestion])}
+                              alt={`Preview ${opt.label}`}
+                              className="w-full h-full object-contain"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setNewQuestion({ ...newQuestion, [`${opt.key}_image`]: '' })}
+                              className="absolute top-1 right-1 bg-rose-500 text-white rounded-full p-0.5 shadow-md hover:bg-rose-600 transition-all"
+                              title="Hapus gambar opsi"
+                            >
+                              <X className="w-2.5 h-2.5" />
+                            </button>
+                          </div>
+                          <span className="text-[10px] text-slate-400 font-medium">Gambar opsi terpasang</span>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -1790,34 +1747,75 @@ export default function BankSoal() {
                     const currentKeys = (newQuestion.jawaban_benar || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
                     const isChecked = currentKeys.includes(opt.id);
                     return (
-                      <div key={opt.key} className="flex items-center gap-3">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            let nextKeys: string[];
-                            if (isChecked) {
-                              nextKeys = currentKeys.filter(k => k !== opt.id);
-                            } else {
-                              nextKeys = [...currentKeys, opt.id].sort();
-                            }
-                            setNewQuestion({ ...newQuestion, jawaban_benar: nextKeys.join(',') });
-                          }}
-                          className={cn(
-                            "w-10 h-10 rounded-xl font-bold flex items-center justify-center border-2 transition-all shrink-0",
-                            isChecked 
-                              ? "bg-indigo-950 border-indigo-950 text-white shadow-md shadow-indigo-950/20" 
-                              : "border-slate-200 text-slate-400 hover:border-slate-300"
-                          )}
-                        >
-                          {isChecked ? '✓ ' + opt.label : opt.label}
-                        </button>
-                        <input
-                          type="text"
-                          placeholder={`Pilihan ${opt.label}`}
-                          className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 outline-none text-xs font-medium text-indigo-950"
-                          value={newQuestion[opt.key as keyof typeof newQuestion]}
-                          onChange={(e) => setNewQuestion({ ...newQuestion, [opt.key]: e.target.value })}
-                        />
+                      <div key={opt.key} className="flex flex-col gap-1.5 p-2 rounded-2xl border border-slate-200/80 bg-slate-50/50">
+                        <div className="flex items-center gap-2.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              let nextKeys: string[];
+                              if (isChecked) {
+                                nextKeys = currentKeys.filter(k => k !== opt.id);
+                              } else {
+                                nextKeys = [...currentKeys, opt.id].sort();
+                              }
+                              setNewQuestion({ ...newQuestion, jawaban_benar: nextKeys.join(',') });
+                            }}
+                            className={cn(
+                              "w-9 h-9 rounded-xl font-bold flex items-center justify-center border-2 transition-all shrink-0",
+                              isChecked 
+                                ? "bg-indigo-950 border-indigo-950 text-white shadow-md shadow-indigo-950/20" 
+                                : "border-slate-200 text-slate-400 hover:border-slate-300 bg-white"
+                            )}
+                          >
+                            {isChecked ? '✓ ' + opt.label : opt.label}
+                          </button>
+                          <input
+                            type="text"
+                            placeholder={`Pilihan ${opt.label} (Teks pilihan)`}
+                            className="flex-1 px-3.5 py-2 rounded-xl border border-slate-200 bg-white outline-none text-xs font-medium text-indigo-950 focus:border-indigo-500"
+                            value={newQuestion[opt.key as keyof typeof newQuestion]}
+                            onChange={(e) => setNewQuestion({ ...newQuestion, [opt.key]: e.target.value })}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveUploadOptionKey(`${opt.key}_image`);
+                              optionImageInputRef.current?.click();
+                            }}
+                            title={`Unggah Gambar Opsi ${opt.label}`}
+                            className={cn(
+                              "p-2 rounded-xl border text-xs flex items-center gap-1 shrink-0 transition-all cursor-pointer",
+                              newQuestion[`${opt.key}_image` as keyof typeof newQuestion]
+                                ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                                : "border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:text-indigo-600"
+                            )}
+                          >
+                            <ImageIcon className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline text-[10px] font-bold">
+                              {newQuestion[`${opt.key}_image` as keyof typeof newQuestion] ? 'Ganti' : 'Gambar'}
+                            </span>
+                          </button>
+                        </div>
+                        {Boolean(newQuestion[`${opt.key}_image` as keyof typeof newQuestion]) && (
+                          <div className="flex items-center gap-2 pl-11">
+                            <div className="relative group w-20 h-14 rounded-lg overflow-hidden border border-slate-200 bg-white shadow-xs">
+                              <img
+                                src={String(newQuestion[`${opt.key}_image` as keyof typeof newQuestion])}
+                                alt={`Preview ${opt.label}`}
+                                className="w-full h-full object-contain"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setNewQuestion({ ...newQuestion, [`${opt.key}_image`]: '' })}
+                                className="absolute top-1 right-1 bg-rose-500 text-white rounded-full p-0.5 shadow-md hover:bg-rose-600 transition-all"
+                                title="Hapus gambar opsi"
+                              >
+                                <X className="w-2.5 h-2.5" />
+                              </button>
+                            </div>
+                            <span className="text-[10px] text-slate-400 font-medium">Gambar opsi terpasang</span>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -2179,6 +2177,30 @@ export default function BankSoal() {
               </div>
             </form>
           </motion.div>
+        </div>
+      )}
+
+      {/* Import Word Progress Modal */}
+      {importStatus.active && (
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs z-[200] flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-sm sm:max-w-md w-full shadow-2xl border border-slate-100 text-center space-y-4">
+            <div className="w-16 h-16 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center mx-auto text-indigo-600 shadow-inner">
+              <Loader2 className="w-8 h-8 animate-spin" />
+            </div>
+            <div>
+              <h3 className="text-base sm:text-lg font-black text-indigo-950">Memproses Dokumen Word</h3>
+              <p className="text-xs text-slate-500 font-medium mt-1">{importStatus.stage}</p>
+            </div>
+            <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+              <div 
+                className="bg-indigo-600 h-2.5 rounded-full transition-all duration-300 shadow-sm"
+                style={{ width: `${Math.max(8, Math.min(100, importStatus.current))}%` }}
+              />
+            </div>
+            <div className="bg-indigo-50/70 rounded-xl p-3 border border-indigo-100 text-[10px] text-indigo-900 font-medium">
+              💡 Sistem secara cerdas membaca teks soal, mengekstrak gambar di soal & opsi jawaban, serta mengompresinya secara otomatis ke format WebP ultra-ringan!
+            </div>
+          </div>
         </div>
       )}
     </div>

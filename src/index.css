@@ -140,3 +140,59 @@
 ::-webkit-scrollbar-thumb {
   @apply bg-slate-300 rounded-full hover:bg-slate-400 transition-colors;
 }
+
+/* =========================================================================
+   iPhone & Mobile Device Optimizations (iOS Safari / WebKit)
+   ========================================================================= */
+
+/* 1. Prevent iOS double-tap delay and accidental zoom on interactive elements */
+button, a, [role="button"], input, textarea, select {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 2. Prevent iOS Safari auto-zoom on input focus (Safari auto-zooms if font-size < 16px) */
+@media screen and (max-width: 768px) {
+  input[type="text"],
+  input[type="password"],
+  input[type="email"],
+  input[type="number"],
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
+/* 3. Safe Area Insets for iPhone X/11/12/13/14/15/16 (Dynamic Island & Home Indicator Bar) */
+.safe-pt {
+  padding-top: max(0.75rem, env(safe-area-inset-top, 0px));
+}
+
+.safe-pb {
+  padding-bottom: max(2.5rem, calc(2rem + env(safe-area-inset-bottom, 20px)));
+}
+
+.safe-px {
+  padding-left: max(1rem, env(safe-area-inset-left, 0px));
+  padding-right: max(1rem, env(safe-area-inset-right, 0px));
+}
+
+/* 4. Disable accidental pull-to-refresh & rubber-band bounce in Exam Mode on iOS */
+.exam-mode-screen {
+  overscroll-behavior-y: none;
+  -webkit-overflow-scrolling: touch;
+  min-height: 100dvh;
+}
+
+/* 5. Heartbeat element for keep-alive */
+#screen-wake-heartbeat {
+  position: fixed;
+  bottom: 0;
+  right: 0;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+  opacity: 0.01;
+  z-index: 9999;
+}
+

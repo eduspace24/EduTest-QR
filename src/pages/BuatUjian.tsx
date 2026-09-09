@@ -443,29 +443,29 @@ export default function BuatUjian() {
 
       if (type === 'Pilihan Ganda' || type === 'Pilihan Ganda Asosiatif (TKA)' || type === 'Hubungan Sebab Akibat (TKA)' || type === 'Pilihan Ganda Kompleks') {
         options = [
-          { id: 'a', text: q.option_a || '', label: 'A' },
-          { id: 'b', text: q.option_b || '', label: 'B' },
-          { id: 'c', text: q.option_c || '', label: 'C' },
-          { id: 'd', text: q.option_d || '', label: 'D' },
-          { id: 'e', text: q.option_e || '', label: 'E' }
+          { id: 'a', text: q.option_a || '', image: q.option_a_image || '', label: 'A' },
+          { id: 'b', text: q.option_b || '', image: q.option_b_image || '', label: 'B' },
+          { id: 'c', text: q.option_c || '', image: q.option_c_image || '', label: 'C' },
+          { id: 'd', text: q.option_d || '', image: q.option_d_image || '', label: 'D' },
+          { id: 'e', text: q.option_e || '', image: q.option_e_image || '', label: 'E' }
         ];
       } else if (type === 'Menjodohkan') {
         options = [
-          { id: 'a', text: q.option_a || '', label: '1' },
-          { id: 'b', text: q.option_b || '', label: '2' },
-          { id: 'c', text: q.option_c || '', label: '3' },
-          { id: 'd', text: q.option_d || '', label: '4' },
-          { id: 'e', text: q.option_e || '', label: '5' }
-        ].filter(opt => opt.text && opt.text.trim());
+          { id: 'a', text: q.option_a || '', image: q.option_a_image || '', label: '1' },
+          { id: 'b', text: q.option_b || '', image: q.option_b_image || '', label: '2' },
+          { id: 'c', text: q.option_c || '', image: q.option_c_image || '', label: '3' },
+          { id: 'd', text: q.option_d || '', image: q.option_d_image || '', label: '4' },
+          { id: 'e', text: q.option_e || '', image: q.option_e_image || '', label: '5' }
+        ].filter(opt => (opt.text && opt.text.trim()) || opt.image);
         correct_answer = 'auto';
       } else if (type === 'Drag and Drop') {
         options = [
-          { id: 'a', text: q.option_a || '', label: 'Tahap 1' },
-          { id: 'b', text: q.option_b || '', label: 'Tahap 2' },
-          { id: 'c', text: q.option_c || '', label: 'Tahap 3' },
-          { id: 'd', text: q.option_d || '', label: 'Tahap 4' },
-          { id: 'e', text: q.option_e || '', label: 'Tahap 5' }
-        ].filter(opt => opt.text && opt.text.trim());
+          { id: 'a', text: q.option_a || '', image: q.option_a_image || '', label: 'Tahap 1' },
+          { id: 'b', text: q.option_b || '', image: q.option_b_image || '', label: 'Tahap 2' },
+          { id: 'c', text: q.option_c || '', image: q.option_c_image || '', label: 'Tahap 3' },
+          { id: 'd', text: q.option_d || '', image: q.option_d_image || '', label: 'Tahap 4' },
+          { id: 'e', text: q.option_e || '', image: q.option_e_image || '', label: 'Tahap 5' }
+        ].filter(opt => (opt.text && opt.text.trim()) || opt.image);
         correct_answer = q.jawaban_benar || 'a,b,c,d';
       } else if (type === 'Isian Singkat') {
         options = [];
@@ -1684,26 +1684,42 @@ export default function BuatUjian() {
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Opsi Jawaban & Kunci</label>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         {q.options.map((opt: any) => (
-                          <div key={opt.id} className="flex items-center gap-2">
+                          <div key={opt.id} className="flex items-center gap-2 p-1 rounded-xl bg-slate-50/50 border border-slate-100">
                             <button 
                               type="button"
                               onClick={() => updateQuestion(q.id, 'correct_answer', opt.id)}
                               className={cn(
                                 "w-8 h-8 rounded-lg font-bold flex items-center justify-center border-2 transition-all text-xs shrink-0",
-                                q.correct_answer === opt.id ? "bg-emerald-500 border-emerald-500 text-white shadow-sm" : "border-slate-100 text-slate-300 hover:border-slate-200"
+                                q.correct_answer === opt.id ? "bg-emerald-500 border-emerald-500 text-white shadow-sm" : "border-slate-100 text-slate-300 hover:border-slate-200 bg-white"
                               )}
                             >
                               {opt.label}
                             </button>
                             <input 
                               type="text" placeholder={`Pilihan ${opt.label}`}
-                              className="flex-1 px-3 py-2 rounded-lg border border-slate-100 outline-none focus:border-blue-300 text-xs font-medium text-indigo-950 bg-slate-50/50"
+                              className="flex-1 px-3 py-1.5 rounded-lg border border-slate-100 outline-none focus:border-blue-300 text-xs font-medium text-indigo-950 bg-white"
                               value={opt.text}
                               onChange={(e) => {
                                 const newOptions = q.options.map((o: any) => o.id === opt.id ? { ...o, text: e.target.value } : o);
                                 updateQuestion(q.id, 'options', newOptions);
                               }}
                             />
+                            {opt.image && (
+                              <div className="relative group w-10 h-8 rounded-lg overflow-hidden border border-slate-200 shrink-0 bg-white">
+                                <img src={opt.image} alt={opt.label} className="w-full h-full object-contain" />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const newOptions = q.options.map((o: any) => o.id === opt.id ? { ...o, image: '' } : o);
+                                    updateQuestion(q.id, 'options', newOptions);
+                                  }}
+                                  className="absolute top-0.5 right-0.5 bg-rose-500 text-white rounded-full p-0.5 opacity-80 hover:opacity-100 transition-opacity"
+                                  title="Hapus gambar opsi"
+                                >
+                                  <X className="w-2 h-2" />
+                                </button>
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -1722,7 +1738,7 @@ export default function BuatUjian() {
                           const currentKeys = String(q.correct_answer || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
                           const isChecked = currentKeys.includes(opt.id);
                           return (
-                            <div key={opt.id} className="flex items-center gap-2">
+                            <div key={opt.id} className="flex items-center gap-2 p-1 rounded-xl bg-slate-50/50 border border-slate-100">
                               <button 
                                 type="button"
                                 onClick={() => {
@@ -1736,20 +1752,36 @@ export default function BuatUjian() {
                                 }}
                                 className={cn(
                                   "w-8 h-8 rounded-lg font-bold flex items-center justify-center border-2 transition-all text-xs shrink-0",
-                                  isChecked ? "bg-indigo-950 border-indigo-950 text-white shadow-sm" : "border-slate-100 text-slate-400 hover:border-slate-200"
+                                  isChecked ? "bg-indigo-950 border-indigo-950 text-white shadow-sm" : "border-slate-100 text-slate-400 hover:border-slate-200 bg-white"
                                 )}
                               >
                                 {isChecked ? '✓ ' + opt.label : opt.label}
                               </button>
                               <input 
                                 type="text" placeholder={`Pilihan ${opt.label}`}
-                                className="flex-1 px-3 py-2 rounded-lg border border-slate-100 outline-none focus:border-blue-300 text-xs font-medium text-indigo-950 bg-slate-50/50"
+                                className="flex-1 px-3 py-1.5 rounded-lg border border-slate-100 outline-none focus:border-blue-300 text-xs font-medium text-indigo-950 bg-white"
                                 value={opt.text}
                                 onChange={(e) => {
                                   const newOptions = q.options.map((o: any) => o.id === opt.id ? { ...o, text: e.target.value } : o);
                                   updateQuestion(q.id, 'options', newOptions);
                                 }}
                               />
+                              {opt.image && (
+                                <div className="relative group w-10 h-8 rounded-lg overflow-hidden border border-slate-200 shrink-0 bg-white">
+                                  <img src={opt.image} alt={opt.label} className="w-full h-full object-contain" />
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const newOptions = q.options.map((o: any) => o.id === opt.id ? { ...o, image: '' } : o);
+                                      updateQuestion(q.id, 'options', newOptions);
+                                    }}
+                                    className="absolute top-0.5 right-0.5 bg-rose-500 text-white rounded-full p-0.5 opacity-80 hover:opacity-100 transition-opacity"
+                                    title="Hapus gambar opsi"
+                                  >
+                                    <X className="w-2 h-2" />
+                                  </button>
+                                </div>
+                              )}
                             </div>
                           );
                         })}

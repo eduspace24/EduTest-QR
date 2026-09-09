@@ -1,4 +1,4 @@
-import { compressImage } from './imageCompressor';
+import { compressImage, compressDataUrl, dataUrlToFile } from './imageCompressor';
 
 const meta = import.meta as any;
 const CLOUD_NAME = meta.env?.VITE_CLOUDINARY_CLOUD_NAME || 'demo';
@@ -49,6 +49,62 @@ export async function uploadQuestionImage(file: File): Promise<{ url: string; si
   return {
     url: dataUrl,
     sizeReductionPercent
+  };
+}
+
+/**
+ * Compress a Data URL (from Word docx or canvas) and upload to Cloudinary if preset is present.
+ * If Cloudinary is not configured or fails, returns the ultra-compressed WebP data URL.
+ */
+export async function uploadOrCompressDataUrl(
+  dataUrl: string,
+  filename: string = 'image',
+  options: { maxWidth?: number; maxHeight?: number; isOption?: boolean } = {}
+): Promise<{ url: string; sizeReductionPercent: number; originalSize: number; compressedSize: number }> {
+  const defaultMax = options.isOption ? 500 : 900;
+  const maxWidth = options.maxWidth || defaultMax;
+  const maxHeight = options.maxHeight || defaultMax;
+  const quality = options.isOption ? 0.78 : 0.80;
+
+  const compressed = await compressDataUrl(dataUrl, {
+    maxWidth,
+    maxHeight,
+    quality,
+    mimeType: 'image/webp'
+  });
+
+  if (UPLOAD_PRESET && CLOUD_NAME !== 'demo') {
+    try {
+      const file = dataUrlToFile(compressed.dataUrl, `${filename}.webp`);
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('upload_preset', UPLOAD_PRESET);
+      formData.append('folder', 'nineteen_exam');
+
+      const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
+        method: 'POST',
+        body: formData
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        return {
+          url: result.secure_url || result.url,
+          sizeReductionPercent: compressed.sizeReductionPercent,
+          originalSize: compressed.originalSize,
+          compressedSize: compressed.compressedSize
+        };
+      }
+    } catch (err) {
+      console.warn('Cloudinary upload fallback to compressed Data URL:', err);
+    }
+  }
+
+  return {
+    url: compressed.dataUrl,
+    sizeReductionPercent: compressed.sizeReductionPercent,
+    originalSize: compressed.originalSize,
+    compressedSize: compressed.compressedSize
   };
 }
 
