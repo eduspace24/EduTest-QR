@@ -1,13 +1,35 @@
 import { compressImage, compressDataUrl, dataUrlToFile } from './imageCompressor';
 
 const meta = import.meta as any;
-const CLOUD_NAME = meta.env?.VITE_CLOUDINARY_CLOUD_NAME || 'demo';
-const UPLOAD_PRESET = meta.env?.VITE_CLOUDINARY_UPLOAD_PRESET || '';
+
+export function getCloudinaryConfig(): { cloudName: string; uploadPreset: string; isConfigured: boolean } {
+  const cloudName = (
+    meta.env?.VITE_CLOUDINARY_CLOUD_NAME || 
+    localStorage.getItem('edu_cloudinary_cloud_name') || 
+    ''
+  ).trim();
+  const uploadPreset = (
+    meta.env?.VITE_CLOUDINARY_UPLOAD_PRESET || 
+    localStorage.getItem('edu_cloudinary_upload_preset') || 
+    ''
+  ).trim();
+
+  return {
+    cloudName,
+    uploadPreset,
+    isConfigured: !!(cloudName && cloudName !== 'demo' && uploadPreset)
+  };
+}
+
+export function saveCloudinaryConfig(cloudName: string, uploadPreset: string): void {
+  localStorage.setItem('edu_cloudinary_cloud_name', cloudName.trim());
+  localStorage.setItem('edu_cloudinary_upload_preset', uploadPreset.trim());
+}
 
 /**
  * Upload Image with Client-Side Smart Compression
- * If Cloudinary preset is not yet configured, returns the compressed WebP Data URL directly
- * so the app continues to function seamlessly out of the box!
+ * If Cloudinary is configured (via env or localStorage), uploads to Cloudinary CDN
+ * Otherwise, falls back to compressed WebP Data URL for local/offline storage.
  */
 export async function uploadQuestionImage(file: File): Promise<{ url: string; sizeReductionPercent: number }> {
   // 1. Smart Client-Side Compression in Browser
@@ -20,15 +42,16 @@ export async function uploadQuestionImage(file: File): Promise<{ url: string; si
 
   const sizeReductionPercent = Math.max(0, Math.round(((originalSize - compressedSize) / originalSize) * 100));
 
-  // 2. If Cloudinary is configured with custom upload preset, upload directly
-  if (UPLOAD_PRESET && CLOUD_NAME !== 'demo') {
+  // 2. If Cloudinary is configured, upload directly to Cloudinary CDN
+  const { cloudName, uploadPreset, isConfigured } = getCloudinaryConfig();
+  if (isConfigured) {
     try {
       const formData = new FormData();
       formData.append('file', compressedFile);
-      formData.append('upload_preset', UPLOAD_PRESET);
+      formData.append('upload_preset', uploadPreset);
       formData.append('folder', 'nineteen_exam');
 
-      const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
+      const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
         method: 'POST',
         body: formData
       });
@@ -39,6 +62,9 @@ export async function uploadQuestionImage(file: File): Promise<{ url: string; si
           url: result.secure_url || result.url,
           sizeReductionPercent
         };
+      } else {
+        const errJson = await response.json().catch(() => ({}));
+        console.warn('Cloudinary upload response not ok:', errJson);
       }
     } catch (err) {
       console.warn('Cloudinary upload fallback to compressed Data URL:', err);
@@ -73,15 +99,16 @@ export async function uploadOrCompressDataUrl(
     mimeType: 'image/webp'
   });
 
-  if (UPLOAD_PRESET && CLOUD_NAME !== 'demo') {
+  const { cloudName, uploadPreset, isConfigured } = getCloudinaryConfig();
+  if (isConfigured) {
     try {
       const file = dataUrlToFile(compressed.dataUrl, `${filename}.webp`);
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('upload_preset', UPLOAD_PRESET);
+      formData.append('upload_preset', uploadPreset);
       formData.append('folder', 'nineteen_exam');
 
-      const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
+      const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
         method: 'POST',
         body: formData
       });
@@ -112,14 +139,15 @@ export async function uploadOrCompressDataUrl(
  * Upload Audio File for Listening Exams
  */
 export async function uploadQuestionAudio(file: File): Promise<string> {
-  if (UPLOAD_PRESET && CLOUD_NAME !== 'demo') {
+  const { cloudName, uploadPreset, isConfigured } = getCloudinaryConfig();
+  if (isConfigured) {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('upload_preset', UPLOAD_PRESET);
+      formData.append('upload_preset', uploadPreset);
       formData.append('folder', 'nineteen_exam_audio');
 
-      const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/auto/upload`, {
+      const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, {
         method: 'POST',
         body: formData
       });
