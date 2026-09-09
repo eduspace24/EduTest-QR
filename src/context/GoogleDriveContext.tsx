@@ -63,6 +63,48 @@ export const GoogleDriveProvider: React.FC<{ children: React.ReactNode }> = ({ c
         return mergedResults;
       }
 
+      if (collectionName === 'bank_soal') {
+        const localBank = (await getCollectionData('bank_soal')) || [];
+        const driveBank = (driveData?.data && Array.isArray(driveData.data)) ? driveData.data : [];
+
+        const mergedBank = [...localBank];
+        let hasNewLocal = false;
+
+        for (const dbQ of driveBank) {
+          const idx = mergedBank.findIndex((m: any) => m.id === dbQ.id || (m.text && dbQ.text && m.text.trim().toLowerCase() === dbQ.text.trim().toLowerCase()));
+          if (idx !== -1) {
+            const localCopy = mergedBank[idx];
+            mergedBank[idx] = {
+              ...dbQ,
+              ...localCopy, // Local takes precedence for images and offline edits
+              image_url: localCopy.image_url || dbQ.image_url || '',
+              option_a_image: localCopy.option_a_image || dbQ.option_a_image || '',
+              option_b_image: localCopy.option_b_image || dbQ.option_b_image || '',
+              option_c_image: localCopy.option_c_image || dbQ.option_c_image || '',
+              option_d_image: localCopy.option_d_image || dbQ.option_d_image || '',
+              option_e_image: localCopy.option_e_image || dbQ.option_e_image || ''
+            };
+          } else {
+            mergedBank.push(dbQ);
+          }
+        }
+
+        if (mergedBank.length > driveBank.length) {
+          hasNewLocal = true;
+        }
+
+        const modifiedTime = driveData?.modifiedTime || new Date().toISOString();
+        await saveCollection('bank_soal', mergedBank, modifiedTime);
+
+        if (hasNewLocal || !driveData) {
+          try {
+            await saveJsonToDrive(folderId, 'bank_soal.json', mergedBank);
+          } catch {}
+        }
+
+        return mergedBank;
+      }
+
       if (!driveData) {
         let localData = await getCollectionData(collectionName);
 

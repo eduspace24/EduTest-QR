@@ -442,13 +442,22 @@ export default function BuatUjian() {
       let correct_answer = q.jawaban_benar || 'a';
 
       if (type === 'Pilihan Ganda' || type === 'Pilihan Ganda Asosiatif (TKA)' || type === 'Hubungan Sebab Akibat (TKA)' || type === 'Pilihan Ganda Kompleks') {
-        options = [
-          { id: 'a', text: q.option_a || '', image: q.option_a_image || '', label: 'A' },
-          { id: 'b', text: q.option_b || '', image: q.option_b_image || '', label: 'B' },
-          { id: 'c', text: q.option_c || '', image: q.option_c_image || '', label: 'C' },
-          { id: 'd', text: q.option_d || '', image: q.option_d_image || '', label: 'D' },
-          { id: 'e', text: q.option_e || '', image: q.option_e_image || '', label: 'E' }
-        ];
+        if (q.options && Array.isArray(q.options) && q.options.length > 0) {
+          options = q.options.map((opt: any) => ({
+            id: opt.id || 'a',
+            label: opt.label || (opt.id ? opt.id.toUpperCase() : 'A'),
+            text: opt.text || '',
+            image: opt.image || opt.image_url || q[`option_${opt.id}_image`] || ''
+          }));
+        } else {
+          options = [
+            { id: 'a', text: q.option_a || '', image: q.option_a_image || '', label: 'A' },
+            { id: 'b', text: q.option_b || '', image: q.option_b_image || '', label: 'B' },
+            { id: 'c', text: q.option_c || '', image: q.option_c_image || '', label: 'C' },
+            { id: 'd', text: q.option_d || '', image: q.option_d_image || '', label: 'D' },
+            { id: 'e', text: q.option_e || '', image: q.option_e_image || '', label: 'E' }
+          ];
+        }
       } else if (type === 'Menjodohkan') {
         options = [
           { id: 'a', text: q.option_a || '', image: q.option_a_image || '', label: '1' },
@@ -1936,7 +1945,27 @@ export default function BuatUjian() {
                   </div>
                   <div>
                     <h3 className="text-base font-bold text-indigo-950">Pilih dari Bank Soal</h3>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{selectedBankSoal.length} terpilih</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{selectedBankSoal.length} dari {bankSoal.length} terpilih</p>
+                      {bankSoal.length > 0 && (
+                        <>
+                          <span className="text-slate-300">&bull;</span>
+                          <button 
+                            type="button" 
+                            onClick={() => {
+                              if (selectedBankSoal.length === bankSoal.length) {
+                                setSelectedBankSoal([]);
+                              } else {
+                                setSelectedBankSoal(bankSoal.map(q => q.id));
+                              }
+                            }}
+                            className="text-[10px] font-bold text-blue-600 hover:text-blue-700 hover:underline cursor-pointer"
+                          >
+                            {selectedBankSoal.length === bankSoal.length ? 'Batal Pilih Semua' : 'Pilih Semua'}
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <button onClick={() => { setShowBankModal(false); setSelectedBankSoal([]); }} className="p-2 hover:bg-slate-100 rounded-lg">
@@ -1953,29 +1982,65 @@ export default function BuatUjian() {
                     <p className="text-slate-400 text-sm font-medium">Bank soal kosong.</p>
                   </div>
                 ) : (
-                  bankSoal.map((q) => (
-                    <div 
-                      key={q.id}
-                      onClick={() => toggleBankSoal(q.id)}
-                      className={cn(
-                        "p-3 rounded-xl border-2 cursor-pointer transition-all flex items-center gap-3",
-                        selectedBankSoal.includes(q.id) 
-                          ? "border-blue-500 bg-blue-50" 
-                          : "border-slate-100 hover:border-slate-200"
-                      )}
-                    >
-                      <div className={cn(
-                        "w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0",
-                        selectedBankSoal.includes(q.id) ? "bg-blue-500 border-blue-500" : "border-slate-200"
-                      )}>
-                        {selectedBankSoal.includes(q.id) && <Check className="w-3 h-3 text-white" />}
+                  bankSoal.map((q) => {
+                    const hasQuestionImg = !!q.image_url;
+                    const hasOptionImg = !!(
+                      q.option_a_image || q.option_b_image || q.option_c_image || q.option_d_image || q.option_e_image ||
+                      (q.options && Array.isArray(q.options) && q.options.some((o: any) => o.image || o.image_url))
+                    );
+
+                    return (
+                      <div 
+                        key={q.id}
+                        onClick={() => toggleBankSoal(q.id)}
+                        className={cn(
+                          "p-3 rounded-xl border-2 cursor-pointer transition-all flex items-start gap-3",
+                          selectedBankSoal.includes(q.id) 
+                            ? "border-blue-500 bg-blue-50/70 shadow-sm" 
+                            : "border-slate-100 hover:border-slate-200 bg-white"
+                        )}
+                      >
+                        <div className={cn(
+                          "w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 mt-0.5",
+                          selectedBankSoal.includes(q.id) ? "bg-blue-500 border-blue-500 text-white" : "border-slate-200 bg-white"
+                        )}>
+                          {selectedBankSoal.includes(q.id) && <Check className="w-3 h-3 text-white" />}
+                        </div>
+
+                        {/* Thumbnail image if question has image */}
+                        {hasQuestionImg && (
+                          <div className="w-14 h-12 rounded-lg overflow-hidden border border-slate-200 shrink-0 bg-slate-50 flex items-center justify-center">
+                            <img src={q.image_url} alt="Thumbnail Soal" className="w-full h-full object-cover" />
+                          </div>
+                        )}
+
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-indigo-950 text-xs line-clamp-2 leading-relaxed">{q.text}</p>
+                          <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                            <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+                              Kelas {q.jenjang || 'X'}
+                            </span>
+                            <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+                              {q.category || 'Umum'}
+                            </span>
+                            <span className="text-[10px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
+                              {q.type}
+                            </span>
+                            {hasQuestionImg && (
+                              <span className="text-[9px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                🖼️ Ada Gambar
+                              </span>
+                            )}
+                            {hasOptionImg && (
+                              <span className="text-[9px] font-bold text-violet-700 bg-violet-100 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                📸 Opsi Bergambar
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-indigo-950 text-xs line-clamp-1">{q.text}</p>
-                        <p className="text-[10px] text-slate-400 mt-0.5">Kelas {q.jenjang || 'X'} &bull; {q.category || 'Umum'} &bull; {q.type}</p>
-                      </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
               

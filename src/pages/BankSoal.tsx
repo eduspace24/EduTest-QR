@@ -200,8 +200,23 @@ export default function BankSoal() {
         return list;
       };
 
+      // 1. Prioritize & immediately render local persistent questions from IndexedDB
+      const local = await getCollectionData('bank_soal');
+      let currentLocalList = (local || []).map((d: any) => ({
+        ...d,
+        category: normalizeCategory(d.category),
+        jenjang: normalizeJenjang(d.jenjang || d.tingkat || d.kelas)
+      }));
+
+      if (currentLocalList.length > 0) {
+        const finalized = withFolderTes(currentLocalList);
+        setQuestions(finalized);
+        setLoading(false);
+      }
+
+      // 2. Fetch remote documents and SMART-MERGE without ever wiping out local images or new local questions
       try {
-        const { databases, COLLECTIONS, APPWRITE_DATABASE_ID, Query } = await import('../lib/appwrite');
+        const { databases, APPWRITE_DATABASE_ID, Query } = await import('../lib/appwrite');
         const res = await databases.listDocuments(
           APPWRITE_DATABASE_ID,
           'bank_soal',
@@ -209,13 +224,35 @@ export default function BankSoal() {
         );
 
         if (res && res.documents && res.documents.length > 0) {
-          const mapped = res.documents.map(d => ({
+          const remoteDocs = res.documents.map(d => ({
             ...d,
             id: d.$id,
             category: normalizeCategory(d.category),
             jenjang: normalizeJenjang(d.jenjang || d.tingkat || d.kelas)
           }));
-          const finalized = withFolderTes(mapped);
+
+          // Merge: start with all local items, then update matching or add new from remote
+          const merged = [...currentLocalList];
+          for (const r of remoteDocs) {
+            const existingIdx = merged.findIndex(m => m.id === r.id || (m.text && r.text && m.text.trim().toLowerCase() === r.text.trim().toLowerCase()));
+            if (existingIdx !== -1) {
+              const localCopy = merged[existingIdx];
+              merged[existingIdx] = {
+                ...r,
+                ...localCopy, // Local takes precedence for user edits & full images
+                image_url: localCopy.image_url || r.image_url || '',
+                option_a_image: localCopy.option_a_image || r.option_a_image || '',
+                option_b_image: localCopy.option_b_image || r.option_b_image || '',
+                option_c_image: localCopy.option_c_image || r.option_c_image || '',
+                option_d_image: localCopy.option_d_image || r.option_d_image || '',
+                option_e_image: localCopy.option_e_image || r.option_e_image || ''
+              };
+            } else {
+              merged.push(r);
+            }
+          }
+
+          const finalized = withFolderTes(merged);
           setQuestions(finalized);
           await saveCollection('bank_soal', finalized);
           setLoading(false);
@@ -225,19 +262,8 @@ export default function BankSoal() {
         console.warn('Appwrite bank_soal fetch notice:', err);
       }
 
-      // Fallback 1: Local IndexedDB / LocalStorage
-      const local = await getCollectionData('bank_soal');
-      if (local && local.length > 0) {
-        const mapped = local.map((d: any) => ({
-          ...d,
-          category: normalizeCategory(d.category),
-          jenjang: normalizeJenjang(d.jenjang || d.tingkat || d.kelas)
-        }));
-        const finalized = withFolderTes(mapped);
-        setQuestions(finalized);
-        await saveCollection('bank_soal', finalized);
-      } else {
-        // Fallback 2: Default seed questions from /seed_bank_soal.json
+      // If local had no questions yet, load seed questions
+      if (currentLocalList.length === 0) {
         try {
           const res = await fetch('/seed_bank_soal.json');
           if (res.ok) {
@@ -337,6 +363,11 @@ export default function BankSoal() {
       const { databases, APPWRITE_DATABASE_ID, ID } = await import('../lib/appwrite');
       for (const q of normalized) {
         const docId = q.id ? String(q.id).replace(/[^a-zA-Z0-9_]/g, '_').substring(0, 36) : ID.unique();
+        // Appwrite image_url is limited to 1000 chars. External HTTPS URLs fit easily;
+        // large Base64 Data URLs are preserved safely in local IndexedDB.
+        const isShortUrl = q.image_url && q.image_url.length < 950 && (q.image_url.startsWith('http://') || q.image_url.startsWith('https://'));
+        const safeImageUrl = isShortUrl ? q.image_url : '';
+
         const payload: any = {
           text: (q.text || '').substring(0, 1990),
           type: q.type || 'Pilihan Ganda',
@@ -349,7 +380,7 @@ export default function BankSoal() {
           option_e: (q.option_e || '').substring(0, 490),
           jawaban_benar: q.jawaban_benar || 'a',
           pembahasan: (q.pembahasan || '').substring(0, 1490),
-          image_url: q.image_url || ''
+          image_url: safeImageUrl
         };
         try {
           await databases.updateDocument(APPWRITE_DATABASE_ID, 'bank_soal', docId, payload);
